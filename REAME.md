@@ -1,6 +1,6 @@
 # Đồ Án Chuyên Ngành đề tài Nền tảng Thương mại Điện tử Đa kênh (Headless E-commerce)
 
 # Công Nghệ Sử Dụng
-## - Frontend: Angular
+## - Frontend: NextJS (React Framework) - TailwindCSS
 ## - Backend: Java Spring Boot 
-## - Database: MariaDB
+## - Database: MySQL
