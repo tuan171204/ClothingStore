@@ -9,7 +9,11 @@
 
 ## Test Frontend
 > cd frontend
+
 > npm install
+
 > npm run dev
+
 Trang chủ: localhost:3000 mặc định
+
 Admin: localhost:3000/admin/dashboard
