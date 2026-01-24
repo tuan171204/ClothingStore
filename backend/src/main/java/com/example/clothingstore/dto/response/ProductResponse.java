@@ -17,6 +17,7 @@ public class ProductResponse {
     private BigDecimal basePrice;
     private String brandName;
     private String categoryName;
+    private String thumbnail;
 
     // List các Option để hiển thị (VD: Màu sắc: [Đỏ, Xanh], Size: [M, L])
     private List<ProductOptionDTO> options;

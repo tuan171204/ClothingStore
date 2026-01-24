@@ -18,3 +18,8 @@ spring:
 
 api:
   prefix: /api/v1
+
+cloudinary:
+  cloud-name: dwmx6maoh  # <--- Thay bằng Cloud Name
+  api-key: 756646862728993           # <--- Thay bằng API Key
+  api-secret: wxw0Ok73O7aoUYP2KuTmipYPZHo     # <--- Thay bằng API Secret

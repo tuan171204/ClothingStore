@@ -41,6 +41,8 @@ public class Product {
     @JoinColumn(name = "brand_id")
     private Brand brand;
 
+    private String thumbnail;
+
     // Một sản phẩm có nhiều Option (Màu sắc, Kích thước)
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
