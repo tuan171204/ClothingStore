@@ -35,7 +35,8 @@ public class SecurityConfig {
                     // Đây là nơi chứa API lấy danh sách sp, chi tiết sp mà khách không cần login cũng xem được
                     .requestMatchers(
                             String.format("%s/products/**", apiPrefix), // /api/v1/products/**
-                            String.format("%s/products/upload-image", apiPrefix) // Cấp quyền cụ thể cho upload
+                            String.format("%s/products/upload-image", apiPrefix), // Cấp quyền cụ thể cho upload
+                            String.format("%s/payment/**", apiPrefix)
                     )
                     .permitAll()
                     // Các request khác (sau này làm Admin) thì mới cần xác thực
