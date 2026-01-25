@@ -18,3 +18,8 @@ spring:
 
 api:
   prefix: /api/v1
+
+cloudinary:
+  cloud-name:  # <--- Thay bằng Cloud Name
+  api-key:      # <--- Thay bằng API Key
+  api-secret:    # <--- Thay bằng API Secret
