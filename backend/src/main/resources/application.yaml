@@ -6,6 +6,8 @@ spring:
     username: root          # <--- Sửa user
     password: Tuan171204@     # <--- Sửa pass
     driver-class-name: com.mysql.cj.jdbc.Driver
+  config:
+    import: optional:classpath:application-secret.yaml
 
   jpa:
     hibernate:
@@ -19,15 +21,9 @@ spring:
 api:
   prefix: /api/v1
 
-cloudinary:
-  cloud-name: ${CLOUDINARY_NAME}  # <--- Thay bằng Cloud Name
-  api-key: ${CLOUDINARY_API_KEY}      # <--- Thay bằng API Key
-  api-secret: ${CLOUDINARY_SECRET}   # <--- Thay bằng API Secret
 
 # Cấu hình VNPay
 payment:
   vnpay:
     url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-    tmn-code: ${VNPAY_TMN_CODE}
-    hash-secret: ${VNPAY_HASH_SECRET}  # <--- Paste vnp_HashSecret vào đây
     return-url: "http://localhost:3000/payment-result" # Frontend nhận kết quả ở đây
