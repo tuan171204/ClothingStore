@@ -4,7 +4,6 @@ import com.example.clothingstore.dto.response.ProductResponse;
 import com.example.clothingstore.service.CloudinaryService;
 import com.example.clothingstore.service.ProductService;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

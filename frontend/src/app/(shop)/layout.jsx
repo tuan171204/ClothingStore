@@ -1,5 +1,4 @@
 import React from 'react';
-import { CartProvider } from "@/context/CartContext";
 import Header from '@/components/shop/Header';
 import Footer from "@/components/shop/Footer"
 
@@ -14,20 +13,19 @@ export default function ShopLayout({ children }) {
         <html lang="vi">
             <body className="flex flex-col min-h-screen font-sans text-gray-800 bg-gray-50">
                 {/* Provider bao bọc tất cả */}
-                <CartProvider>
 
-                    {/* Header đã tách riêng */}
-                    <Header />
 
-                    {/* Nội dung chính */}
-                    <main className="flex-1">
-                        {children}
-                    </main>
+                {/* Header đã tách riêng */}
+                <Header />
 
-                    {/* Footer đã tách riêng */}
-                    <Footer />
+                {/* Nội dung chính */}
+                <main className="flex-1">
+                    {children}
+                </main>
 
-                </CartProvider>
+                {/* Footer đã tách riêng */}
+                <Footer />
+
             </body>
         </html>
     );

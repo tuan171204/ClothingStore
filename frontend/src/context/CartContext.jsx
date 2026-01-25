@@ -87,6 +87,12 @@ export const CartProvider = ({ children }) => {
     );
   };
 
+  // Xóa giỏ hàng sau khi thanh toán thành công
+  const clearCart = () => {
+    setCartItems([]); // Xóa sạch state
+    localStorage.removeItem("cartItems"); // Xóa luôn trong storage cho chắc
+  };
+
   // 6. Tính tổng tiền tạm tính
   const cartTotal = cartItems.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -102,6 +108,7 @@ export const CartProvider = ({ children }) => {
         addToCart,
         removeFromCart,
         updateQuantity,
+        clearCart,
         cartTotal,
         cartCount,
       }}

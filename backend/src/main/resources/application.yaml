@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:classpath:application-secret.yaml
   application:
     name: clothingstore
   datasource:
@@ -6,9 +8,6 @@ spring:
     username: root          # <--- Sửa user
     password: Tuan171204@     # <--- Sửa pass
     driver-class-name: com.mysql.cj.jdbc.Driver
-  config:
-    import: optional:classpath:application-secret.yaml
-
   jpa:
     hibernate:
       ddl-auto: update      # Tự động sinh/sửa bảng khi chạy code

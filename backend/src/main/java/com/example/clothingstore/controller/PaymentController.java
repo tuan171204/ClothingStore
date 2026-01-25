@@ -1,8 +1,10 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dto.payment.VnPayResponse;
 import com.example.clothingstore.service.VnPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,5 +28,16 @@ public class PaymentController {
 
         String paymentUrl = vnPayService.createPaymentUrl(request, amount, null);
         return ResponseEntity.ok(paymentUrl);
+    }
+
+    // API Xử lý Callback từ VNPay
+    @GetMapping("/vn-pay-callback")
+    public ResponseEntity<VnPayResponse> payCallbackHandler(HttpServletRequest request) {
+        String status = request.getParameter("vnp_ResponseCode");
+        if (status.equals("00")) {
+            return ResponseEntity.ok(vnPayService.handleVnPayCallback(request));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
     }
 }

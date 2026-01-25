@@ -1,6 +1,7 @@
 package com.example.clothingstore.service;
 
 import com.example.clothingstore.config.VnPayConfig;
+import com.example.clothingstore.dto.payment.VnPayResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -94,5 +95,85 @@ public class VnPayService {
 
         // SỬA LỖI: Chỉ giữ lại 1 dòng return đúng cú pháp
         return vnPayConfig.getVnp_PayUrl() + "?" + queryUrl;
+    }
+
+
+    public VnPayResponse handleVnPayCallback(HttpServletRequest request) {
+        try {
+            Map fields = new HashMap();
+            for (Enumeration params = request.getParameterNames(); params.hasMoreElements(); ) {
+                String fieldName = (String) params.nextElement();
+                String fieldValue = request.getParameter(fieldName);
+                if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                    fields.put(fieldName, fieldValue);
+                }
+            }
+
+            String vnp_SecureHash = request.getParameter("vnp_SecureHash");
+
+            // Xóa 2 tham số hash này đi để tính toán lại checksum (vì lúc gửi đi không có chúng)
+            if (fields.containsKey("vnp_SecureHashType")) {
+                fields.remove("vnp_SecureHashType");
+            }
+            if (fields.containsKey("vnp_SecureHash")) {
+                fields.remove("vnp_SecureHash");
+            }
+
+            // Sắp xếp tham số a-z (Bắt buộc theo chuẩn VNPay)
+            List fieldNames = new ArrayList(fields.keySet());
+            Collections.sort(fieldNames);
+
+            StringBuilder hashData = new StringBuilder();
+            Iterator itr = fieldNames.iterator();
+            while (itr.hasNext()) {
+                String fieldName = (String) itr.next();
+                String fieldValue = (String) fields.get(fieldName);
+                if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                    // Build hash data
+                    hashData.append(fieldName);
+                    hashData.append('=');
+                    hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    if (itr.hasNext()) {
+                        hashData.append('&');
+                    }
+                }
+            }
+
+            // Tính lại chữ ký dựa trên secret key của mình
+            String signValue = vnPayConfig.hmacSHA512(hashData.toString());
+
+            // 1. So sánh chữ ký của mình tính ra vs chữ ký VNPay gửi về
+            if (signValue.equals(vnp_SecureHash)) {
+                // Chữ ký khớp -> Dữ liệu toàn vẹn
+
+                // 2. Kiểm tra trạng thái giao dịch (00 là thành công)
+                if ("00".equals(request.getParameter("vnp_ResponseCode"))) {
+                    return VnPayResponse.builder()
+                            .code("00")
+                            .message("Giao dịch thành công")
+                            .paymentUrl("")
+                            .build();
+                } else {
+                    return VnPayResponse.builder()
+                            .code("02")
+                            .message("Giao dịch thất bại") // Ví dụ: Khách hủy, hết tiền...
+                            .paymentUrl("")
+                            .build();
+                }
+            } else {
+                // Chữ ký không khớp -> Có thể bị hacker sửa đổi URL
+                return VnPayResponse.builder()
+                        .code("97")
+                        .message("Chữ ký không hợp lệ (Checksum failed)")
+                        .paymentUrl("")
+                        .build();
+            }
+        } catch (Exception e) {
+            return VnPayResponse.builder()
+                    .code("99")
+                    .message("Lỗi không xác định: " + e.getMessage())
+                    .paymentUrl("")
+                    .build();
+        }
     }
 }
