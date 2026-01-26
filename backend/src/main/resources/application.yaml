@@ -26,3 +26,7 @@ payment:
   vnpay:
     url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
     return-url: "http://localhost:3000/payment-result" # Frontend nhận kết quả ở đây
+
+shipping:
+  ghn:
+    url: "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee" # URL tính phí
