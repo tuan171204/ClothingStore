@@ -34,16 +34,21 @@ export const CartProvider = ({ children }) => {
       if (existingItemIndex > -1) {
         // Nếu có rồi -> Tăng số lượng
         const newItems = [...prevItems];
-        const currentItem = newItems[existingItemIndex];
-        const newQuantity = currentItem.quantity + quantity;
 
-        // Kiểm tra tồn kho
+        const updatedItem = { ...newItems[existingItemIndex] };
+
+        const newQuantity = updatedItem.quantity + quantity;
+
+        // Validate tồn kho
         if (newQuantity > sku.stockQuantity) {
           alert(`Chỉ còn ${sku.stockQuantity} sản phẩm trong kho!`);
-          return prevItems; // Không thay đổi gì
+          return prevItems; // Trả về mảng cũ, không thay đổi
         }
 
-        newItems[existingItemIndex].quantity = newQuantity;
+        updatedItem.quantity = newQuantity;
+
+        newItems[existingItemIndex] = updatedItem;
+
         return newItems;
       } else {
         // Nếu chưa có -> Thêm mới

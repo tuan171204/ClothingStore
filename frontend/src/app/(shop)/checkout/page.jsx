@@ -10,12 +10,21 @@ import {
     getWards
 } from '@/services/shippingService';
 import { createPaymentUrl } from '@/services/paymentService'; // Service VNPay cũ
+import { createOrder } from '@/services/orderService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function CheckoutPage() {
     const { cartItems, cartTotal, clearCart } = useCart();
     const router = useRouter();
+
+    // --- Thông tin người mua ---
+    const [formData, setFormData] = useState({
+        fullName: '',
+        phone: '',
+        email: '',
+        specificAddress: '' // Số nhà, tên đường
+    });
 
     // --- State cho Địa chỉ ---
     const [provinces, setProvinces] = useState([]);
@@ -93,31 +102,81 @@ export default function CheckoutPage() {
         }
     };
 
+    // --- HANDLE: Nhập liệu Form ---
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
     // 5. Xử lý Đặt hàng
     const handlePlaceOrder = async () => {
-        // Validate chọn địa chỉ
-        if (!selectedProvince || !selectedDistrict || !selectedWard) {
-            alert("Vui lòng chọn đầy đủ địa chỉ giao hàng!");
+        // 5.1. Validate form
+        if (!formData.fullName || !formData.phone || !formData.specificAddress ||
+            !selectedProvince || !selectedDistrict || !selectedWard) {
+            alert("Vui lòng điền đầy đủ thông tin giao hàng!");
             return;
         }
+
+        setLoadingFee(true);
 
         if (cartItems.length === 0) {
             alert("Giỏ hàng trống!");
             return;
         }
 
-        if (paymentMethod === 'VNPAY') {
-            try {
-                const paymentUrl = await createPaymentUrl(finalTotal);
+        // 5.2. Ghép chuỗi địa chỉ đầy đủ
+        const provinceName = findName(provinces, 'ProvinceID', selectedProvince, 'ProvinceName');
+        const districtName = findName(districts, 'DistrictID', selectedDistrict, 'DistrictName');
+        const wardName = findName(wards, 'WardCode', selectedWard, 'WardName');
+        const fullAddress = `${formData.specificAddress}, ${wardName}, ${districtName}, ${provinceName}`;
+
+        // 5.3. Chuẩn bị dữ liệu OrderDTO
+        const orderData = {
+            fullName: formData.fullName,
+            phoneNumber: formData.phone,
+            address: fullAddress,
+            // note: email, // Tạm lưu email vào note hoặc thêm field email ở BE sau
+            shippingFee: shippingFee,
+            paymentMethod: paymentMethod, // 'COD' hoặc 'VNPAY'
+            items: cartItems.map(item => ({
+                skuId: item.skuId,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price
+            }))
+        };
+
+
+        // --- XỬ LÝ PHƯƠNG THỨC THANH TOÁN ---
+        try {
+            // 1. Tạo đơn hàng trước (Luôn luôn tạo, dù là COD hay VNPay)
+            // Gọi API tạo đơn hàng mà chúng ta đã làm ở bài trước (OrderService.createOrder)
+            const newOrder = await createOrder(orderData);
+
+            if (paymentMethod === 'VNPAY') {
+                // 2. Nếu là VNPay -> Lấy ID đơn hàng vừa tạo để xin link thanh toán
+                const paymentUrl = await createPaymentUrl(newOrder.totalAmount, newOrder.id);
+                // Redirect
                 window.location.href = paymentUrl;
-            } catch (error) {
-                alert("Lỗi tạo thanh toán VNPay");
+            } else {
+                // 3. Nếu là COD -> Xong luôn
+                alert("Đặt hàng thành công!");
+                clearCart();
+                router.push('/order-success');
             }
-        } else {
-            alert(`Đặt hàng COD thành công! Phí ship: ${formatCurrency(shippingFee)}`);
-            clearCart();
-            router.push('/');
+
+        } catch (error) {
+            console.error(error);
+            alert("Lỗi đặt hàng: " + (error.response?.data || error.message));
+        } finally {
+            setLoadingFee(false);
         }
+    };
+
+    // Helper: Hàm tìm tên từ ID (Để ghép thành địa chỉ full: "Số 1, Phường A, Quận B...")
+    const findName = (list, idKey, idVal, nameKey) => {
+        const found = list.find(item => item[idKey] == idVal);
+        return found ? found[nameKey] : '';
     };
 
 
@@ -143,10 +202,38 @@ export default function CheckoutPage() {
                     <div className="bg-white p-6 rounded-lg shadow-sm">
                         <h3 className="text-lg font-bold mb-4 text-gray-800">Thông tin giao hàng</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input type="text" placeholder="Họ và tên" className="border p-3 rounded w-full" />
-                            <input type="text" placeholder="Số điện thoại" className="border p-3 rounded w-full" />
-                            <input type="email" placeholder="Email" className="border p-3 rounded w-full md:col-span-2" />
-                            <input type="text" placeholder="Địa chỉ cụ thể (Số nhà, đường...)" className="border p-3 rounded w-full md:col-span-2" />
+                            <input
+                                type="text"
+                                name="fullName"
+                                placeholder="Họ và tên"
+                                value={formData.fullName}
+                                onChange={handleInputChange}
+                                className="border p-3 rounded w-full focus:outline-blue-500"
+                            />
+                            <input
+                                type="text"
+                                name="phone"
+                                placeholder="Số điện thoại"
+                                value={formData.phone}
+                                onChange={handleInputChange}
+                                className="border p-3 rounded w-full focus:outline-blue-500"
+                            />
+                            {/* <input
+                                type="email"
+                                name="email"
+                                placeholder="Email"
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                className="border p-3 rounded w-full focus:outline-blue-500 md:col-span-2"
+                            /> */}
+                            <input
+                                type="text"
+                                name="specificAddress"
+                                placeholder="Địa chỉ (Số nhà, đường...)"
+                                value={formData.specificAddress}
+                                onChange={handleInputChange}
+                                className="border p-3 rounded w-full focus:outline-blue-500 md:col-span-2"
+                            />
 
                             {/* --- 3 DROPDOWN ĐỊA CHỈ (DYNAMIC) --- */}
 

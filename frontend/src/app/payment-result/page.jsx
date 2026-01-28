@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { verifyPayment } from '@/services/paymentService';
+import { createOrder } from '@/services/orderService';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext'; // Import để xóa giỏ hàng
 
@@ -12,58 +13,69 @@ const PaymentResultContent = () => {
     const router = useRouter();
     const { clearCart } = useCart(); // Hàm xóa giỏ hàng từ Context (nếu có)
 
-    const [status, setStatus] = useState({ loading: true, success: false, message: '' });
+    const [status, setStatus] = useState({ loading: true, success: false, message: 'Đang xử lý...' });
 
     useEffect(() => {
-        const verifyOrder = async () => {
-            // Kiểm tra xem có tham số VNPay trả về không
+        const processPayment = async () => {
+            // Check tham số URL
             if (!searchParams.get('vnp_ResponseCode')) {
-                setStatus({ loading: false, success: false, message: 'Thông tin thanh toán không hợp lệ.' });
+                setStatus({ loading: false, success: false, message: 'Thông tin không hợp lệ.' });
                 return;
             }
 
             try {
-                // 1. Convert URL params thành object
+                // 1. Convert URL params & Verify
                 const params = {};
-                searchParams.forEach((value, key) => {
-                    params[key] = value;
-                });
-
-                // 2. Gọi Backend xác thực
+                searchParams.forEach((value, key) => params[key] = value);
                 const res = await verifyPayment(params);
 
-                // 3. Kiểm tra code trả về từ Backend (00 là thành công)
+                // 2. Nếu thanh toán thành công (Code 00)
                 if (res.code === '00') {
-                    setStatus({ loading: false, success: true, message: 'Giao dịch thành công!' });
 
-                    // Xóa giỏ hàng local nếu chưa có hàm clearCart
-                    if (typeof window !== 'undefined') {
-                        localStorage.removeItem('cartItems'); // Tùy key bạn lưu là gì
-                        // Dispatch event để update UI giỏ hàng
-                        window.dispatchEvent(new Event("storage"));
+                    // --- LOGIC MỚI: TẠO ĐƠN HÀNG ---
+                    const pendingOrderStr = localStorage.getItem("PENDING_ORDER");
+
+                    if (pendingOrderStr) {
+                        const orderData = JSON.parse(pendingOrderStr);
+
+                        // Gọi API lưu đơn xuống Database
+                        await createOrder(orderData);
+
+                        // Dọn dẹp
+                        localStorage.removeItem("PENDING_ORDER");
+                        clearCart();
+
+                        setStatus({
+                            loading: false,
+                            success: true,
+                            message: 'Thanh toán và Tạo đơn hàng thành công!'
+                        });
+                    } else {
+                        // Trường hợp hiếm: Mất localStorage (đổi thiết bị, ẩn danh...)
+                        setStatus({
+                            loading: false,
+                            success: true,
+                            message: 'Thanh toán thành công, nhưng không tìm thấy thông tin đơn hàng tạm (Vui lòng liên hệ Admin).'
+                        });
                     }
-                    if (clearCart) clearCart();
 
                 } else {
-                    setStatus({ loading: false, success: false, message: res.message || 'Giao dịch thất bại.' });
+                    // Thanh toán thất bại/hủy
+                    setStatus({ loading: false, success: false, message: 'Giao dịch thất bại hoặc đã bị hủy.' });
                 }
-
             } catch (error) {
-                setStatus({
-                    loading: false,
-                    success: false,
-                    message: error.response?.data?.message || 'Có lỗi xảy ra khi xác thực.'
-                });
+                console.error(error);
+                setStatus({ loading: false, success: false, message: 'Có lỗi xảy ra khi xử lý.' });
             }
         };
 
-        verifyOrder();
-    }, [searchParams]);
+        processPayment();
+    }, []);
 
     // GIAO DIỆN
     if (status.loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[400px]">
+            <div className="flex flex-col items-center justify-center min-h-100]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
                 <h2 className="text-xl font-semibold text-gray-700">Đang xác thực giao dịch...</h2>
                 <p className="text-gray-500">Vui lòng không tắt trình duyệt</p>

@@ -192,7 +192,7 @@ const ProductDetail = ({ product }) => {
                         <button
                             onClick={handleAddToCart}
                             disabled={isOutOfStock}
-                            className={`flex-1 flex items-center justify-center gap-2 h-14 rounded-xl font-bold text-white text-lg transition-all
+                            className={`flex-1 flex items-center justify-center gap-2 h-14 rounded-xl font-bold text-white text-lg transition-all cursor-pointer
                                 ${isOutOfStock
                                     ? 'bg-gray-300 cursor-not-allowed'
                                     : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-[0.98]'

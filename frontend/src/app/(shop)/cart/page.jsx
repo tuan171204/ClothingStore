@@ -180,15 +180,19 @@ export default function CartPage() {
                             <span className="font-bold text-2xl text-red-600">{formatCurrency(cartTotal)}</span>
                         </div>
 
-                        <Link href="/checkout">
-                            <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200 cursor-pointer">
-                                Tiến hành Thanh toán <ArrowRight size={20} />
-                            </button>
+                        <Link
+                            href="/checkout"
+                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
+                        >
+                            Tiến hành Thanh toán <ArrowRight size={20} />
                         </Link>
 
                         <div className="mt-4 text-center">
-                            <Link href="/" className="text-sm text-blue-500 hover:underline">
-                                Quay lại mua thêm
+                            <Link
+                                href="/"
+                                className="w-full bg-white text-blue-600 py-3 rounded-lg font-bold hover:underline transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
+                            >
+                                Quay lại mua sắm <ArrowRight size={20} />
                             </Link>
                         </div>
                     </div>

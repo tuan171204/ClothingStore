@@ -1,7 +1,7 @@
 package com.example.clothingstore.controller;
 
 import com.example.clothingstore.dto.response.ProductResponse;
-import com.example.clothingstore.service.CloudinaryService;
+import com.example.clothingstore.service.cloudinary.CloudinaryService;
 import com.example.clothingstore.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;

@@ -18,7 +18,7 @@ public class VnPayService {
 
     private final VnPayConfig vnPayConfig;
 
-    public String createPaymentUrl(HttpServletRequest request, long amount, String bankCode) throws UnsupportedEncodingException {
+    public String createPaymentUrl(HttpServletRequest request, long amount, String bankCode, Long orderId) throws UnsupportedEncodingException {
         String vnp_Version = "2.1.0";
         String vnp_Command = "pay";
         String orderType = "other";
@@ -26,7 +26,7 @@ public class VnPayService {
         long amountVal = amount * 100;
 
         // Các hàm tiện ích này là static nên giữ nguyên cách gọi VnPayConfig...
-        String vnp_TxnRef = VnPayConfig.getRandomNumber(8);
+        String vnp_TxnRef = String.valueOf(orderId);
         String vnp_IpAddr = VnPayConfig.getIpAddress(request);
 
         // SỬA LỖI Ở ĐÂY: Dùng biến vnPayConfig (chữ thường) để gọi Getter

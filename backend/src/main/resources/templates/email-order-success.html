@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>Xác nhận đơn hàng</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .header { background: #007bff; color: white; padding: 10px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        .total { color: red; font-weight: bold; text-align: right; margin-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h2>Cảm ơn bạn đã đặt hàng!</h2>
+</div>
+
+<p>Xin chào <b th:text="${order.fullName}">Khách hàng</b>,</p>
+<p>Đơn hàng <b>#<span th:text="${order.id}">000</span></b> đã được xác nhận.</p>
+
+<h3>Chi tiết:</h3>
+<table>
+    <thead>
+    <tr>
+        <th>Sản phẩm</th> <th>SL</th> <th>Giá</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="item : ${order.orderItems}">
+        <td th:text="${item.productName}">Tên SP</td>
+        <td th:text="${item.quantity}">1</td>
+        <td th:text="${item.priceAtPurchase}">100000</td>
+    </tr>
+    </tbody>
+</table>
+
+<div class="total">
+    Tổng tiền: <span th:text="${order.totalAmount}">0</span> đ
+</div>
+
+<hr />
+<p>Cảm ơn bạn đã ủng hộ shop!</p>
+</body>
+</html>
