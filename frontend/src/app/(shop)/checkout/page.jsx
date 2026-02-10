@@ -135,6 +135,9 @@ export default function CheckoutPage() {
             fullName: formData.fullName,
             phoneNumber: formData.phone,
             address: fullAddress,
+            toProvinceId: Number(selectedProvince),
+            toDistrictId: Number(selectedDistrict),
+            toWardCode: String(selectedWard),
             // note: email, // Tạm lưu email vào note hoặc thêm field email ở BE sau
             shippingFee: shippingFee,
             paymentMethod: paymentMethod, // 'COD' hoặc 'VNPAY'

@@ -1,11 +1,13 @@
 package com.example.clothingstore.service;
 
 import com.example.clothingstore.dto.OrderDTO;
+import com.example.clothingstore.dto.response.OrderResponse;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.OrderItem;
 import com.example.clothingstore.entity.OrderStatus;
 import com.example.clothingstore.entity.Sku;
 import com.example.clothingstore.mapper.OrderMapper;
+import com.example.clothingstore.mapper.OrderResponseMapper;
 import com.example.clothingstore.repository.OrderItemRepository;
 import com.example.clothingstore.repository.OrderRepository;
 import com.example.clothingstore.repository.SkuRepository;
@@ -17,17 +19,43 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderService {
 
+    private final GhnService ghnService;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final SkuRepository skuRepository;
     private final OrderMapper orderMapper;
+    private final OrderResponseMapper orderResponseMapper;
     private final OrderProducer orderProducer;
 
+    /**
+     * LẤY TOÀN BỘ ĐƠN HÀNG
+     */
+    public List<OrderResponse> getAllOrders() {
+        List<Order> orders = orderRepository.findAllByOrderByCreatedAtDesc();
+        return orders.stream()
+                .map(orderResponseMapper::toOrderResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * LẤY ĐƠN HÀNG CỤ THỂ
+     */
+    public OrderResponse getOrderById(Long id) {
+        Order order = orderRepository.findByIdWithItems(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng ID: " + id));
+
+        return orderResponseMapper.toOrderResponse(order);
+    }
+
+    /**
+     * TẠO ĐƠN HÀNG
+     */
     @Transactional
     public Order createOrder(OrderDTO orderDTO){
         // 1. Khởi tạo đơn hàng
@@ -91,6 +119,9 @@ public class OrderService {
         return savedOrder;
     }
 
+    /**
+     * CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
+     */
     public void updateOrderStatus(Long orderId, OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng ID: " + orderId));
@@ -101,5 +132,41 @@ public class OrderService {
         if (status == OrderStatus.CONFIRMED) {
             orderProducer.sendOrderConfirmation(updatedOrder.getId());
         }
+    }
+
+    /**
+     * HÀM DUYỆT ĐƠN HÀNG VÀ GỬI SANG GHN
+     */
+    @Transactional
+    public Order confirmAndShipOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+
+        // Chỉ duyệt đơn đang PENDING hoặc đã thanh toán (CONFIRMED)
+        if (order.getStatus() == OrderStatus.SHIPPING || order.getStatus() == OrderStatus.COMPLETED) {
+            throw new RuntimeException("Đơn hàng này đang giao hoặc đã xong rồi!");
+        }
+
+        // 1. Gọi GHN tạo vận đơn
+        // Lưu ý: districtId và wardCode nên được lưu trong Order lúc tạo đơn để chính xác.
+        // Ở đây mình tạm hardcode hoặc giả định bạn parse từ address string (nhưng tốt nhất là lưu ID lúc tạo)
+        // Ví dụ tạm: 1454 (Quận 7), 20308 (Phường Tân Hưng) -> Cần lấy từ Frontend gửi xuống lúc tạo đơn
+        int districtId = 1454; // TODO: Lấy từ order.getDistrictId()
+        String wardCode = "20308"; // TODO: Lấy từ order.getWardCode()
+
+        String trackingCode = ghnService.createShippingOrder(order);
+
+        // 2. Cập nhật thông tin
+        order.setTrackingCode(trackingCode);
+        order.setStatus(OrderStatus.SHIPPING);
+
+        // 3. Lưu xuống DB
+        Order savedOrder = orderRepository.save(order);
+
+        // 4. Gửi mail thông báo cho khách (Bắn message RabbitMQ)
+        // Bạn có thể update OrderMessage để chứa thêm "type" (Vd: TYPE_SHIPPING)
+        orderProducer.sendOrderConfirmation(savedOrder.getId());
+
+        return savedOrder;
     }
 }

@@ -11,7 +11,7 @@ import { useCart } from '@/context/CartContext'; // Import để xóa giỏ hàn
 const PaymentResultContent = () => {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { clearCart } = useCart(); // Hàm xóa giỏ hàng từ Context (nếu có)
+    const { clearCart } = useCart(); // Hàm xóa giỏ hàng từ Context
 
     const [status, setStatus] = useState({ loading: true, success: false, message: 'Đang xử lý...' });
 

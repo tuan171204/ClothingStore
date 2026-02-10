@@ -7,8 +7,18 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @Getter
 public class GhnConfig {
-    @Value("${shipping.ghn.url}")
-    private String ghnUrl;
+    @Value("${shipping.ghn.fee-url}")
+    private String ghnFeeUrl;
+
+    private final String ghnCreateOrderUrl = "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create";
+
+    private final String ghnAddressUrl = "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data";
+
+    private final String ghnProvinceUrl = ghnAddressUrl + "/province";
+
+    private final String ghnDistrictUrl = ghnAddressUrl + "/district";
+
+    private final String ghnWardUrl = ghnAddressUrl + "/ward";
 
     @Value("${shipping.ghn.api-key}")
     private String ghnToken;

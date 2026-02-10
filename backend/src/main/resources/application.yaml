@@ -47,4 +47,5 @@ payment:
 
 shipping:
   ghn:
-    url: "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee" # URL tính phí
+    fee-url: "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee" # URL tính phí
+    address-url: "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data"

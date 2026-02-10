@@ -9,6 +9,9 @@ public class OrderDTO {
     private String fullName;
     private String phoneNumber;
     private String address; // Địa chỉ full
+    private Integer toProvinceId;
+    private Integer toDistrictId;
+    private String toWardCode;
     private String note;
 
     private BigDecimal shippingFee;

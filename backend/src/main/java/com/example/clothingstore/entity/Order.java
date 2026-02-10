@@ -30,6 +30,16 @@ public class Order {
 
     @Column(name = "shipping_address")
     private String shippingAddress;
+
+    // Thông tin địa chỉ theo format GHN
+    @Column(name = "to_province_id")
+    private Integer toProvinceId;
+
+    @Column(name = "to_district_id")
+    private Integer toDistrictId;
+
+    @Column(name = "to_ward_code")
+    private String toWardCode;
     // -------------------------------------------------------------
 
     @Column(name = "subtotal")
@@ -55,6 +65,9 @@ public class Order {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "tracking_code")
+    private String trackingCode; // Lưu mã vận đơn GHN (VD: LE812345)
 
     // Quan hệ 1-N với OrderItems
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
