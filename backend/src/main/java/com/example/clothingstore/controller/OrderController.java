@@ -3,7 +3,7 @@ package com.example.clothingstore.controller;
 import com.example.clothingstore.dto.OrderDTO;
 import com.example.clothingstore.dto.response.OrderResponse;
 import com.example.clothingstore.entity.Order;
-import com.example.clothingstore.service.OrderService;
+import com.example.clothingstore.service.impl.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

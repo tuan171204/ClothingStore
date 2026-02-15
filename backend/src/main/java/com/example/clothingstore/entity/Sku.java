@@ -26,6 +26,8 @@ public class Sku {
 
     private BigDecimal price; // giá bán riêng của biến thể này
 
+    private BigDecimal importPrice; // giá nhập
+
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
 

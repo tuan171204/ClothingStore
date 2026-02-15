@@ -26,6 +26,12 @@ export default function AdminLayout({ children }) {
                                 🛒 Quản lý Đơn hàng
                             </Link>
                         </li>
+                        <li>
+                            <Link href="/admin/categories" className="block px-6 py-3 hover:bg-gray-800">📂 Danh mục</Link>
+                        </li>
+                        <li>
+                            <Link href="/admin/brands" className="block px-6 py-3 hover:bg-gray-800">🏷️ Thương hiệu</Link>
+                        </li>
                     </ul>
                 </nav>
             </aside>

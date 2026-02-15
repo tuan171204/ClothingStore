@@ -1,4 +1,4 @@
-package com.example.clothingstore.service;
+package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.repository.address.DistrictRepository;
 import com.example.clothingstore.repository.address.ProvinceRepository;

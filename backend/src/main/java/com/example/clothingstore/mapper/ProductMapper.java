@@ -4,14 +4,13 @@ import com.example.clothingstore.dto.ProductOptionDTO;
 import com.example.clothingstore.dto.ProductOptionValueDTO;
 import com.example.clothingstore.dto.SkuDTO;
 import com.example.clothingstore.dto.response.ProductResponse;
-import com.example.clothingstore.entity.Product;
-import com.example.clothingstore.entity.ProductOption;
-import com.example.clothingstore.entity.ProductOptionValue;
-import com.example.clothingstore.entity.Sku;
+import com.example.clothingstore.entity.*;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
@@ -21,7 +20,7 @@ public interface ProductMapper {
     @Mapping(source = "brand.name", target = "brandName")
     @Mapping(source = "category.name", target = "categoryName")
     @Mapping(source = "options", target = "options") // MapStruct tự hiểu map List -> List
-    @Mapping(source = "skus", target = "skus")
+    @Mapping(source = "skus", target = "skus", qualifiedByName = "mapAndSortSkus")
     ProductResponse toProductResponse(Product product);
 
     // 2. Map Option & OptionValue
@@ -43,5 +42,35 @@ public interface ProductMapper {
         return sku.getValues().stream()
                 .map(v -> v.getOptionValue().getValue())
                 .collect(Collectors.joining(" - "));
+    }
+
+    // --- Hàm vừa map vừa sort ---
+    @Named("mapAndSortSkus")
+    default List<SkuDTO> mapAndSortSkus(List<Sku> skus) {
+        if (skus == null) return null;
+
+        return skus.stream()
+                .map(this::toSkuDTO) // Map từng thằng Sku -> SkuDTO
+                // Sort theo importPrice (xử lý null an toàn: nullsLast)
+                .sorted(Comparator.comparing(SkuDTO::getImportPrice, Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+    }
+
+    default List<ProductOptionValueDTO> mapSkuValuesToOptionValueDTOs(List<SkuValue> skuValues) {
+        if (skuValues == null) return null;
+
+        return skuValues.stream()
+                .map(sv -> {
+                    ProductOptionValueDTO dto = new ProductOptionValueDTO();
+                    // Map ID và Value
+                    dto.setId(sv.getOptionValue().getId());
+                    dto.setValue(sv.getOptionValue().getValue());
+
+                    if (sv.getOptionValue().getProductOption() != null) {
+                        dto.setOptionName(sv.getOptionValue().getProductOption().getName());
+                    }
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

@@ -1,5 +1,6 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dto.request.ProductRequest;
 import com.example.clothingstore.dto.response.ProductResponse;
 import com.example.clothingstore.service.cloudinary.CloudinaryService;
 import com.example.clothingstore.service.ProductService;
@@ -42,6 +43,28 @@ public class ProductController {
         return ResponseEntity.ok(productService.getSkuIdByOptions(productId, optionValueIds));
     }
 
+    // 4. API Tạo sản phẩm (FULL Options + SKU)
+    // POST http://localhost:8080/api/v1/products
+    @PostMapping
+    public ResponseEntity<ProductResponse> createProduct(@RequestBody ProductRequest request) {
+        return ResponseEntity.ok(productService.createProduct(request));
+    }
+
+    // 5. API Cập nhật sản phẩm
+    // PUT http://localhost:8080/api/v1/products/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductResponse> updateProduct(@PathVariable Long id, @RequestBody ProductRequest request) {
+        return ResponseEntity.ok(productService.updateProduct(id, request));
+    }
+
+    // 6. API Xóa sản phẩm
+    // DELETE http://localhost:8080/api/v1/products/{id}
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // API Upload ảnh test thử
     // POST http://localhost:8080/api/v1/products/upload-image
     @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -53,4 +76,6 @@ public class ProductController {
             return ResponseEntity.badRequest().body("Lỗi upload ảnh: " + e.getMessage());
         }
     }
+
+
 }

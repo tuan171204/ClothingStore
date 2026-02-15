@@ -1,5 +1,6 @@
 package com.example.clothingstore.service;
 
+import com.example.clothingstore.dto.request.ProductRequest;
 import com.example.clothingstore.dto.response.ProductResponse;
 
 import java.util.List;
@@ -14,4 +15,9 @@ public interface ProductService {
     // Tìm SKU cụ thể khi khách chọn (VD: Chọn Màu Đỏ + Size M -> Trả về SKU nào?)
     // Input: productId và danh sách các valueId (id của màu Đỏ, id của size M)
     Long getSkuIdByOptions(Long productId, List<Long> selectedValueIds);
+
+    // CRUD
+    ProductResponse createProduct(ProductRequest request);
+    ProductResponse updateProduct(Long id, ProductRequest request);
+    void deleteProduct(Long id);
 }

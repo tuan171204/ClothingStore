@@ -1,4 +1,4 @@
-package com.example.clothingstore.entity;
+package com.example.clothingstore.entity.ENUM;
 
 public enum OrderStatus {
     PENDING,    // Chờ xử lý (Mới đặt)

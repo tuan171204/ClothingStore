@@ -2,7 +2,7 @@ package com.example.clothingstore.mapper;
 
 import com.example.clothingstore.dto.OrderDTO;
 import com.example.clothingstore.entity.Order;
-import com.example.clothingstore.entity.OrderStatus;
+import com.example.clothingstore.entity.ENUM.OrderStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

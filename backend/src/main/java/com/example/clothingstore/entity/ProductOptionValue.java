@@ -19,4 +19,5 @@ public class ProductOptionValue {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "option_id")
     private ProductOption productOption;
+
 }

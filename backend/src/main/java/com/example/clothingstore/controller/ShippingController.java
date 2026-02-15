@@ -1,6 +1,6 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.service.GhnService;
+import com.example.clothingstore.service.impl.GhnService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

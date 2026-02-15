@@ -1,9 +1,9 @@
 package com.example.clothingstore.controller;
 
 import com.example.clothingstore.dto.payment.VnPayResponse;
-import com.example.clothingstore.entity.OrderStatus;
-import com.example.clothingstore.service.OrderService;
-import com.example.clothingstore.service.VnPayService;
+import com.example.clothingstore.entity.ENUM.OrderStatus;
+import com.example.clothingstore.service.impl.OrderService;
+import com.example.clothingstore.service.impl.VnPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

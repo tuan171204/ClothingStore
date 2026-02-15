@@ -1,9 +1,8 @@
 package com.example.clothingstore.controller;
 
 import com.example.clothingstore.entity.Order;
-import com.example.clothingstore.entity.OrderStatus;
+import com.example.clothingstore.entity.ENUM.OrderStatus;
 import com.example.clothingstore.repository.OrderRepository;
-import com.example.clothingstore.service.mail.MailService; // Hoặc Producer nếu muốn gửi mail
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -1,5 +1,6 @@
 package com.example.clothingstore.entity;
 
+import com.example.clothingstore.entity.ENUM.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
