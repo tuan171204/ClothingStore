@@ -5,6 +5,7 @@ import com.example.clothingstore.entity.Brand;
 import com.example.clothingstore.repository.BrandRepository;
 import com.example.clothingstore.service.BrandService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class BrandServiceImpl implements BrandService {
     private final BrandRepository brandRepository;
 
     @Override
+    @Cacheable(value = "brands")
     public List<BrandResponse> getAllBrands() {
         List<Brand> brands = brandRepository.findAll();
 

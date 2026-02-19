@@ -208,7 +208,6 @@ export default function CreateProductPage() {
             await createProduct(payload);
 
             // 4. Thành công
-            alert("Thêm sản phẩm thành công !")
             toast.dismiss(loadingToast);
             toast.success("🎉 Tạo sản phẩm thành công!");
 

@@ -51,3 +51,17 @@ export const updateProduct = async (id, productData) => {
         throw error;
     }
 };
+
+/*
+* API LẤY SẢN PHẨM CÓ LỌC VÀ PHÂN TRANG
+*/
+export const getProductsWithFilter = async (params) => {
+    try {
+        // params sẽ chứa: { categoryId, brandId, minPrice, maxPrice, page, limit }
+        const response = await axios.get('/products/filter', { params });
+        return response.data;
+    } catch (error) {
+        console.error("Lỗi lấy danh sách sản phẩm lọc:", error);
+        return { products: [], totalPages: 0, totalElements: 0 };
+    }
+};

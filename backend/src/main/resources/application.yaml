@@ -11,12 +11,19 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update      # Tự động sinh/sửa bảng khi chạy code
-    show-sql: false          # Hiện câu SQL ra log để debug cho dễ
+    show-sql: true          # Hiện câu SQL ra log để debug cho dễ
     properties:
       hibernate:
         format_sql: true    # Format SQL cho đẹp
         dialect: org.hibernate.dialect.MySQL8Dialect
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  elasticsearch:
+    uris: http://localhost:9200
   # Cấu hình RabbitMQ
   rabbitmq:
     host: localhost
@@ -34,6 +41,8 @@ spring:
           auth: true
           starttls:
             enable: true
+
+
 
 api:
   prefix: /api/v1

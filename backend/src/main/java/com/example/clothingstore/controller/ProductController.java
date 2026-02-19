@@ -1,6 +1,7 @@
 package com.example.clothingstore.controller;
 
 import com.example.clothingstore.dto.request.ProductRequest;
+import com.example.clothingstore.dto.response.ProductListResponse;
 import com.example.clothingstore.dto.response.ProductResponse;
 import com.example.clothingstore.service.cloudinary.CloudinaryService;
 import com.example.clothingstore.service.ProductService;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -65,6 +67,24 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
+    // 7. Tìm kiếm lọc sản phẩm & phân trang
+    // GET http://localhost:8080/api/v1/products/filter?categoryId=1&minPrice=100000&page=0&limit=12
+    @GetMapping("/filter")
+    public ResponseEntity<ProductListResponse> getProductsWithFilter(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "0") int page, // Mặc định là trang 0 (trang đầu tiên)
+            @RequestParam(defaultValue = "8") int limit // Mặc định hiển thị 8 SP / trang
+    ) {
+        ProductListResponse response = productService.getProductsWithFilter(
+                keyword, categoryId, brandId, minPrice, maxPrice, page, limit
+        );
+        return ResponseEntity.ok(response);
+    }
+
     // API Upload ảnh test thử
     // POST http://localhost:8080/api/v1/products/upload-image
     @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -76,6 +96,4 @@ public class ProductController {
             return ResponseEntity.badRequest().body("Lỗi upload ảnh: " + e.getMessage());
         }
     }
-
-
 }

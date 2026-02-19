@@ -2,12 +2,13 @@ package com.example.clothingstore.repository;
 
 import com.example.clothingstore.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
     // 1. Lấy danh sách sản phẩm theo Category (VD: Lấy tất cả Áo Thun)
     List<Product> findByCategoryId(Long categoryId);

@@ -1,8 +1,10 @@
 package com.example.clothingstore.service;
 
 import com.example.clothingstore.dto.request.ProductRequest;
+import com.example.clothingstore.dto.response.ProductListResponse;
 import com.example.clothingstore.dto.response.ProductResponse;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface ProductService {
@@ -20,4 +22,10 @@ public interface ProductService {
     ProductResponse createProduct(ProductRequest request);
     ProductResponse updateProduct(Long id, ProductRequest request);
     void deleteProduct(Long id);
+
+    ProductListResponse getProductsWithFilter(String keyword,
+                                              Long categoryId,
+                                              Long brandId,
+                                              BigDecimal minPrice, BigDecimal maxPrice,
+                                              int page, int limit);
 }

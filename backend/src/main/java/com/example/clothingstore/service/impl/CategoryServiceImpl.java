@@ -5,6 +5,7 @@ import com.example.clothingstore.entity.Category;
 import com.example.clothingstore.repository.CategoryRepository;
 import com.example.clothingstore.service.CategoryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
 
     @Override
+    @Cacheable(value = "categories")
     public List<CategoryResponse> getAllCategories() {
         // Lấy tất cả danh mục (phẳng) để hiển thị trong Dropdown
         List<Category> categories = categoryRepository.findAll();

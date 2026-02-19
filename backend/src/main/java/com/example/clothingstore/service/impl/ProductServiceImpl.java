@@ -1,19 +1,28 @@
 package com.example.clothingstore.service.impl;
 
+import com.example.clothingstore.document.ProductDocument;
 import com.example.clothingstore.dto.request.ProductRequest;
+import com.example.clothingstore.dto.response.ProductListResponse;
 import com.example.clothingstore.dto.response.ProductResponse;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.mapper.ProductMapper;
 import com.example.clothingstore.repository.*;
+import com.example.clothingstore.repository.search.ProductSearchRepository;
+import com.example.clothingstore.repository.specification.ProductSpecification;
 import com.example.clothingstore.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,7 +38,10 @@ public class ProductServiceImpl implements ProductService {
     private final BrandRepository brandRepository;
     private final ProductMapper productMapper;
 
+    private final ProductSearchRepository productSearchRepository;
+
     @Override
+    @Cacheable(value = "products")
     @Transactional(readOnly = true)
     public List<ProductResponse> getAllProducts(){
         return productRepository.findAll().stream()
@@ -69,6 +81,7 @@ public class ProductServiceImpl implements ProductService {
 
     // --- TẠO SẢN PHẨM ---
     @Override
+    @CacheEvict(value = "products", allEntries = true) // xóa cache Redis sau khi thêm/sửa/xóa danh sách sản phẩm
     @Transactional // Quan trọng: Để rollback nếu lưu SKU lỗi
     public ProductResponse createProduct(ProductRequest request) {
         // 1. Lưu Product (Cha)
@@ -140,10 +153,19 @@ public class ProductServiceImpl implements ProductService {
                 }
             }
         }
+
+        // Đồng bộ dữ liệu sang Elasticsearch để phục vụ tìm kiếm
+        ProductDocument productDocument = ProductDocument.builder()
+                .id(savedProduct.getId())
+                .name(savedProduct.getName())
+                .build();
+        productSearchRepository.save(productDocument);
+
         return productMapper.toProductResponse(savedProduct);
     }
 
     @Override
+    @CacheEvict(value = "products", allEntries = true) // xóa cache Redis sau khi thêm/sửa/xóa danh sách sản phẩm
     @Transactional
     public ProductResponse updateProduct(Long id, ProductRequest request) {
         // 1. Tìm sản phẩm
@@ -183,11 +205,19 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        // Trong Elasticsearch, lệnh save() có ID trùng sẽ tự động ghi đè (Cập nhật
+        ProductDocument productDocument = ProductDocument.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .build();
+        productSearchRepository.save(productDocument);
+
         // Lưu sản phẩm cha
         return productMapper.toProductResponse(productRepository.save(product));
     }
 
     @Override
+    @CacheEvict(value = "products", allEntries = true) // xóa cache Redis sau khi thêm/sửa/xóa danh sách sản phẩm
     @Transactional
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
@@ -195,5 +225,64 @@ public class ProductServiceImpl implements ProductService {
         }
 
         productRepository.deleteById(id);
+
+        // Xóa trong Elasticsearch
+        productSearchRepository.deleteById(id);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductListResponse getProductsWithFilter(String keyword, Long categoryId, Long brandId, BigDecimal minPrice, BigDecimal maxPrice, int page, int limit) {
+
+        List<Long> matchedIds = null; // Danh sách ID lấy từ ES
+
+        // 1. Nếu có từ khóa -> Gọi Elasticsearch
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            List<ProductDocument> esResults = productSearchRepository.findByNameFuzzy(keyword);
+
+            // Nếu ES không tìm thấy gì -> Trả về rỗng luôn, không cần hỏi MySQL
+            if (esResults.isEmpty()) {
+                return ProductListResponse.builder()
+                        .products(Collections.emptyList())
+                        .totalPages(0)
+                        .totalElements(0)
+                        .build();
+            }
+
+            // Rút trích danh sách ID từ kết quả của ES
+            matchedIds = esResults.stream()
+                    .map(ProductDocument::getId)
+                    .collect(Collectors.toList());
+        }
+
+        // 1. Tạo Specification (Gắn các điều kiện lọc lại với nhau)
+        Specification<Product> spec = Specification.allOf(
+                ProductSpecification.hasCategory(categoryId),
+                ProductSpecification.hasBrand(brandId),
+                ProductSpecification.priceBetween(minPrice, maxPrice),
+                // Nếu matchedIds != null tức là có dùng ES, thì thêm điều kiện WHERE id IN (...)
+                matchedIds != null ? ProductSpecification.hasIdIn(matchedIds) : null
+        );
+        // 2. Tạo đối tượng Phân trang (Lưu ý: Spring Boot tính trang đầu tiên là số 0)
+        // Mặc định sắp xếp theo sản phẩm mới nhất (ID giảm dần)
+        Pageable pageable = PageRequest.of(page, limit, Sort.by("id").descending());
+
+        // 3. Thực thi query xuống Database
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+
+        // 4. Map danh sách Entity sang DTO
+        List<ProductResponse> productResponses = productPage.getContent().stream()
+                .map(productMapper::toProductResponse)
+                .collect(Collectors.toList());
+
+        // 5. Đóng gói vào ProductListResponse
+        return ProductListResponse.builder()
+                .products(productResponses)
+                .totalPages(productPage.getTotalPages())
+                .totalElements(productPage.getTotalElements())
+                .build();
+
+    }
+
+
 }
