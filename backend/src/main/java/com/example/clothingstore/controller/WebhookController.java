@@ -1,7 +1,7 @@
 package com.example.clothingstore.controller;
 
 import com.example.clothingstore.entity.Order;
-import com.example.clothingstore.entity.ENUM.OrderStatus;
+import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.repository.OrderRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;

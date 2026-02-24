@@ -1,6 +1,6 @@
 package com.example.clothingstore.entity;
 
-import com.example.clothingstore.entity.ENUM.OrderStatus;
+import com.example.clothingstore.entity.Enum.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -20,7 +20,7 @@ public class Order {
     private Long id;
 
     @Column(name = "user_id")
-    private Long userId; // Có thể null nếu là khách vãng lai
+    private String userId; // Có thể null nếu là khách vãng lai
 
     // --- Thông tin khách hàng (Snapshot lưu tại thời điểm đặt) ---
     @Column(name = "full_name")

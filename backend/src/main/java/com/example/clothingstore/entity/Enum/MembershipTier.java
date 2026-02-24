@@ -1,4 +1,4 @@
-package com.example.clothingstore.entity.ENUM;
+package com.example.clothingstore.entity.Enum;
 
 public enum MembershipTier {
     BRONZE,

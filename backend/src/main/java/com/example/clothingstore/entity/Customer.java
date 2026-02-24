@@ -1,6 +1,6 @@
 package com.example.clothingstore.entity;
 
-import com.example.clothingstore.entity.ENUM.MembershipTier;
+import com.example.clothingstore.entity.Enum.MembershipTier;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,7 +16,7 @@ import java.time.LocalDate;
 public class Customer {
 
     @Id
-    private Long id; // ID này sẽ giống hệt User ID
+    private String id; // ID này sẽ giống hệt User ID
 
     @OneToOne
     @MapsId // Quan trọng: Copy ID từ User sang đây làm PK

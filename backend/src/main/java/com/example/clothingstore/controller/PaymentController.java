@@ -1,7 +1,7 @@
 package com.example.clothingstore.controller;
 
 import com.example.clothingstore.dto.payment.VnPayResponse;
-import com.example.clothingstore.entity.ENUM.OrderStatus;
+import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.service.impl.OrderService;
 import com.example.clothingstore.service.impl.VnPayService;
 import jakarta.servlet.http.HttpServletRequest;

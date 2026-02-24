@@ -19,4 +19,6 @@ public class Permission {
     private String name; // VD: PRODUCT_CREATE, ORDER_VIEW
 
     private String resource; // VD: Product, Order
+
+    private String method;
 }

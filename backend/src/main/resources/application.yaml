@@ -42,8 +42,6 @@ spring:
           starttls:
             enable: true
 
-
-
 api:
   prefix: /api/v1
 

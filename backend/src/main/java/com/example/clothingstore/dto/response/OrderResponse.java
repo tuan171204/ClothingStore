@@ -1,6 +1,6 @@
 package com.example.clothingstore.dto.response;
 
-import com.example.clothingstore.entity.ENUM.OrderStatus;
+import com.example.clothingstore.entity.Enum.OrderStatus;
 import lombok.Builder;
 import lombok.Data;
 
