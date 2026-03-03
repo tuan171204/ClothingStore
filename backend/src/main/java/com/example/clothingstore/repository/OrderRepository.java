@@ -15,6 +15,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Lấy danh sách sắp xếp theo ngày tạo (Mới nhất lên đầu)
     List<Order> findAllByOrderByCreatedAtDesc();
 
+    List<Order> findByUserId(String userId);
+
     // Lấy chi tiết đơn hàng + Load luôn OrderItems (Tránh lỗi Lazy Loading)
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.id = :id")
     Optional<Order> findByIdWithItems(@Param("id") Long id);

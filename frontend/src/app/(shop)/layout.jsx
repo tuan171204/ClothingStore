@@ -2,31 +2,26 @@ import React from 'react';
 import Header from '@/components/shop/Header';
 import Footer from "@/components/shop/Footer"
 
-
 export const metadata = {
-    title: "ClothStore.vn - Thời trang sinh viên",
-    description: "Dự án quần áo thời trang",
+    title: "ClothStore.vn - Thời trang phong cách",
+    description: "Khám phá phong cách thời trang của riêng bạn.",
 };
 
 export default function ShopLayout({ children }) {
     return (
-        <html lang="vi">
-            <body className="flex flex-col min-h-screen font-sans text-gray-800 bg-gray-50">
-                {/* Provider bao bọc tất cả */}
+        <div className="flex flex-col min-h-screen relative w-full overflow-x-hidden">
+            {/* Thanh điều hướng */}
+            <Header />
 
+            {/* Bỏ class bg-gray-50 ở đây để page.jsx tự quyết định màu nền từng khu vực */}
+            <main className="grow w-full">
+                {children}
+            </main>
 
-                {/* Header đã tách riêng */}
-                <Header />
-
-                {/* Nội dung chính */}
-                <main className="flex-1">
-                    {children}
-                </main>
-
-                {/* Footer đã tách riêng */}
+            {/* Bọc Footer trong 1 thẻ div có ID để thực hiện chức năng scroll */}
+            <div id="footer">
                 <Footer />
-
-            </body>
-        </html>
+            </div>
+        </div>
     );
 }

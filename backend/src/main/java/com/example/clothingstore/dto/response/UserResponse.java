@@ -18,7 +18,9 @@ public class UserResponse {
     String phoneNumber;
     String email;
     LocalDate dob;
+    String avatar;
     LocalDate createdAt;
     LocalDate updatedAt;
     Boolean active;
+    RoleResponse role;
 }

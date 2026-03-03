@@ -1,9 +1,12 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.request.*;
+import com.example.clothingstore.dto.auth.request.AuthenticationRequest;
+import com.example.clothingstore.dto.auth.request.IntrospectRequest;
+import com.example.clothingstore.dto.auth.request.LogoutRequest;
+import com.example.clothingstore.dto.auth.request.RefreshTokenRequest;
 import com.example.clothingstore.dto.response.ApiResponse;
-import com.example.clothingstore.dto.response.AuthenticationResponse;
-import com.example.clothingstore.dto.response.IntrospectResponse;
+import com.example.clothingstore.dto.auth.response.AuthenticationResponse;
+import com.example.clothingstore.dto.auth.response.IntrospectResponse;
 import com.example.clothingstore.service.impl.AuthenticationService;
 import com.nimbusds.jose.JOSEException;
 import lombok.AccessLevel;

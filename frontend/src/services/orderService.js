@@ -59,3 +59,16 @@ export const getOrders = async () => {
         throw error;
     }
 };
+
+/**
+ * 5. LẤY LỊCH SỬ ĐƠN HÀNG CỦA MỘT USER
+ */
+export const getOrdersByUser = async (userId) => {
+    try {
+        const response = await axios.get(`${API_URL}/users/${userId}`);
+        return response.data;
+    } catch (error) {
+        console.error("❌ Lỗi lấy lịch sử đơn hàng:", error);
+        return [];
+    }
+};

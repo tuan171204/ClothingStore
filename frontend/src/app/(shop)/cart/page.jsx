@@ -43,14 +43,14 @@ export default function CartPage() {
 
     if (cartItems.length === 0) {
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center bg-gray-50">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
                 {/* Bạn nhớ copy file empty-cart.png vào thư mục public nhé, hoặc dùng ảnh placeholder */}
                 <div className="w-48 h-48 bg-gray-200 rounded-full flex items-center justify-center mb-6">
                     <span className="text-4xl">🛒</span>
                 </div>
                 <h2 className="text-xl font-bold text-gray-600 mb-4">Giỏ hàng của bạn đang trống</h2>
                 <Link href="/">
-                    <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <button className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-blue-700 transition">
                         Tiếp tục mua sắm
                     </button>
                 </Link>
@@ -59,7 +59,7 @@ export default function CartPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen mt-20">
             <h1 className="text-2xl font-bold mb-6 text-gray-800">Giỏ hàng ({cartItems.length} sản phẩm)</h1>
 
             <div className="flex flex-col lg:flex-row gap-8">
@@ -180,24 +180,26 @@ export default function CartPage() {
                             <span className="font-bold text-2xl text-red-600">{formatCurrency(cartTotal)}</span>
                         </div>
 
+                        {/* NÚT THANH TOÁN */}
                         <Link
                             href="/checkout"
-                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
+                            className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-lg text-white bg-linear-to-r from-blue-500 via-blue-700 to-gray-900 bg-size-[300%_auto] bg-position-[0%_center] hover:bg-position-[100%_center] transition-all duration-700 shadow-md hover:shadow-lg cursor-pointer"
                         >
-                            Tiến hành Thanh toán <ArrowRight size={20} />
+                            Tiến hành Thanh toán <ArrowRight size={22} />
                         </Link>
 
+                        {/* NÚT QUAY LẠI MUA SẮM */}
                         <div className="mt-4 text-center">
                             <Link
                                 href="/"
-                                className="w-full bg-white text-blue-600 py-3 rounded-lg font-bold hover:underline transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
+                                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-gray-700 bg-linear-to-r from-white via-gray-700 to-black bg-[length:300%_auto] bg-[0%_center] hover:bg-[100%_center] hover:text-white transition-all duration-700 border border-gray-200 hover:border-transparent shadow-sm cursor-pointer"
                             >
-                                Quay lại mua sắm <ArrowRight size={20} />
+                                Quay lại mua sắm <ArrowRight size={18} />
                             </Link>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

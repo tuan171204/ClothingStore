@@ -1,7 +1,7 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.config.GhnConfig;
-import com.example.clothingstore.dto.request.GHNCreateOrderRequest;
+import com.example.clothingstore.dto.shipping.request.GHNCreateOrderRequest;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.OrderItem;
 import com.fasterxml.jackson.databind.JsonNode;

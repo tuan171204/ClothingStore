@@ -17,5 +17,6 @@ public class UserUpdateRequest {
     String phoneNumber;
     String email;
     LocalDate dob;
+    String avatar;
     Boolean active;
 }

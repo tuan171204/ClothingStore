@@ -128,7 +128,7 @@ const AdminOrderPage = () => {
                                             {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
                                                 <button
                                                     onClick={() => handleShipOrder(order.id)}
-                                                    className="inline-flex items-center px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded shadow-sm transition"
+                                                    className="cursor-pointer inline-flex items-center px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded shadow-sm transition"
                                                 >
                                                     <Truck size={14} className="mr-1" />
                                                     Duyệt & Giao GHN

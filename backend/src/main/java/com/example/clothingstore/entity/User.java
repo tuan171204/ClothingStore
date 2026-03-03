@@ -39,6 +39,9 @@ public class User {
     @Column(nullable = false)
     private LocalDate dob;
 
+    @Column(nullable = true)
+    private String avatar;
+
     // Trạng thái tài khoản
     @Column(nullable = false)
     private boolean active = true;

@@ -1,4 +1,4 @@
-package com.example.clothingstore.dto.response;
+package com.example.clothingstore.dto.auth.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

@@ -1,11 +1,11 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.request.AuthenticationRequest;
-import com.example.clothingstore.dto.request.IntrospectRequest;
-import com.example.clothingstore.dto.request.LogoutRequest;
-import com.example.clothingstore.dto.request.RefreshTokenRequest;
-import com.example.clothingstore.dto.response.AuthenticationResponse;
-import com.example.clothingstore.dto.response.IntrospectResponse;
+import com.example.clothingstore.dto.auth.request.AuthenticationRequest;
+import com.example.clothingstore.dto.auth.request.IntrospectRequest;
+import com.example.clothingstore.dto.auth.request.LogoutRequest;
+import com.example.clothingstore.dto.auth.request.RefreshTokenRequest;
+import com.example.clothingstore.dto.auth.response.AuthenticationResponse;
+import com.example.clothingstore.dto.auth.response.IntrospectResponse;
 import com.example.clothingstore.entity.User;
 import com.example.clothingstore.entity.auth.InvalidatedToken;
 import com.example.clothingstore.repository.UserRepository;
@@ -75,13 +75,16 @@ public class AuthenticationService {
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
         if (!authenticated)
-            throw new RuntimeException("Unauthenticated");
+            throw new RuntimeException("User not existed !");
 
         var token = generateToken(user);
+
+        String roleName = user.getRole() != null ? user.getRole().getName() : "";
 
         return AuthenticationResponse.builder()
                 .token(token)
                 .isAuthenticated(true)
+                .role(roleName)
                 .build();
     }
 
@@ -133,7 +136,7 @@ public class AuthenticationService {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS256);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername().toString()) // đại diện cho user đăng nhập
+                .subject(user.getUsername()) // đại diện cho user đăng nhập
                 .issuer("tuanthai.com") // xác định token issue từ ai ( thường là chính trang web )
                 .issueTime(new Date())
                 .expirationTime(new Date(Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()

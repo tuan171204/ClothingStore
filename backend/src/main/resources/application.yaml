@@ -11,7 +11,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update      # Tự động sinh/sửa bảng khi chạy code
-    show-sql: true          # Hiện câu SQL ra log để debug cho dễ
+    show-sql: false          # Hiện câu SQL ra log để debug cho dễ
     properties:
       hibernate:
         format_sql: true    # Format SQL cho đẹp

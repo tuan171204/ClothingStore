@@ -4,13 +4,17 @@ import com.example.clothingstore.dto.response.ApiResponse;
 import com.example.clothingstore.dto.request.UserCreationRequest;
 import com.example.clothingstore.dto.request.UserUpdateRequest;
 import com.example.clothingstore.dto.response.UserResponse;
+import com.example.clothingstore.service.cloudinary.CloudinaryService;
 import com.example.clothingstore.service.impl.UserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -22,6 +26,7 @@ import java.util.List;
 public class UserController {
     @Autowired
     private UserService userService;
+    private CloudinaryService cloudinaryService;
 
     @PostMapping("/registration")
     ApiResponse<UserResponse> createUser(@RequestBody UserCreationRequest request) {
@@ -63,6 +68,17 @@ public class UserController {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.getMyInfo())
                 .build();
+    }
+
+    // API Upload Avatar
+    @PostMapping(value = "/upload-avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> uploadAvatar(@RequestParam("file") MultipartFile file){
+        try {
+            String imageUrl = cloudinaryService.uploadImage(file);
+            return ResponseEntity.ok(imageUrl);
+        } catch (java.io.IOException e) {
+            return ResponseEntity.badRequest().body("Lỗi upload ảnh: " + e.getMessage());
+        }
     }
 }
 

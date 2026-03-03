@@ -1,4 +1,4 @@
-package com.example.clothingstore.dto.response;
+package com.example.clothingstore.dto.auth.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -11,4 +11,5 @@ import lombok.experimental.FieldDefaults;
 public class AuthenticationResponse {
     String token;
     boolean isAuthenticated;
+    String role;
 }

@@ -29,6 +29,12 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrderById(id));
     }
 
+    // GET: http://localhost:8080/api/v1/orders/users/{userId}
+    @GetMapping("/users/{userId}")
+    public ResponseEntity<List<OrderResponse>> getOrderByUserId(@PathVariable String userId) {
+        return ResponseEntity.ok(orderService.getOrderByUserId(userId));
+    }
+
     // POST: http://localhost:8080/api/v1/orders
     @PostMapping
     public ResponseEntity<Order> createOrder(@RequestBody OrderDTO orderDTO){
@@ -42,6 +48,4 @@ public class OrderController {
         // Sau này thêm @PreAuthorize("hasRole('ADMIN')")
         return ResponseEntity.ok(orderService.confirmAndShipOrder(id));
     }
-
-
 }

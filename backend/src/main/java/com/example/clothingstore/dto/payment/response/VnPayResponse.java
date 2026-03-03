@@ -1,4 +1,4 @@
-package com.example.clothingstore.dto.payment;
+package com.example.clothingstore.dto.payment.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,4 +1,4 @@
-package com.example.clothingstore.dto.request;
+package com.example.clothingstore.dto.shipping.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;

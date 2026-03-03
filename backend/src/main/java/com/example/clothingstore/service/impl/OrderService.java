@@ -6,13 +6,16 @@ import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.OrderItem;
 import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.entity.Sku;
+import com.example.clothingstore.entity.User;
 import com.example.clothingstore.mapper.OrderMapper;
 import com.example.clothingstore.mapper.OrderResponseMapper;
 import com.example.clothingstore.repository.OrderItemRepository;
 import com.example.clothingstore.repository.OrderRepository;
 import com.example.clothingstore.repository.SkuRepository;
+import com.example.clothingstore.repository.UserRepository;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,7 @@ public class OrderService {
     private final GhnService ghnService;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final UserRepository userRepository;
     private final SkuRepository skuRepository;
     private final OrderMapper orderMapper;
     private final OrderResponseMapper orderResponseMapper;
@@ -54,12 +58,32 @@ public class OrderService {
     }
 
     /**
+     * LẤY TẤT CẢ ĐƠN HÀNG CỦA 1 KHÁCH CỤ THỂ
+     */
+    public List<OrderResponse> getOrderByUserId(String userId) {
+        List<Order> orders = orderRepository.findByUserId(userId);
+
+        return orders.stream()
+                .map(orderResponseMapper::toOrderResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * TẠO ĐƠN HÀNG
      */
     @Transactional
     public Order createOrder(OrderDTO orderDTO){
         // 1. Khởi tạo đơn hàng
         Order order = orderMapper.toOrder(orderDTO);
+
+        // Lấy thông tin người dùng hiện tại
+        var context = SecurityContextHolder.getContext();
+        String userName = context.getAuthentication().getName();
+        User user = userRepository.findByUsername(userName).orElseThrow(
+                () -> new RuntimeException("User not found !")
+        );
+
+        order.setUserId(user.getId());
 
         // 2. Tính toán tổng tiền hàng (Subtotal) từ danh sách items và trừ tồn kho
         BigDecimal subtotal = BigDecimal.ZERO;
