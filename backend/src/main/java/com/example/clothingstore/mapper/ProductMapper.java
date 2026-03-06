@@ -30,7 +30,15 @@ public interface ProductMapper {
 
     // 3. Map SKU (Có xử lý logic tạo tên SKU)
     @Mapping(source = "sku", target = "skuName", qualifiedByName = "generateSkuName")
+    @Mapping(source = "values", target = "optionValues") // values (Entity Sku) -> optionValues (SkuDTO)
+    @Mapping(source = "code", target = "code")
     SkuDTO toSkuDTO(Sku sku);
+
+    @Mapping(source = "optionValue.id", target = "id")
+    @Mapping(source = "optionValue.value", target = "value")
+    @Mapping(source = "optionValue.productOption.name", target = "optionName")
+    @Mapping(source = "optionValue.isActive", target = "isActive")
+    ProductOptionValueDTO mapSkuValueToOptionValueDTO(SkuValue skuValue);
 
     // Logic custom để tạo tên SKU (VD: "Đỏ - M")
     // MapStruct cho phép viết hàm Java default ngay trong Interface

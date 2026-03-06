@@ -39,6 +39,7 @@ public class ProductRequest {
         private Integer stockQuantity;
         // Để biết SKU này thuộc màu gì, size gì
         private List<SkuOptionValueRequest> optionValues;
+        private String imgUrl;
     }
 
     @Data

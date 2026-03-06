@@ -1,9 +1,7 @@
 package com.example.clothingstore.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -12,14 +10,17 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class SkuDTO {
-    private Long id;
-    private String code;
-    private BigDecimal price;
-    private BigDecimal importPrice;
-    private Integer stockQuantity;
+    Long id;
+    String code;
+    BigDecimal price;
+    BigDecimal importPrice;
+    Integer stockQuantity;
     // Tên hiển thị gợi ý (VD: Màu Đỏ - Size M)
-    private String skuName;
+    String skuName;
+    Boolean isActive;
+    String imgUrl;
 
-    private List<ProductOptionValueDTO> optionValues;
+    List<ProductOptionValueDTO> optionValues;
 }

@@ -1,46 +1,56 @@
 import React from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/services/productService";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingBag } from "lucide-react"; // Dùng túi xách (ShoppingBag) sang hơn xe đẩy (ShoppingCart)
 
 const ProductCard = ({ product }) => {
     return (
-        <div className="group bg-white rounded-lg border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col">
-            {/* 1. Phần Ảnh (Placeholder trước vì chưa có ảnh thật) */}
-            <div className="relative h-64 bg-gray-100 w-full overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                    {/* Sau này thay bằng thẻ <img src={product.image} /> */}
-                    <img src={product.thumbnail} />
+        <div className="group flex flex-col bg-white">
+
+            {/* 1. Phần Ảnh (Khung vuông vức, tỷ lệ 3:4) */}
+            <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden w-full mb-4">
+                <Link href={`/products/${product.id}`}>
+                    <img
+                        src={product.thumbnail || 'https://via.placeholder.com/400x533?text=No+Image'}
+                        alt={product.name}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                    />
+                </Link>
+
+                {/* Badge (Nhãn) góc trái - Tone đen trắng mạnh mẽ */}
+                <div className="absolute top-3 left-3 flex flex-col gap-2">
+                    {/* Giả sử bạn có cờ isNew hoặc giảm giá, render ra đây */}
+                    <span className="bg-black text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest">
+                        NEW
+                    </span>
                 </div>
 
-                {/* Badge giảm giá (Ví dụ) */}
-                <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                    HOT
-                </span>
+                {/* Nút Quick Add ẩn đi, chỉ hiện khi Hover chuột vào ảnh */}
+                <div className="absolute bottom-0 left-0 w-full p-8 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                    <Link href={`/products/${product.id}`} className="w-full bg-white text-black py-3 text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors flex justify-center items-center gap-2 shadow-lg cursor-pointer border border-gray-100">
+                        <ShoppingBag size={18} /> Xem Chi Tiết
+                    </Link>
+                </div>
             </div>
 
-            {/* 2. Phần Thông tin */}
-            <div className="p-4 flex flex-col flex-1">
-                <div className="text-xs text-gray-500 mb-1">{product.brandName}</div>
+            {/* 2. Phần Thông tin (Căn giữa, Monochrome) */}
+            <div className="flex flex-col text-center px-2">
+                {/* Brand Name */}
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">
+                    {product.brand?.name || 'Local Brand'}
+                </span>
 
+                {/* Product Name */}
                 <Link href={`/products/${product.id}`}>
-                    <h3 className="text-gray-800 font-medium text-lg truncate group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-sm font-bold text-gray-900 mb-2 hover:underline underline-offset-4 transition-all line-clamp-2 uppercase tracking-wide">
                         {product.name}
                     </h3>
                 </Link>
 
-                {/* Hiển thị danh mục */}
-                <p className="text-sm text-gray-400 mb-3">{product.categoryName}</p>
-
-                <div className="mt-auto flex items-center justify-between">
-                    <span className="text-lg font-bold text-red-600">
-                        {formatCurrency(product.basePrice)}
-                    </span>
-
-                    <button className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors">
-                        <ShoppingCart size={18} />
-                    </button>
-                </div>
+                {/* Price */}
+                <span className="text-sm font-medium text-gray-900">
+                    {formatCurrency(product.basePrice)}
+                </span>
             </div>
         </div>
     );

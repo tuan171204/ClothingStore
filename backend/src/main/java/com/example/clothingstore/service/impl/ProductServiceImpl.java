@@ -198,6 +198,7 @@ public class ProductServiceImpl implements ProductService {
                         existingSku.setPrice(skuReq.getPrice());
                         existingSku.setImportPrice(skuReq.getImportPrice());
                         existingSku.setStockQuantity(skuReq.getStockQuantity());
+                        existingSku.setImgUrl(skuReq.getImgUrl());
 
                         skuRepository.save(existingSku);
                     }

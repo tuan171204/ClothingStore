@@ -13,4 +13,5 @@ public class ProductOptionValueDTO {
     private Long id;
     private String value; // Giá trị (Đỏ)
     private String optionName;
+    private Boolean isActive;
 }

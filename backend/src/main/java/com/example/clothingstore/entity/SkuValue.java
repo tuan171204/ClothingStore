@@ -18,6 +18,10 @@ public class SkuValue {
     @JoinColumn(name = "sku_id")
     private Sku sku;
 
+    @Column(columnDefinition = "boolean default true")
+    @Builder.Default
+    private Boolean isActive = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "option_value_id")
     private ProductOptionValue optionValue;

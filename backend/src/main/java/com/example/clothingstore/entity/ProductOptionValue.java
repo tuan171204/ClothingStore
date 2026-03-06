@@ -16,6 +16,10 @@ public class ProductOptionValue {
     @Column(nullable = false)
     private String value; // VD: "Red", "XL"
 
+    @Column(columnDefinition = "boolean default true")
+    @Builder.Default
+    private Boolean isActive = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "option_id")
     private ProductOption productOption;

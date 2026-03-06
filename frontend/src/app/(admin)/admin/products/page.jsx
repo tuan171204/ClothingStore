@@ -50,34 +50,34 @@ export default function AdminProductPage() {
                 <table className="w-full border-collapse font-sans text-center">
                     <thead className="bg-gray-50 text-gray-600 text-md uppercase">
                         <tr>
-                            <th className="p-4 border-b">ID</th>
-                            <th className="p-4 border-b">Ảnh</th>
-                            <th className="p-4 border-b">Tên sản phẩm</th>
-                            <th className="p-4 border-b">Danh mục</th>
-                            <th className="p-4 border-b">Thương hiệu</th>
-                            <th className="p-4 border-b">Giá gốc</th>
-                            <th className="p-4 border-b">Hành động</th>
+                            <th className="p-4">ID</th>
+                            <th className="p-4">Ảnh</th>
+                            <th className="p-4">Tên sản phẩm</th>
+                            <th className="p-4">Danh mục</th>
+                            <th className="p-4">Thương hiệu</th>
+                            <th className="p-4">Giá gốc</th>
+                            <th className="p-4">Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
                         {products.map(product => (
                             <tr key={product.id} className="hover:bg-gray-50">
-                                <td className="p-2 border-b text-gray-500">#{product.id}</td>
-                                <td className="p-2 border-b flex justify-center">
+                                <td className="p-2 text-gray-500">#{product.id}</td>
+                                <td className="p-2 flex justify-center">
                                     <img src={product.thumbnail || '/placeholder.jpg'} alt="" className="w-[125] h-[100] object-cover rounded border" />
                                 </td>
-                                <td className="p-2 border-b font-medium">{product.name}</td>
-                                <td className="p-2 border-b">{product.categoryName}</td>
-                                <td className="p-2 border-b">{product.brandName}</td>
-                                <td className="p-2 border-b text-blue-600">
+                                <td className="p-2 font-medium">{product.name}</td>
+                                <td className="p-2">{product.categoryName}</td>
+                                <td className="p-2">{product.brandName}</td>
+                                <td className="p-2 text-blue-600">
                                     {formatCurrency(product.basePrice)}
                                 </td>
-                                <td className="p-2 border-b">
+                                <td className="p-2">
                                     <div className="flex gap-3 justify-center">
                                         {/* Nút Xem chi tiết (Mở tab mới sang trang Shop) */}
                                         <Link
                                             href={`/admin/products/${product.id}`} // Trỏ về trang Admin Detail mới
-                                            className="text-white bg-green-600 hover:bg-green-800 cursor-pointer p-4 rounded-lg transition-colors"
+                                            className="text-white bg-green-600 hover:bg-green-800 cursor-pointer p-4 rounded- transition-colors"
                                             title="Xem chi tiết quản trị"
                                         >
                                             <Eye size={18} />
@@ -86,7 +86,7 @@ export default function AdminProductPage() {
                                         {/* Nút Sửa (Chuyển sang trang Edit Admin - Sẽ làm sau) */}
                                         <Link
                                             href={`/admin/products/edit/${product.id}`}
-                                            className="text-black bg-amber-400 hover:bg-amber-600 cursor-pointer p-4 rounded-lg transition-colors"
+                                            className="text-black bg-amber-400 hover:bg-amber-600 cursor-pointer p-4 rounded- transition-colors"
                                             title="Sửa sản phẩm"
                                         >
                                             <Edit size={18} />
@@ -95,7 +95,7 @@ export default function AdminProductPage() {
                                         {/* Nút Xóa */}
                                         <button
                                             onClick={() => handleDelete(product.id)}
-                                            className="text-white bg-red-600 hover:bg-red-800 cursor-pointer p-4 rounded-lg transition-colors"
+                                            className="text-white bg-red-600 hover:bg-red-800 cursor-pointer p-4 rounded- transition-colors"
                                             title="Xóa sản phẩm"
                                         >
                                             <Trash2 size={18} />

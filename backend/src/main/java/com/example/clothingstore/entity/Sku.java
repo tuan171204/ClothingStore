@@ -31,6 +31,12 @@ public class Sku {
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
 
+    @Column(columnDefinition = "boolean default true")
+    @Builder.Default
+    private Boolean isActive = true;
+
+    private String imgUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
     private Product product;
