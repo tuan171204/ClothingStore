@@ -42,5 +42,27 @@ export const authService = {
         } catch (error) {
             console.error('Lỗi khi đăng xuất ở Backend', error);
         }
+    },
+    // 5. Yêu cầu gửi link Reset Password qua Email 
+    forgotPassword: async (email) => {
+        try {
+            const response = await axios.post('/auth/forgot-password', { email });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || error.message;
+        }
+    },
+
+    // 6. Xác nhận đổi mật khẩu mới với Token
+    resetPassword: async (token, newPassword) => {
+        try {
+            const response = await axios.post('/auth/reset-password', { 
+                token, 
+                newPassword 
+            });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || error.message;
+        }
     }
 }

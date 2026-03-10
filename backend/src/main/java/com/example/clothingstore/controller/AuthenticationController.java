@@ -1,9 +1,7 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.auth.request.AuthenticationRequest;
-import com.example.clothingstore.dto.auth.request.IntrospectRequest;
-import com.example.clothingstore.dto.auth.request.LogoutRequest;
-import com.example.clothingstore.dto.auth.request.RefreshTokenRequest;
+import com.cloudinary.Api;
+import com.example.clothingstore.dto.auth.request.*;
 import com.example.clothingstore.dto.response.ApiResponse;
 import com.example.clothingstore.dto.auth.response.AuthenticationResponse;
 import com.example.clothingstore.dto.auth.response.IntrospectResponse;
@@ -20,7 +18,6 @@ import java.text.ParseException;
 @RestController
 @RequestMapping("${api.prefix}/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationController {
     AuthenticationService authenticationService;
@@ -53,5 +50,21 @@ public class AuthenticationController {
     ApiResponse<Void> logout(@RequestBody LogoutRequest request) throws ParseException, JOSEException {
         authenticationService.logout(request);
         return ApiResponse.<Void>builder().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<String> forgotPassword(@RequestBody ForgotPasswordRequest request){
+        authenticationService.forgotPassword(request);
+        return ApiResponse.<String> builder()
+                .result("Vui lòng kiểm tra email để đặt lại mật khẩu")
+                .build();
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<String> resetPassword(@RequestBody ResetPasswordRequest request){
+        authenticationService.resetPassword(request);
+        return ApiResponse.<String> builder()
+                .result("Đặt lại mật khẩu mới thành công")
+                .build();
     }
 }
