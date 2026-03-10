@@ -1,15 +1,13 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.auth.request.AuthenticationRequest;
-import com.example.clothingstore.dto.auth.request.IntrospectRequest;
-import com.example.clothingstore.dto.auth.request.LogoutRequest;
-import com.example.clothingstore.dto.auth.request.RefreshTokenRequest;
+import com.example.clothingstore.dto.auth.request.*;
 import com.example.clothingstore.dto.auth.response.AuthenticationResponse;
 import com.example.clothingstore.dto.auth.response.IntrospectResponse;
 import com.example.clothingstore.entity.User;
 import com.example.clothingstore.entity.auth.InvalidatedToken;
 import com.example.clothingstore.repository.UserRepository;
 import com.example.clothingstore.repository.auth.InvalidatedTokenRepository;
+import com.example.clothingstore.service.mail.MailService;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -21,15 +19,20 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.Date;
+import java.util.StringJoiner;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -38,6 +41,9 @@ import java.util.UUID;
 public class AuthenticationService {
     UserRepository userRepository;
     InvalidatedTokenRepository invalidatedTokenRepository;
+    PasswordEncoder passwordEncoder;
+    StringRedisTemplate redisTemplate;
+    MailService mailService;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -143,6 +149,7 @@ public class AuthenticationService {
                         // thời gian hết hạn của token
                 ))
                 .jwtID(UUID.randomUUID().toString())
+                .claim("scope", buildScope(user))
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject()); // Payload chứa claimSet, lưu dạng Json Object
@@ -186,5 +193,42 @@ public class AuthenticationService {
             throw new RuntimeException("Invalidated token");
         }
         return signedJWT;
+    }
+
+    private String buildScope(User user){
+        StringJoiner stringJoiner = new StringJoiner(" ");
+        if (user.getRole() != null) {
+            stringJoiner.add(user.getRole().getName());
+        }
+
+        return stringJoiner.toString();
+    }
+
+    public void forgotPassword(ForgotPasswordRequest request){
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Email not existed !"));
+
+        String token = UUID.randomUUID().toString();
+
+        redisTemplate.opsForValue().set("RESET_PW:" + token, user.getEmail(), 15, TimeUnit.MINUTES);
+
+        String resetLink = "http://localhost:3000/reset-password?token=" + token;
+        mailService.sendResetPasswordEmail(user.getEmail(), resetLink);
+    }
+
+    public void resetPassword(ResetPasswordRequest request){
+        String email = redisTemplate.opsForValue().get("RESET_PW:" + request.getToken());
+
+        if (email == null){
+            throw new RuntimeException("Token invalidated or expired !");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not existed !"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        redisTemplate.delete("RESET_PW:" + request.getToken());
     }
 }

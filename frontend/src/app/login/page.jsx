@@ -130,6 +130,7 @@ export default function LoginPage() {
                         <label className="text-sm font-bold text-gray-200 block ml-1">
                             Mật khẩu
                         </label>
+
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/50 group-focus-within:text-white transition-colors">
                                 <Lock size={18} />
@@ -145,10 +146,14 @@ export default function LoginPage() {
                         </div>
                         {/* Nút quên mật khẩu */}
                         <div className="flex justify-end mt-4">
-                            <a href="#" className="text-sm text-gray-300 hover:text-white font-bold transition-colors">
+                            <Link
+                                href="/forgot-password"
+                                className="text-sm text-gray-300 hover:text-white font-bold transition-colors"
+                            >
                                 Quên mật khẩu?
-                            </a>
+                            </Link>
                         </div>
+
                     </div>
 
                     {/* Nút Submit */}
@@ -156,7 +161,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-white text-gray-900 font-bold tracking-wide py-4 px-4 rounded-xl hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] focus:ring-4 focus:ring-white/50 active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center cursor-pointer"
+                            className="w-full bg-white text-gray-900 font-bold tracking-wide py-4 px-4 rounded-md hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] focus:ring-4 focus:ring-white/50 active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center cursor-pointer"
                         >
                             {isLoading ? (
                                 <div className="flex items-center gap-2">
@@ -174,7 +179,7 @@ export default function LoginPage() {
                         <button
                             type="button"
                             disabled={isLoading}
-                            className="w-full bg-purple-600 text-white font-bold tracking-wide py-4 px-4 rounded-xl hover:bg-purple-900 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] focus:ring-4 focus:ring-white/50 active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex gap-3 justify-center items-center cursor-pointer uppercase"
+                            className="w-full bg-purple-600 text-white font-bold tracking-wide py-4 px-4 rounded-md hover:bg-purple-900 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] focus:ring-4 focus:ring-white/50 active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex gap-3 justify-center items-center cursor-pointer uppercase"
                         >
                             <UserCheck size={22} />
                             {isLoading ? (

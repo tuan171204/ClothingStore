@@ -10,11 +10,11 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update      # Tự động sinh/sửa bảng khi chạy code
-    show-sql: false          # Hiện câu SQL ra log để debug cho dễ
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true    # Format SQL cho đẹp
+        format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
 
   data:
@@ -41,6 +41,16 @@ spring:
           auth: true
           starttls:
             enable: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+logging:
+  level:
+    root: INFO
+    com.example.clothingstore: DEBUG #
+    org.springframework.web: ERROR
 
 api:
   prefix: /api/v1

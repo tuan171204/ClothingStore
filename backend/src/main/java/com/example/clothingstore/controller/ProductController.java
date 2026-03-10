@@ -8,6 +8,7 @@ import com.example.clothingstore.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,7 +18,6 @@ import java.util.List;
 @RestController
 @RequestMapping("${api.prefix}/products")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000") // Cho phép Next.js gọi sang (tránh lỗi CORS)
 public class ProductController {
 
     private final ProductService productService;
@@ -48,6 +48,7 @@ public class ProductController {
     // 4. API Tạo sản phẩm (FULL Options + SKU)
     // POST http://localhost:8080/api/v1/products
     @PostMapping
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ProductResponse> createProduct(@RequestBody ProductRequest request) {
         return ResponseEntity.ok(productService.createProduct(request));
     }
@@ -55,6 +56,7 @@ public class ProductController {
     // 5. API Cập nhật sản phẩm
     // PUT http://localhost:8080/api/v1/products/{id}
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ProductResponse> updateProduct(@PathVariable Long id, @RequestBody ProductRequest request) {
         return ResponseEntity.ok(productService.updateProduct(id, request));
     }
@@ -62,6 +64,7 @@ public class ProductController {
     // 6. API Xóa sản phẩm
     // DELETE http://localhost:8080/api/v1/products/{id}
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
@@ -88,6 +91,7 @@ public class ProductController {
     // API Upload ảnh test thử
     // POST http://localhost:8080/api/v1/products/upload-image
     @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file){
         try {
             String imageUrl = cloudinaryService.uploadImage(file);

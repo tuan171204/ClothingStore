@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,6 +30,7 @@ public class UserController {
     private CloudinaryService cloudinaryService;
 
     @PostMapping("/registration")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     ApiResponse<UserResponse> createUser(@RequestBody UserCreationRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.createUser(request))
@@ -36,6 +38,7 @@ public class UserController {
     }
 
     @GetMapping()
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     ApiResponse<List<UserResponse>> getUsers(){
         return ApiResponse.<List<UserResponse>>builder()
                 .result(userService.getUsers())
@@ -43,6 +46,7 @@ public class UserController {
     }
 
     @GetMapping("/{userId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     ApiResponse<UserResponse> getUser(@PathVariable String userId){
         return ApiResponse.<UserResponse>builder()
                 .result(userService.getUser(userId))
@@ -50,6 +54,7 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     ApiResponse<UserResponse> updateUser(@RequestBody UserUpdateRequest request,
                                          @PathVariable String userId){
         return ApiResponse.<UserResponse>builder()
@@ -58,12 +63,14 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     String deleteUser(@PathVariable String userId){
         userService.deleteUser(userId);
         return "User has been deleted";
     }
 
     @GetMapping("/myInfo")
+    @PreAuthorize("hasRole('CUSTOMER')")
     ApiResponse<UserResponse> getMyInfo(){
         return ApiResponse.<UserResponse>builder()
                 .result(userService.getMyInfo())

@@ -6,6 +6,7 @@ import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.service.impl.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,12 +14,12 @@ import java.util.List;
 @RestController
 @RequestMapping("${api.prefix}/orders")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class OrderController {
     private final OrderService orderService;
 
     // GET: http://localhost:8080/api/v1/orders
     @GetMapping
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<OrderResponse>> getAllOrders() {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
