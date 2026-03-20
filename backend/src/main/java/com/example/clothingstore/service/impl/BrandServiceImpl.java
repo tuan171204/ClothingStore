@@ -55,17 +55,22 @@ public class BrandServiceImpl implements BrandService {
     @CacheEvict(value = "brands", allEntries = true)
     public BrandResponse updateBrand(Long id, BrandRequest request){
         BrandResponse response = new BrandResponse();
-        if (brandRepository.existsByName(request.getName())) {
+
+        Brand brand = brandRepository.findById(id).orElseThrow(()
+                -> new AppException(ErrorCode.BRAND_NOT_FOUND));
+
+        if (!brand.getName().equals(request.getName()) && brandRepository.existsByName(request.getName())) {
             throw new AppException(ErrorCode.BRAND_ALREADY_EXISTS);
         }
-        Brand brand = brandRepository.findById(id).orElseThrow(() 
-        -> new AppException(ErrorCode.BRAND_NOT_FOUND));
+
         brand.setName(request.getName());
         brand.setLogo(request.getLogo());
         Brand updatedBrand = brandRepository.save(brand);
+
         response.setId(updatedBrand.getId());
         response.setName(updatedBrand.getName());
         response.setLogo(updatedBrand.getLogo());
+
         return response;
     }
 

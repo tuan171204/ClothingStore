@@ -10,4 +10,5 @@ import java.util.List;
 public interface CategoryRepository extends JpaRepository<Category, Long> {
     // Lấy các danh mục gốc (Cha là null) -> Để hiển thị Level 1 của Menu
     List<Category> findByParentIsNull();
+    boolean existsByName(String name);
 }

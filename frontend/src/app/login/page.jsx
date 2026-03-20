@@ -24,7 +24,6 @@ export default function LoginPage() {
         // Chuyển hướng dựa theo Role cơ bản
         try {
             const user = await login(username, password);
-            console.log(user);
             if (user?.role?.name === 'ADMIN' || user?.role?.name === 'STAFF') {
                 router.push('/admin/dashboard');
             } else {

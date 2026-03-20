@@ -13,7 +13,10 @@ THÊM TOKEN VÀO HEADERS MỌI REQUEST
 instance.interceptors.request.use(
     (config) => {
         if (typeof window !== 'undefined') {
-            const token = localStorage.getItem('token');
+            const isAdminRoute = window.location.pathname.startsWith('/admin');
+
+            const token = localStorage.getItem(isAdminRoute ? 'admin_token' : 'token');
+
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }

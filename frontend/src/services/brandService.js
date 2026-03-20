@@ -9,3 +9,17 @@ export const getBrands = async () => {
         return [];
     }
 };
+
+export const createBrand = async (data) => {
+    const response = await axios.post('/brands', data);
+    return response.data;
+};
+
+export const updateBrand = async (id, data) => {
+    const response = await axios.put(`/brands/${id}`, data);
+    return response.data;
+};
+
+export const deleteBrand = async (id) => {
+    await axios.delete(`/brands/${id}`);
+};

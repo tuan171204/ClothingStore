@@ -5,7 +5,7 @@ import com.example.clothingstore.dto.request.UserCreationRequest;
 import com.example.clothingstore.dto.request.UserUpdateRequest;
 import com.example.clothingstore.dto.response.UserResponse;
 import com.example.clothingstore.service.cloudinary.CloudinaryService;
-import com.example.clothingstore.service.impl.UserService;
+import com.example.clothingstore.service.impl.UserServiceImpl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -26,14 +26,13 @@ import java.util.List;
 @Slf4j
 public class UserController {
     @Autowired
-    private UserService userService;
+    private UserServiceImpl userServiceImpl;
     private CloudinaryService cloudinaryService;
 
     @PostMapping("/registration")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     ApiResponse<UserResponse> createUser(@RequestBody UserCreationRequest request) {
         return ApiResponse.<UserResponse>builder()
-                .result(userService.createUser(request))
+                .result(userServiceImpl.createUser(request))
                 .build();
     }
 
@@ -41,7 +40,7 @@ public class UserController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     ApiResponse<List<UserResponse>> getUsers(){
         return ApiResponse.<List<UserResponse>>builder()
-                .result(userService.getUsers())
+                .result(userServiceImpl.getUsers())
                 .build();
     }
 
@@ -49,7 +48,7 @@ public class UserController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     ApiResponse<UserResponse> getUser(@PathVariable String userId){
         return ApiResponse.<UserResponse>builder()
-                .result(userService.getUser(userId))
+                .result(userServiceImpl.getUser(userId))
                 .build();
     }
 
@@ -58,22 +57,21 @@ public class UserController {
     ApiResponse<UserResponse> updateUser(@RequestBody UserUpdateRequest request,
                                          @PathVariable String userId){
         return ApiResponse.<UserResponse>builder()
-                .result(userService.updateUser(request, userId))
+                .result(userServiceImpl.updateUser(request, userId))
                 .build();
     }
 
     @DeleteMapping("/{userId}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     String deleteUser(@PathVariable String userId){
-        userService.deleteUser(userId);
+        userServiceImpl.deleteUser(userId);
         return "User has been deleted";
     }
 
     @GetMapping("/myInfo")
-    @PreAuthorize("hasRole('CUSTOMER')")
     ApiResponse<UserResponse> getMyInfo(){
         return ApiResponse.<UserResponse>builder()
-                .result(userService.getMyInfo())
+                .result(userServiceImpl.getMyInfo())
                 .build();
     }
 
