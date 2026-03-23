@@ -13,6 +13,7 @@ import com.example.clothingstore.repository.OrderItemRepository;
 import com.example.clothingstore.repository.OrderRepository;
 import com.example.clothingstore.repository.SkuRepository;
 import com.example.clothingstore.repository.UserRepository;
+import com.example.clothingstore.service.InventoryService;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,6 +37,7 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final OrderResponseMapper orderResponseMapper;
     private final OrderProducer orderProducer;
+    private final InventoryService inventoryService;
 
     /**
      * LẤY TOÀN BỘ ĐƠN HÀNG
@@ -53,7 +55,6 @@ public class OrderService {
     public OrderResponse getOrderById(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng ID: " + id));
-
         return orderResponseMapper.toOrderResponse(order);
     }
 
@@ -62,7 +63,6 @@ public class OrderService {
      */
     public List<OrderResponse> getOrderByUserId(String userId) {
         List<Order> orders = orderRepository.findByUserId(userId);
-
         return orders.stream()
                 .map(orderResponseMapper::toOrderResponse)
                 .collect(Collectors.toList());
@@ -70,70 +70,64 @@ public class OrderService {
 
     /**
      * TẠO ĐƠN HÀNG
+     * INV-001: Gọi reserveStock sau khi trừ sku.stockQuantity để đồng bộ Inventory.
      */
     @Transactional
-    public Order createOrder(OrderDTO orderDTO){
-        // 1. Khởi tạo đơn hàng
+    public Order createOrder(OrderDTO orderDTO) {
         Order order = orderMapper.toOrder(orderDTO);
 
-        // Lấy thông tin người dùng hiện tại
         var context = SecurityContextHolder.getContext();
         String userName = context.getAuthentication().getName();
-        User user = userRepository.findByUsername(userName).orElseThrow(
-                () -> new RuntimeException("User not found !")
-        );
+        User user = userRepository.findByUsername(userName)
+                .orElseThrow(() -> new RuntimeException("User not found!"));
 
         order.setUserId(user.getId());
 
-        // 2. Tính toán tổng tiền hàng (Subtotal) từ danh sách items và trừ tồn kho
         BigDecimal subtotal = BigDecimal.ZERO;
-
-        // Lưu danh sách items để save sau
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (OrderDTO.CartItemDTO itemDTO : orderDTO.getItems()) {
-            // --- LOGIC: TRỪ TỒN KHO ---
-
-            // A. Tìm SKU trong Database
+            // Tìm SKU
             Sku sku = skuRepository.findById(itemDTO.getSkuId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm có ID: " + itemDTO.getSkuId()));
+                    .orElseThrow(() -> new RuntimeException(
+                            "Không tìm thấy sản phẩm có ID: " + itemDTO.getSkuId()));
 
-            // B. Kiểm tra số lượng tồn
+            // Bootstrap inventory record nếu chưa có
+            // Phải gọi TRƯỚC khi trừ stockQuantity để snapshot đúng giá trị ban đầu
+            inventoryService.getOrCreateInventory(sku);
+
+            // Kiểm tra tồn kho (dùng sku.stockQuantity như hiện tại để backward-compatible)
             if (sku.getStockQuantity() < itemDTO.getQuantity()) {
-                // Nếu không đủ hàng -> Ném lỗi -> @Transactional sẽ Rollback toàn bộ (Không lưu Order nữa)
-                throw new RuntimeException("Sản phẩm '" + itemDTO.getName() + "' hiện chỉ còn " + sku.getStockQuantity() + " cái (Bạn đặt " + itemDTO.getQuantity() + ")");
+                throw new RuntimeException(
+                        "Sản phẩm '" + itemDTO.getName() + "' hiện chỉ còn "
+                                + sku.getStockQuantity() + " cái (Bạn đặt " + itemDTO.getQuantity() + ")");
             }
 
-            // C. Trừ tồn kho & Lưu lại
+            // Trừ sku.stockQuantity (giữ logic cũ)
             sku.setStockQuantity(sku.getStockQuantity() - itemDTO.getQuantity());
             skuRepository.save(sku);
 
-            // ----------------------------------
+            // Đồng bộ Inventory — reserve stock
+            // reserveStock sẽ: available -= qty; reserved += qty
+            inventoryService.reserveStock(sku.getId(), itemDTO.getQuantity());
 
-            // D. Tính toán giá tiền
+            // Tính tiền
             BigDecimal itemTotal = itemDTO.getPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity()));
             subtotal = subtotal.add(itemTotal);
 
-            OrderItem orderItem = OrderItem.builder()
+            orderItems.add(OrderItem.builder()
                     .order(order)
                     .skuId(itemDTO.getSkuId())
                     .productName(itemDTO.getName())
                     .quantity(itemDTO.getQuantity())
                     .priceAtPurchase(itemDTO.getPrice())
-                    .build();
-
-            orderItems.add(orderItem);
+                    .build());
         }
 
-        // 3. Set các giá trị tính toán vào Order
         order.setSubtotal(subtotal);
-        // Total = Subtotal + Ship - Discount
         order.setTotalAmount(subtotal.add(orderDTO.getShippingFee()));
 
-        // 4. Lưu Order xuống DB trước để lấy ID
         Order savedOrder = orderRepository.save(order);
-
-        // 5. Lưu danh sách Order Items
         orderItemRepository.saveAll(orderItems);
 
         if ("COD".equals(savedOrder.getPaymentMethod())) {
@@ -145,16 +139,54 @@ public class OrderService {
 
     /**
      * CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
+     * INV-001:
+     *   - CANCELLED → releaseStock (hoàn lại available, giảm reserved)
+     *   - COMPLETED  → deductStock (trừ physical, giảm reserved)
      */
+    @Transactional
     public void updateOrderStatus(Long orderId, OrderStatus status) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng ID: " + orderId));
 
+        OrderStatus previousStatus = order.getStatus();
         order.setStatus(status);
         Order updatedOrder = orderRepository.save(order);
 
+        // Gửi email xác nhận khi thanh toán VNPay thành công
         if (status == OrderStatus.CONFIRMED) {
             orderProducer.sendOrderConfirmation(updatedOrder.getId());
+        }
+
+        // Khi hủy đơn → hoàn lại tồn kho đã reserve
+        if (status == OrderStatus.CANCELLED
+                && previousStatus != OrderStatus.CANCELLED
+                && previousStatus != OrderStatus.COMPLETED) {
+
+            List<OrderItem> items = order.getOrderItems();
+            if (items != null) {
+                for (OrderItem item : items) {
+                    // Hoàn lại Sku.stockQuantity (backward-compatible)
+                    skuRepository.findById(item.getSkuId()).ifPresent(sku -> {
+                        sku.setStockQuantity(sku.getStockQuantity() + item.getQuantity());
+                        skuRepository.save(sku);
+                    });
+
+                    // ✅ Giải phóng inventory reserve
+                    inventoryService.releaseStock(item.getSkuId(), item.getQuantity());
+                }
+            }
+        }
+
+        // Khi hoàn thành → xuất kho thực tế (trừ physical_quantity)
+        if (status == OrderStatus.COMPLETED
+                && previousStatus != OrderStatus.COMPLETED) {
+
+            List<OrderItem> items = order.getOrderItems();
+            if (items != null) {
+                for (OrderItem item : items) {
+                    inventoryService.deductStock(item.getSkuId(), item.getQuantity());
+                }
+            }
         }
     }
 
@@ -166,29 +198,16 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        // Chỉ duyệt đơn đang PENDING hoặc đã thanh toán (CONFIRMED)
         if (order.getStatus() == OrderStatus.SHIPPING || order.getStatus() == OrderStatus.COMPLETED) {
             throw new RuntimeException("Đơn hàng này đang giao hoặc đã xong rồi!");
         }
 
-        // 1. Gọi GHN tạo vận đơn
-        // Lưu ý: districtId và wardCode nên được lưu trong Order lúc tạo đơn để chính xác.
-        // Ở đây mình tạm hardcode hoặc giả định bạn parse từ address string (nhưng tốt nhất là lưu ID lúc tạo)
-        // Ví dụ tạm: 1454 (Quận 7), 20308 (Phường Tân Hưng) -> Cần lấy từ Frontend gửi xuống lúc tạo đơn
-        int districtId = 1454; // TODO: Lấy từ order.getDistrictId()
-        String wardCode = "20308"; // TODO: Lấy từ order.getWardCode()
-
         String trackingCode = ghnService.createShippingOrder(order);
 
-        // 2. Cập nhật thông tin
         order.setTrackingCode(trackingCode);
         order.setStatus(OrderStatus.SHIPPING);
 
-        // 3. Lưu xuống DB
         Order savedOrder = orderRepository.save(order);
-
-        // 4. Gửi mail thông báo cho khách (Bắn message RabbitMQ)
-        // Bạn có thể update OrderMessage để chứa thêm "type" (Vd: TYPE_SHIPPING)
         orderProducer.sendOrderConfirmation(savedOrder.getId());
 
         return savedOrder;
