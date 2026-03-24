@@ -30,7 +30,13 @@ public enum ErrorCode {
 
     // Nhóm 40: Module User (Thêm sẵn cho sau này)
     USER_NOT_FOUND(4001, "Không tìm thấy người dùng", HttpStatus.NOT_FOUND),
-    USER_ALREADY_EXISTS(4002, "Người dùng đã tồn tại", HttpStatus.BAD_REQUEST);
+    USER_ALREADY_EXISTS(4002, "Người dùng đã tồn tại", HttpStatus.BAD_REQUEST),
+
+    // Nhóm 50: Module Review
+    REVIEW_NOT_FOUND(5001, "Không tìm thấy đánh giá", HttpStatus.NOT_FOUND),
+    REVIEW_ALREADY_EXISTS(5002, "Bạn đã đánh giá sản phẩm này rồi", HttpStatus.BAD_REQUEST),
+    REVIEW_NOT_VERIFIED_BUYER(5003, "Chỉ khách hàng đã mua mới được đánh giá sản phẩm", HttpStatus.FORBIDDEN),
+    REVIEW_EDIT_FORBIDDEN(5004, "Bạn không có quyền sửa đánh giá này", HttpStatus.FORBIDDEN);
 
     private final int code;
     private final String message;

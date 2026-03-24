@@ -11,6 +11,7 @@ import { uploadUserAvatar } from '@/services/uploadService';
 import { updateUserProfile } from '@/services/userService';
 import Link from 'next/link';
 import { formatCurrency } from '@/services/productService';
+import { getMyReviewsByProducts } from '@/services/reviewService';
 
 export default function ProfilePage() {
     const { user, logout, loading } = useAuth();
@@ -21,6 +22,7 @@ export default function ProfilePage() {
 
     const [activeTab, setActiveTab] = useState('profile');
     const [orders, setOrders] = useState([]);
+    const [reviewMap, setReviewMap] = useState({});
 
     // Đổi state này thành mảng để chứa toàn bộ sổ địa chỉ
     const [addresses, setAddresses] = useState([]);
@@ -41,6 +43,12 @@ export default function ProfilePage() {
         avatar: ''
     });
 
+    const reviewStatusMapping = {
+        PENDING: 'Đang chờ duyệt',
+        APPROVED: 'Đã duyệt',
+        REJECTED: 'Bị từ chối'
+    };
+
     useEffect(() => {
         if (!loading && !user) {
             router.push('/login');
@@ -53,7 +61,35 @@ export default function ProfilePage() {
             });
 
             if (activeTab === 'orders') {
-                getOrdersByUser(user.id).then(data => setOrders(data));
+                getOrdersByUser(user.id).then(async (data) => {
+                    const userOrders = data || [];
+                    setOrders(userOrders);
+
+                    const productIds = [...new Set(
+                        userOrders.flatMap(order =>
+                            (order.orderItems || [])
+                                .map(item => item.productId)
+                                .filter(Boolean)
+                        )
+                    )];
+
+                    if (productIds.length === 0) {
+                        setReviewMap({});
+                        return;
+                    }
+
+                    try {
+                        const myReviews = await getMyReviewsByProducts(productIds);
+                        const nextReviewMap = myReviews.reduce((acc, review) => {
+                            acc[review.productId] = review;
+                            return acc;
+                        }, {});
+                        setReviewMap(nextReviewMap);
+                    } catch (error) {
+                        console.error('Lỗi tải trạng thái đánh giá:', error);
+                        setReviewMap({});
+                    }
+                });
             }
 
             if (activeTab === 'address') {
@@ -110,6 +146,33 @@ export default function ProfilePage() {
     if (loading || !user) return <div className="min-h-screen flex items-center justify-center font-sans">Đang tải dữ liệu...</div>;
 
     const displayAvatar = formData.avatar || `https://ui-avatars.com/api/?name=${user.fullName || user.username}&background=0f172a&color=fff&size=128&bold=true`;
+
+    const getReviewUi = (orderStatus, productId) => {
+        const myReview = productId ? reviewMap[productId] : null;
+
+        if (myReview?.status) {
+            return {
+                text: reviewStatusMapping[myReview.status] || myReview.status,
+                className: myReview.status === 'APPROVED'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : myReview.status === 'REJECTED'
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+            };
+        }
+
+        if (orderStatus === 'COMPLETED') {
+            return {
+                text: 'Chưa đánh giá',
+                className: 'bg-gray-50 text-gray-700 border-gray-200'
+            };
+        }
+
+        return {
+            text: 'Chưa đủ điều kiện đánh giá',
+            className: 'bg-gray-50 text-gray-500 border-gray-200'
+        };
+    };
 
     return (
         <div className="bg-white min-h-screen py-12 font-sans border-t border-gray-100">
@@ -291,6 +354,38 @@ export default function ProfilePage() {
                                                         <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Tổng tiền</div>
                                                         <div className="font-black text-xl text-gray-900">{formatCurrency(order.totalAmount)}</div>
                                                     </div>
+                                                </div>
+
+                                                <div className="mt-5 pt-4 border-t border-gray-100">
+                                                    <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Tình trạng đánh giá</div>
+
+                                                    {order.orderItems && order.orderItems.length > 0 ? (
+                                                        <div className="space-y-2">
+                                                            {order.orderItems.map((item) => {
+                                                                const reviewUi = getReviewUi(order.status, item.productId);
+                                                                return (
+                                                                    <div key={`${order.id}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                                                                        <div className="text-sm text-gray-700">
+                                                                            <span className="font-semibold text-gray-900">{item.productName}</span>
+                                                                            <span className="text-gray-500"> x{item.quantity}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider border rounded ${reviewUi.className}`}>
+                                                                                {reviewUi.text}
+                                                                            </span>
+                                                                            {order.status === 'COMPLETED' && item.productId && (
+                                                                                <Link href={`/products/${item.productId}`} className="text-xs font-bold text-gray-700 hover:text-gray-900 uppercase tracking-wider">
+                                                                                    Đánh giá
+                                                                                </Link>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm text-gray-500">Không có thông tin sản phẩm trong đơn này.</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

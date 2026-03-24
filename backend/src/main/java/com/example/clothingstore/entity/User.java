@@ -44,6 +44,7 @@ public class User {
 
     // Trạng thái tài khoản
     @Column(nullable = false)
+    @Builder.Default
     private boolean active = true;
 
     // Quan hệ User - Role (1 User có 1 Role)

@@ -36,6 +36,8 @@ public class OrderResponse {
     @Builder
     public static class OrderItemResponse {
         private Long id;
+        private Long skuId;
+        private Long productId;
         private String productName;
         private int quantity;
         private BigDecimal price;
