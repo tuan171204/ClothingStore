@@ -3,72 +3,81 @@ import axios from '@/lib/axios';
 const API_URL = '/orders';
 
 /**
- * 1. TẠO ĐƠN HÀNG MỚI (Dành cho Khách hàng)
- * Payload phải khớp với OrderDTO bên Backend
+ * Admin: Lấy danh sách đơn hàng có filter + phân trang
+ * params: { keyword, status, paymentMethod, fromDate, toDate, page, size }
  */
-export const createOrder = async (orderData) => {
+export const getOrdersFiltered = async (params = {}) => {
     try {
-        // Log ra để debug xem dữ liệu gửi đi có đúng district/ward chưa
-        console.log("📤 Sending Order Data:", orderData);
-
-        const response = await axios.post(API_URL, orderData);
-        return response.data;
+        const response = await axios.get(API_URL, { params });
+        return response.data; // PagedResponse<OrderResponse>
     } catch (error) {
-        console.error("Lỗi tạo đơn hàng:", error);
+        console.error('❌ Lỗi lấy đơn hàng:', error);
         throw error;
     }
 };
 
 /**
- * 2. ADMIN DUYỆT ĐƠN & ĐẨY QUA GHN (Dành cho Admin)
- * Gọi API: POST /api/orders/{id}/ship
+ * Admin: Thống kê tổng tiền theo filter
+ */
+export const getOrderSummary = async (params = {}) => {
+    try {
+        const response = await axios.get(`${API_URL}/summary`, { params });
+        return response.data; // { totalRevenue, totalOrders }
+    } catch (error) {
+        console.error('❌ Lỗi lấy summary:', error);
+        return { totalRevenue: 0, totalOrders: 0 };
+    }
+};
+
+/**
+ * Admin: Cập nhật trạng thái đơn hàng
+ */
+export const updateOrderStatus = async (orderId, status) => {
+    const response = await axios.patch(`${API_URL}/${orderId}/status`, { status });
+    return response.data;
+};
+
+/**
+ * Tạo đơn hàng mới (Khách hàng)
+ */
+export const createOrder = async (orderData) => {
+    try {
+        const response = await axios.post(API_URL, orderData);
+        return response.data;
+    } catch (error) {
+        console.error('Lỗi tạo đơn hàng:', error);
+        throw error;
+    }
+};
+
+/**
+ * Admin: Duyệt & Gửi GHN
  */
 export const shipOrder = async (orderId) => {
     try {
         const response = await axios.post(`${API_URL}/${orderId}/ship`);
         return response.data;
     } catch (error) {
-        console.error("Lỗi duyệt đơn hàng: ", error.response?.data || error.message);
+        console.error('Lỗi duyệt đơn hàng:', error.response?.data || error.message);
         throw error;
     }
 };
 
-/**
- * 3. LẤY CHI TIẾT ĐƠN HÀNG (Dùng cho trang Order Detail / Admin)
- */
 export const getOrderById = async (orderId) => {
-    try {
-        const response = await axios.get(`${API_URL}/${orderId}`);
-        return response.data;
-    } catch (error) {
-        console.error("❌ Lỗi lấy thông tin đơn hàng:", error);
-        throw error;
-    }
+    const response = await axios.get(`${API_URL}/${orderId}`);
+    return response.data;
 };
 
-/**
- * 4. LẤY DANH SÁCH ĐƠN HÀNG (Dùng cho trang History hoặc Admin Dashboard)
- * Có thể thêm param page, size, status sau này
- */
 export const getOrders = async () => {
-    try {
-        const response = await axios.get(API_URL);
-        return response.data;
-    } catch (error) {
-        console.error("❌ Lỗi lấy danh sách đơn hàng:", error);
-        throw error;
-    }
+    const response = await axios.get(API_URL);
+    return response.data;
 };
 
-/**
- * 5. LẤY LỊCH SỬ ĐƠN HÀNG CỦA MỘT USER
- */
 export const getOrdersByUser = async (userId) => {
     try {
         const response = await axios.get(`${API_URL}/users/${userId}`);
         return response.data;
     } catch (error) {
-        console.error("❌ Lỗi lấy lịch sử đơn hàng:", error);
         return [];
     }
 };

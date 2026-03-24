@@ -1,7 +1,9 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.dto.OrderDTO;
+import com.example.clothingstore.dto.request.OrderFilterRequest;
 import com.example.clothingstore.dto.response.OrderResponse;
+import com.example.clothingstore.dto.response.PagedResponse;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.OrderItem;
 import com.example.clothingstore.entity.Enum.OrderStatus;
@@ -13,9 +15,15 @@ import com.example.clothingstore.repository.OrderItemRepository;
 import com.example.clothingstore.repository.OrderRepository;
 import com.example.clothingstore.repository.SkuRepository;
 import com.example.clothingstore.repository.UserRepository;
+import com.example.clothingstore.repository.specification.OrderSpecification;
 import com.example.clothingstore.service.InventoryService;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,9 +47,57 @@ public class OrderService {
     private final OrderProducer orderProducer;
     private final InventoryService inventoryService;
 
+    // =========================================================
+    // LẤY DANH SÁCH ĐƠN HÀNG (CÓ FILTER + PHÂN TRANG)
+    // =========================================================
+
     /**
-     * LẤY TOÀN BỘ ĐƠN HÀNG
+     * API chính cho Admin: Filter + phân trang
      */
+    public PagedResponse<OrderResponse> getOrdersWithFilter(OrderFilterRequest filter) {
+        Specification<Order> spec = OrderSpecification.buildSpec(filter);
+
+        Pageable pageable = PageRequest.of(
+                filter.getPage(),
+                filter.getSize(),
+                Sort.by("createdAt").descending()
+        );
+
+        Page<Order> page = orderRepository.findAll(spec, pageable);
+
+        List<OrderResponse> content = page.getContent().stream()
+                .map(orderResponseMapper::toOrderResponse)
+                .collect(Collectors.toList());
+
+        return PagedResponse.<OrderResponse>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+    }
+
+    /**
+     * Tổng tiền theo filter (cho thống kê)
+     */
+    public BigDecimal getTotalAmountByFilter(OrderFilterRequest filter) {
+        Specification<Order> spec = OrderSpecification.buildSpec(filter);
+        // Lấy tất cả không phân trang để tính tổng
+        Pageable all = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<Order> page = orderRepository.findAll(spec, all);
+
+        return page.getContent().stream()
+                .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    // =========================================================
+    // CÁC PHƯƠNG THỨC GIỮ NGUYÊN TỪ TRƯỚC
+    // =========================================================
+
     public List<OrderResponse> getAllOrders() {
         List<Order> orders = orderRepository.findAllByOrderByCreatedAtDesc();
         return orders.stream()
@@ -49,18 +105,12 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * LẤY ĐƠN HÀNG CỤ THỂ
-     */
     public OrderResponse getOrderById(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng ID: " + id));
         return orderResponseMapper.toOrderResponse(order);
     }
 
-    /**
-     * LẤY TẤT CẢ ĐƠN HÀNG CỦA 1 KHÁCH CỤ THỂ
-     */
     public List<OrderResponse> getOrderByUserId(String userId) {
         List<Order> orders = orderRepository.findByUserId(userId);
         return orders.stream()
@@ -68,10 +118,6 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * TẠO ĐƠN HÀNG
-     * INV-001: Gọi reserveStock sau khi trừ sku.stockQuantity để đồng bộ Inventory.
-     */
     @Transactional
     public Order createOrder(OrderDTO orderDTO) {
         Order order = orderMapper.toOrder(orderDTO);
@@ -87,31 +133,22 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (OrderDTO.CartItemDTO itemDTO : orderDTO.getItems()) {
-            // Tìm SKU
             Sku sku = skuRepository.findById(itemDTO.getSkuId())
                     .orElseThrow(() -> new RuntimeException(
                             "Không tìm thấy sản phẩm có ID: " + itemDTO.getSkuId()));
 
-            // Bootstrap inventory record nếu chưa có
-            // Phải gọi TRƯỚC khi trừ stockQuantity để snapshot đúng giá trị ban đầu
             inventoryService.getOrCreateInventory(sku);
 
-            // Kiểm tra tồn kho (dùng sku.stockQuantity như hiện tại để backward-compatible)
             if (sku.getStockQuantity() < itemDTO.getQuantity()) {
                 throw new RuntimeException(
                         "Sản phẩm '" + itemDTO.getName() + "' hiện chỉ còn "
                                 + sku.getStockQuantity() + " cái (Bạn đặt " + itemDTO.getQuantity() + ")");
             }
 
-            // Trừ sku.stockQuantity (giữ logic cũ)
             sku.setStockQuantity(sku.getStockQuantity() - itemDTO.getQuantity());
             skuRepository.save(sku);
-
-            // Đồng bộ Inventory — reserve stock
-            // reserveStock sẽ: available -= qty; reserved += qty
             inventoryService.reserveStock(sku.getId(), itemDTO.getQuantity());
 
-            // Tính tiền
             BigDecimal itemTotal = itemDTO.getPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity()));
             subtotal = subtotal.add(itemTotal);
 
@@ -137,12 +174,6 @@ public class OrderService {
         return savedOrder;
     }
 
-    /**
-     * CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
-     * INV-001:
-     *   - CANCELLED → releaseStock (hoàn lại available, giảm reserved)
-     *   - COMPLETED  → deductStock (trừ physical, giảm reserved)
-     */
     @Transactional
     public void updateOrderStatus(Long orderId, OrderStatus status) {
         Order order = orderRepository.findByIdWithItems(orderId)
@@ -152,12 +183,10 @@ public class OrderService {
         order.setStatus(status);
         Order updatedOrder = orderRepository.save(order);
 
-        // Gửi email xác nhận khi thanh toán VNPay thành công
         if (status == OrderStatus.CONFIRMED) {
             orderProducer.sendOrderConfirmation(updatedOrder.getId());
         }
 
-        // Khi hủy đơn → hoàn lại tồn kho đã reserve
         if (status == OrderStatus.CANCELLED
                 && previousStatus != OrderStatus.CANCELLED
                 && previousStatus != OrderStatus.COMPLETED) {
@@ -165,22 +194,16 @@ public class OrderService {
             List<OrderItem> items = order.getOrderItems();
             if (items != null) {
                 for (OrderItem item : items) {
-                    // Hoàn lại Sku.stockQuantity (backward-compatible)
                     skuRepository.findById(item.getSkuId()).ifPresent(sku -> {
                         sku.setStockQuantity(sku.getStockQuantity() + item.getQuantity());
                         skuRepository.save(sku);
                     });
-
-                    // ✅ Giải phóng inventory reserve
                     inventoryService.releaseStock(item.getSkuId(), item.getQuantity());
                 }
             }
         }
 
-        // Khi hoàn thành → xuất kho thực tế (trừ physical_quantity)
-        if (status == OrderStatus.COMPLETED
-                && previousStatus != OrderStatus.COMPLETED) {
-
+        if (status == OrderStatus.COMPLETED && previousStatus != OrderStatus.COMPLETED) {
             List<OrderItem> items = order.getOrderItems();
             if (items != null) {
                 for (OrderItem item : items) {
@@ -190,9 +213,6 @@ public class OrderService {
         }
     }
 
-    /**
-     * HÀM DUYỆT ĐƠN HÀNG VÀ GỬI SANG GHN
-     */
     @Transactional
     public Order confirmAndShipOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)

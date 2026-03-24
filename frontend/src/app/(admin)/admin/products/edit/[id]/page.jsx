@@ -194,10 +194,10 @@ export default function EditProductPage() {
                 skus: skus
             };
             await updateProduct(id, payload);
-            toast.success("Cập nhật Ma trận Tồn kho, Giá & Ảnh thành công!");
+            toast.success("Cập nhật Tồn kho, Giá & Ảnh thành công!");
             await fetchSkusData();
         } catch (error) {
-            toast.error("Lỗi khi cập nhật Ma trận SKU!");
+            toast.error("Lỗi khi cập nhật!");
         } finally {
             setIsSavingSkus(false);
         }
