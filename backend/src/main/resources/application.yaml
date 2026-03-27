@@ -14,8 +14,10 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        format_sql: true    # Format SQL cho   đẹp
+        format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
+  main:
+    allow-bean-definition-overriding: true
 
   data:
     redis:
@@ -45,6 +47,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    baseline-version: 1
 
 logging:
   level:

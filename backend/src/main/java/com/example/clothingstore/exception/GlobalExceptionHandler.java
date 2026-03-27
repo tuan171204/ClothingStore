@@ -9,6 +9,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -75,7 +76,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
     }
 
-    // 6. Xử lý TẤT CẢ các lỗi còn lại (Dòng rào chắn cuối cùng)
+    // 6. Bỏ qua lỗi truy cập tài nguyên tĩnh không tồn tại (như lỗi ws/ws của Swagger)
+    @ExceptionHandler(value = NoResourceFoundException.class)
+    ResponseEntity<ApiResponse<Void>> handlingNoResourceFoundException(NoResourceFoundException exception) {
+        // Không cần in log đỏ exception.printStackTrace() ở đây để tránh rác console
+        ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION; // Hoặc bạn có thể tạo ErrorCode.NOT_FOUND (404)
+        ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
+                .code(errorCode.getCode())
+                .message("Tài nguyên không tồn tại: " + exception.getResourcePath())
+                .build();
+        return ResponseEntity.status(404).body(apiResponse);
+    }
+
+    // 7. Xử lý TẤT CẢ các lỗi còn lại (Dòng rào chắn cuối cùng)
     @ExceptionHandler(value = Exception.class)
     ResponseEntity<ApiResponse<Void>> handlingException(Exception exception) {
         // Ghi log chi tiết ra console để dev tìm lỗi

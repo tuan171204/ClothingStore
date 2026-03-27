@@ -65,3 +65,16 @@ export const getProductsWithFilter = async (params) => {
         return { products: [], totalPages: 0, totalElements: 0 };
     }
 };
+
+/*
+* API XÓA SẢN PHẨM
+*/
+export const deleteProduct = async (id) => {
+    try {
+        const response = await axios.delete(`/products/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Lỗi khi xóa sản phẩm ${id}:`, error);
+        throw error; // Ném lỗi để UI hiển thị toast thông báo thất bại
+    }
+};

@@ -284,11 +284,16 @@ public class InventoryServiceImpl implements InventoryService {
         boolean isLow = inv.getLowStockThreshold() > 0
                 && inv.getAvailableQuantity() < inv.getLowStockThreshold();
 
+        Long categoryId = (sku.getProduct() != null && sku.getProduct().getCategory() != null) ? sku.getProduct().getCategory().getId() : null;
+        Long brandId = (sku.getProduct() != null && sku.getProduct().getBrand() != null) ? sku.getProduct().getBrand().getId() : null;
+
         return InventoryResponse.builder()
                 .id(inv.getId())
                 .skuId(sku.getId())
                 .skuCode(sku.getCode())
                 .productName(sku.getProduct() != null ? sku.getProduct().getName() : null)
+                .categoryId(categoryId)
+                .brandId(brandId)
                 .physicalQuantity(inv.getPhysicalQuantity())
                 .availableQuantity(inv.getAvailableQuantity())
                 .reservedQuantity(inv.getReservedQuantity())

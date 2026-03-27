@@ -26,27 +26,33 @@ export default function AdminLayout({ children }) {
                             Admin Portal
                         </div>
                         <nav className="mt-6">
-                            <ul>
+                            <ul className="text-lg font-medium">
                                 <li>
-                                    <Link href="/admin/dashboard" className="block px-6 py-3 hover:bg-gray-800">
+                                    <Link href="/admin/dashboard" className="block px-5 py-6 hover:bg-gray-700 border-b-gray-400">
                                         📊 Dashboard
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="/admin/products" className="block px-6 py-3 hover:bg-gray-800">
+                                    <Link href="/admin/products" className="block px-6 py-6 hover:bg-gray-700 border-b-gray-400">
                                         📦 Quản lý Sản phẩm
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="/admin/orders" className="block px-6 py-3 hover:bg-gray-800">
+                                    <Link href="/admin/orders" className="block px-6 py-6 hover:bg-gray-700 border-b-gray-400">
                                         🛒 Quản lý Đơn hàng
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="/admin/categories" className="block px-6 py-3 hover:bg-gray-800">📂 Danh mục</Link>
+                                    <Link href="/admin/categories" className="block px-6 py-6 hover:bg-gray-700 border-b-gray-400">📂 Danh mục</Link>
                                 </li>
                                 <li>
-                                    <Link href="/admin/brands" className="block px-6 py-3 hover:bg-gray-800">🏷️ Thương hiệu</Link>
+                                    <Link href="/admin/brands" className="block px-6 py-6 hover:bg-gray-700 border-b-gray-400">🏷️ Thương hiệu</Link>
+                                </li>
+                                <li>
+                                    <Link href="/admin/goods-receipts" className="block px-6 py-6 hover:bg-gray-700 border-b-gray-400">📥 Nhập kho</Link>
+                                </li>
+                                <li>
+                                    <Link href="/admin/inventory" className="block px-6 py-6 hover:bg-gray-700 border-b-gray-400">📂 Quản lý Tồn Kho</Link>
                                 </li>
                                 <li>
                                     <Link href="/admin/reviews" className="block px-6 py-3 hover:bg-gray-800">⭐ Duyệt đánh giá</Link>

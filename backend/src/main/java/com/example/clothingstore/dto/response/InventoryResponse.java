@@ -14,6 +14,8 @@ public class InventoryResponse {
     Long skuId;
     String skuCode;
     String productName;
+    Long categoryId;
+    Long brandId;
     Integer physicalQuantity;
     Integer availableQuantity;
     Integer reservedQuantity;

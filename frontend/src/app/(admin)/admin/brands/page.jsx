@@ -1,19 +1,21 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getBrands, createBrand, updateBrand, deleteBrand } from '@/services/brandService';
-import { Plus, Edit, Trash2, Tag, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Tag, X, Search, RefreshCw, ImageOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ImageUpload from '@/components/admin/ImageUpload';
 
 export default function BrandsPage() {
     const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [keyword, setKeyword] = useState('');
 
-    // Modal states
+    // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBrand, setEditingBrand] = useState(null);
     const [formData, setFormData] = useState({ name: '', logo: '' });
+    const [saving, setSaving] = useState(false);
 
     const fetchBrands = async () => {
         setLoading(true);
@@ -22,11 +24,15 @@ export default function BrandsPage() {
         setLoading(false);
     };
 
-    useEffect(() => {
-        fetchBrands();
-    }, []);
+    useEffect(() => { fetchBrands(); }, []);
 
-    // Xử lý mở Modal
+    // Filter phía frontend (data ít)
+    const filtered = useMemo(() => {
+        if (!keyword.trim()) return brands;
+        const kw = keyword.trim().toLowerCase();
+        return brands.filter(b => b.name.toLowerCase().includes(kw));
+    }, [brands, keyword]);
+
     const openModal = (brand = null) => {
         if (brand) {
             setEditingBrand(brand);
@@ -38,9 +44,9 @@ export default function BrandsPage() {
         setIsModalOpen(true);
     };
 
-    // Xử lý Submit (Create / Update)
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setSaving(true);
         try {
             if (editingBrand) {
                 await updateBrand(editingBrand.id, formData);
@@ -50,122 +56,174 @@ export default function BrandsPage() {
                 toast.success('Thêm thương hiệu thành công!');
             }
             setIsModalOpen(false);
-            fetchBrands(); // Refresh list
+            fetchBrands();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
+        } finally {
+            setSaving(false);
         }
     };
 
-    // Xử lý Xóa
     const handleDelete = async (id) => {
-        if (window.confirm('Bạn có chắc chắn muốn xóa thương hiệu này?')) {
-            try {
-                await deleteBrand(id);
-                toast.success('Xóa thương hiệu thành công!');
-                fetchBrands();
-            } catch (error) {
-                toast.error('Lỗi khi xóa thương hiệu!');
-            }
+        if (!window.confirm('Bạn có chắc chắn muốn xóa thương hiệu này?')) return;
+        try {
+            await deleteBrand(id);
+            toast.success('Xóa thương hiệu thành công!');
+            fetchBrands();
+        } catch {
+            toast.error('Lỗi khi xóa thương hiệu!');
         }
     };
-
-    const handleImageUpload = (url) => {
-        setFormData({ ...formData, logo: url });
-    };
-
-    if (loading && brands.length === 0) return <div className="p-8 text-center">Đang tải thương hiệu...</div>;
 
     return (
-        <div className="p-2 max-w mx-auto relative">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                    <Tag size={24} className="text-purple-600" /> Quản lý Thương hiệu
-                </h1>
+        <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+            {/* ── HEADER ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <Tag size={22} className="text-purple-600" />
+                        Quản lý Thương hiệu
+                    </h1>
+                    <p className="text-md text-gray-500 mt-0.5">
+                        {brands.length} thương hiệu · {filtered.length} hiển thị
+                    </p>
+                </div>
                 <button
                     onClick={() => openModal()}
-                    className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-colors cursor-pointer">
-                    <Plus size={18} /> Thêm thương hiệu
+                    className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-purple-700 transition-colors shadow-sm cursor-pointer text-md">
+                    <Plus size={17} /> Thêm thương hiệu
                 </button>
             </div>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="w-full border-collapse font-sans text-center">
-                    <thead className="bg-gray-50 text-gray-600 border-b text-md uppercase">
-                        <tr>
-                            <th className="p-4 border-b">ID</th>
-                            <th className="p-4 border-b">Logo</th>
-                            <th className="p-4 border-b">Tên thương hiệu</th>
-                            <th className="p-4 border-b">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {brands.length > 0 ? brands.map((brand) => (
-                            <tr key={brand.id} className="hover:bg-gray-50">
-                                <td className="p-4 text-gray-500">#{brand.id}</td>
-                                <td className="p-4 flex justify-center">
-                                    <div className="w-20 h-20 rounded-full border bg-gray-50 overflow-hidden flex items-center justify-center">
-                                        {brand.logo ? (
-                                            <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span className="text-xs text-gray-400">N/A</span>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="p-4 font-medium text-gray-800">
-                                    <input type="text"
-                                        readOnly
-                                        className='text-center bg-gray-700 text-white px-3 py-1.5 rounded-md focus:outline-none'
-                                        value={brand.name} />
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex justify-center gap-2">
-                                        <button onClick={() => openModal(brand)} className="text-black bg-amber-400 hover:bg-amber-600 cursor-pointer p-4 rounded-lg transition-colors"><Edit size={18} /></button>
-                                        <button onClick={() => handleDelete(brand.id)} className="text-white bg-red-600 hover:bg-red-800 cursor-pointer p-4 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        )) : (
-                            <tr><td colSpan="4" className="p-8 text-center text-gray-400">Chưa có thương hiệu nào</td></tr>
-                        )}
-                    </tbody>
-                </table>
+            {/* ── TOOLBAR ── */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                <div className="relative flex-1">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Tìm kiếm tên thương hiệu..."
+                        value={keyword}
+                        onChange={e => setKeyword(e.target.value)}
+                        className="w-full pl-9 pr-9 py-2.5 text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                    />
+                    {keyword && (
+                        <button onClick={() => setKeyword('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+                <button
+                    onClick={fetchBrands}
+                    className="flex items-center gap-2 px-4 py-2.5 text-md border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors bg-white text-gray-600 cursor-pointer font-medium">
+                    <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                    Làm mới
+                </button>
             </div>
 
-            {/* Modal Form */}
+            {/* ── TABLE ── */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                {loading ? (
+                    <div className="py-16 flex justify-center">
+                        <RefreshCw size={28} className="animate-spin text-purple-400" />
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="py-16 text-center text-gray-400">
+                        <Tag size={40} className="mx-auto mb-3 text-gray-200" />
+                        <p>{keyword ? `Không tìm thấy thương hiệu "${keyword}"` : 'Chưa có thương hiệu nào'}</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-md">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                                <th className="px-5 py-3 text-left w-16">ID</th>
+                                <th className="px-5 py-3 text-left w-24">Logo</th>
+                                <th className="px-5 py-3 text-left">Tên thương hiệu</th>
+                                <th className="px-5 py-3 text-left">Số sản phẩm</th>
+                                <th className="px-5 py-3 text-center w-28">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {filtered.map(brand => (
+                                <tr key={brand.id} className="hover:bg-gray-50/60 transition-colors">
+                                    <td className="px-5 py-4 text-gray-400 font-mono text-sm">#{brand.id}</td>
+                                    <td className="px-5 py-4">
+                                        <div className="w-12 h-12 rounded-xl border bg-gray-50 overflow-hidden flex items-center justify-center shadow-sm">
+                                            {brand.logo ? (
+                                                <img src={brand.logo} alt={brand.name}
+                                                    className="w-full h-full object-cover" />
+                                            ) : (
+                                                <ImageOff size={18} className="text-gray-300" />
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <span className="font-semibold text-gray-800">{brand.name}</span>
+                                    </td>
+                                    <td className="px-5 py-4 text-gray-400 text-sm">—</td>
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button onClick={() => openModal(brand)}
+                                                className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors cursor-pointer"
+                                                title="Sửa">
+                                                <Edit size={15} />
+                                            </button>
+                                            <button onClick={() => handleDelete(brand.id)}
+                                                className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer"
+                                                title="Xóa">
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+
+            {/* ── MODAL ── */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex justify-center items-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-                        <div className="flex justify-between items-center p-6 border-b">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b">
                             <h2 className="text-xl font-bold text-gray-800">
-                                {editingBrand ? 'Cập nhật Thương hiệu' : 'Thêm Thương hiệu mới'}
+                                {editingBrand ? 'Cập nhật thương hiệu' : 'Thêm thương hiệu mới'}
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-red-500 transition-colors"><X size={24} /></button>
+                            <button onClick={() => setIsModalOpen(false)}
+                                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
+                                <X size={20} />
+                            </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6">
-                            <div className="mb-4">
-                                <label className="block text-gray-700 font-medium mb-2">Tên thương hiệu <span className="text-red-500">*</span></label>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                            <div>
+                                <label className="block text-md font-semibold text-gray-700 mb-1.5">
+                                    Tên thương hiệu <span className="text-red-500">*</span>
+                                </label>
                                 <input
-                                    type="text"
-                                    required
-                                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    type="text" required
+                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:outline-none focus:ring-2 focus:ring-purple-400"
                                     value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="Nhập tên thương hiệu..."
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="VD: Coolmate, Owen..."
                                 />
                             </div>
-                            <div className="mb-6">
-                                <label className="block text-gray-700 font-medium mb-2">Đường dẫn Logo (URL)</label>
-                                <div className="mb-6">
-                                    <label className="block text-gray-700 font-medium mb-2">Logo thương hiệu</label>
-                                    <ImageUpload
-                                        value={formData.logo}
-                                        onUpload={handleImageUpload}
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-md font-semibold text-gray-700 mb-1.5">Logo thương hiệu</label>
+                                <ImageUpload
+                                    value={formData.logo}
+                                    onUpload={url => setFormData({ ...formData, logo: url })}
+                                />
                             </div>
-                            <div className="flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">Hủy</button>
-                                <button type="submit" className="px-5 py-2 text-white bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors cursor-pointer">Lưu lại</button>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button type="button" onClick={() => setIsModalOpen(false)}
+                                    className="px-5 py-2.5 text-md text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors cursor-pointer">
+                                    Hủy
+                                </button>
+                                <button type="submit" disabled={saving}
+                                    className="px-5 py-2.5 text-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 rounded-xl font-semibold transition-colors cursor-pointer shadow-sm">
+                                    {saving ? 'Đang lưu...' : 'Lưu lại'}
+                                </button>
                             </div>
                         </form>
                     </div>

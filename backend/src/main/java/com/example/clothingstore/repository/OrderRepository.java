@@ -2,6 +2,9 @@ package com.example.clothingstore.repository;
 
 import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.entity.Order;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,14 +16,15 @@ import java.util.Optional;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // Lấy danh sách sắp xếp theo ngày tạo (Mới nhất lên đầu)
-    List<Order> findAllByOrderByCreatedAtDesc();
-
     List<Order> findByUserId(String userId);
 
-    // Lấy chi tiết đơn hàng + Load luôn OrderItems (Tránh lỗi Lazy Loading)
+    List<Order> findAllByOrderByCreatedAtDesc();
+
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.id = :id")
     Optional<Order> findByIdWithItems(@Param("id") Long id);
+
+    // Phân trang có spec
+    Page<Order> findAll(Specification<Order> spec, Pageable pageable);
 
     Optional<Order> findByTrackingCode(String code);
 
