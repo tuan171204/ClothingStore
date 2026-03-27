@@ -41,7 +41,11 @@ public class Review {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    
+    @JoinColumn(name = "sku_id")
+    private Sku sku; // Lưu chính xác biến thể khách đã chọn đánh giá
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

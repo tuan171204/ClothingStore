@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface ReviewService {
 
-    Review createReview(Long productId, Integer rating, String comment, String userId);
+    Review createReview(Long productId,Long skuId ,Integer rating, String comment, String userId);
 
     Review updateOwnReview(Long reviewId, Integer rating, String comment, String userId);
 

@@ -46,7 +46,7 @@ public class ReviewController {
                                                     @RequestBody ReviewRequest request) {
         String userId = getCurrentUserId();
 
-        Review review = reviewService.createReview(productId, request.getRating(), request.getComment(), userId);
+        Review review = reviewService.createReview(productId, request.getSkuId(), request.getRating(), request.getComment(), userId);
 
         return ApiResponse.<ReviewResponse>builder()
                 .result(toResponse(review))

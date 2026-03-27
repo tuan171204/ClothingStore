@@ -30,7 +30,7 @@ spring:
     port: 5672
     username: guest
     password: guest
-
+  
   # Cấu hình Mail
   mail:
     host: smtp.gmail.com

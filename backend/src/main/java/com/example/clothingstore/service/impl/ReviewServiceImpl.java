@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.clothingstore.repository.SkuRepository;
+import com.example.clothingstore.entity.Sku;
 
 import java.util.List;
 import java.util.Objects;
@@ -22,11 +24,14 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final OrderRepository orderRepository;
+    private final SkuRepository skuRepository;
+    
 
     @Override
-    public Review createReview(Long productId, Integer rating, String comment, String userId) {
+    public Review createReview(Long productId,Long skuId ,Integer rating, String comment, String userId) {
         validateInput(productId, rating, comment, userId);
-
+        Sku sku = skuRepository.findById(skuId)
+            .orElseThrow(() -> new AppException(ErrorCode.SKU_NOT_FOUND));
         if (reviewRepository.existsByProductIdAndUserId(productId, userId)) {
             throw new AppException(ErrorCode.REVIEW_ALREADY_EXISTS);
         }
@@ -38,6 +43,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         Review review = Review.builder()
                 .productId(productId)
+                .sku(sku)
                 .userId(userId)
                 .rating(rating)
                 .comment(comment)

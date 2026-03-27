@@ -15,6 +15,7 @@ public enum ErrorCode {
     VALIDATION_ERROR(1001, "Dữ liệu đầu vào không đúng định dạng", HttpStatus.BAD_REQUEST),
     MALFORMED_JSON(1002, "Định dạng JSON gửi lên bị sai", HttpStatus.BAD_REQUEST),
     METHOD_NOT_ALLOWED(1003, "Phương thức HTTP không được hỗ trợ", HttpStatus.METHOD_NOT_ALLOWED),
+    SKU_NOT_FOUND(1010, "Biến thể sản phẩm không tồn tại", HttpStatus.NOT_FOUND),
 
     // Nhóm 11: Lỗi Phân quyền & Bảo mật (Security)
     UNAUTHORIZED(1101, "Không có quyền truy cập (Chưa xác thực)", HttpStatus.UNAUTHORIZED),
