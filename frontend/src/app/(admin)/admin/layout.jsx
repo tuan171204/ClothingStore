@@ -54,6 +54,9 @@ export default function AdminLayout({ children }) {
                                 <li>
                                     <Link href="/admin/inventory" className="block px-6 py-6 hover:bg-gray-700 border-b-gray-400">📂 Quản lý Tồn Kho</Link>
                                 </li>
+                                <li>
+                                    <Link href="/admin/reviews" className="block px-6 py-3 hover:bg-gray-800">⭐ Duyệt đánh giá</Link>
+                                </li>
                             </ul>
                         </nav>
                     </aside>

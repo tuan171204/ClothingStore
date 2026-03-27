@@ -1,5 +1,6 @@
 package com.example.clothingstore.repository;
 
+import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.entity.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,4 +27,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Page<Order> findAll(Specification<Order> spec, Pageable pageable);
 
     Optional<Order> findByTrackingCode(String code);
+
+        @Query("""
+                        SELECT COUNT(o)
+                        FROM Order o
+                        JOIN o.orderItems oi
+                        JOIN Sku s ON s.id = oi.skuId
+                        WHERE o.userId = :userId
+                            AND o.status = :status
+                            AND s.product.id = :productId
+                        """)
+        long countCompletedOrdersContainingProduct(@Param("userId") String userId,
+                                                                                             @Param("productId") Long productId,
+                                                                                             @Param("status") OrderStatus status);
 }
