@@ -28,6 +28,7 @@ public class SecurityConfig {
 
     // Danh sách các URL công khai không cần kiểm tra Token
     private final String[] PUBLIC_URLS = {
+            "/api/v1/user/products",
             "/api/v1/users/registration",
             "/api/v1/auth/**",
             "/api/v1/products/**",
