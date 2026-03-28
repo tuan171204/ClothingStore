@@ -26,47 +26,43 @@ export const CartProvider = ({ children }) => {
   // 3. Hàm thêm vào giỏ
   const addToCart = (product, sku, quantity = 1) => {
     setCartItems((prevItems) => {
-      // Kiểm tra xem SKU này đã có trong giỏ chưa
+      const currentSkuId = sku.skuId || sku.id;
+
       const existingItemIndex = prevItems.findIndex(
-        (item) => item.skuId === sku.id
+        (item) => item.skuId === currentSkuId
       );
 
       if (existingItemIndex > -1) {
-        // Nếu có rồi -> Tăng số lượng
         const newItems = [...prevItems];
-
         const updatedItem = { ...newItems[existingItemIndex] };
-
         const newQuantity = updatedItem.quantity + quantity;
 
-        // Validate tồn kho
         if (newQuantity > sku.stockQuantity) {
           alert(`Chỉ còn ${sku.stockQuantity} sản phẩm trong kho!`);
-          return prevItems; // Trả về mảng cũ, không thay đổi
+          return prevItems;
         }
 
         updatedItem.quantity = newQuantity;
-
         newItems[existingItemIndex] = updatedItem;
-
         return newItems;
       } else {
-        // Nếu chưa có -> Thêm mới
-        // Lưu ý: Chỉ lưu những thông tin cần thiết để hiển thị
+        const optionSummary = sku.options
+          ? Object.values(sku.options).join(' - ')
+          : '';
+
         const newItem = {
-          skuId: sku.id,
+          skuId: currentSkuId,
           productId: product.id,
           name: product.name,
-          thumbnail: product.thumbnail, // Link ảnh từ JSON
-          price: sku.price,             // Giá của SKU (không phải giá gốc SP)
-          variantName: sku.skuName,     // VD: "Đỏ - M"
-          stock: sku.stockQuantity,     // Để validate ở trang Cart
+          thumbnail: product.thumbnail,
+          price: sku.price,
+          variantName: optionSummary,
+          stock: sku.stockQuantity,
           quantity: quantity,
         };
         return [...prevItems, newItem];
       }
     });
-    alert("Đã thêm vào giỏ hàng!");
   };
 
   // 4. Hàm xóa sản phẩm

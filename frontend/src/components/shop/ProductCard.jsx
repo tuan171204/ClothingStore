@@ -11,7 +11,7 @@ const ProductCard = ({ product }) => {
             <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden w-full mb-4">
                 <Link href={`/products/${product.id}`}>
                     <img
-                        src={product.thumbnail || 'https://via.placeholder.com/400x533?text=No+Image'}
+                        src={product.thumbnail || 'https://placehold.co/400x533?text=No+Image'}
                         alt={product.name}
                         className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-in-out"
                     />

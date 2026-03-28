@@ -1,6 +1,7 @@
 CREATE TABLE reviews (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     product_id BIGINT NOT NULL,
+    sku_id BIGINT,
     user_id VARCHAR(255) NOT NULL,
     rating INT NOT NULL,
     comment TEXT,

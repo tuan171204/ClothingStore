@@ -1,18 +1,19 @@
 package com.example.clothingstore.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "products")
 @Data
+@EqualsAndHashCode(exclude = {"category", "brand", "options", "skus"})
+@ToString(exclude = {"category", "brand", "options", "skus"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -51,5 +52,5 @@ public class Product {
     // Một sản phẩm có nhiều biến thể bán (SKU)
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<Sku> skus = new ArrayList<>();
+    private Set<Sku> skus = new LinkedHashSet<>();
 }

@@ -6,6 +6,8 @@ import lombok.*;
 @Entity
 @Table(name = "sku_values")
 @Data
+@EqualsAndHashCode(exclude = {"sku", "optionValue"})
+@ToString(exclude = {"sku", "optionValue"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

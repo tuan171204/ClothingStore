@@ -3,9 +3,12 @@ package com.example.clothingstore.repository;
 import com.example.clothingstore.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
@@ -24,4 +27,15 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     List<Product> findByIsActiveTrue();
 
     // ... Các query nâng cao
+    @Query("""
+    SELECT DISTINCT p FROM Product p
+    LEFT JOIN FETCH p.skus s
+    LEFT JOIN FETCH s.values sv
+    LEFT JOIN FETCH sv.optionValue ov
+    LEFT JOIN FETCH ov.productOption po
+    WHERE p.id = :productId
+      AND s.isActive = true
+      AND sv.isActive = true
+    """)
+    Optional<Product> findByIdWithActiveSkusAndValues(@Param("productId") Long productId);
 }

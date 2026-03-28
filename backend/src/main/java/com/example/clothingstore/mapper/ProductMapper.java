@@ -8,6 +8,7 @@ import com.example.clothingstore.entity.*;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
+import java.util.Set;
 
 import java.util.Comparator;
 import java.util.List;
@@ -54,7 +55,7 @@ public interface ProductMapper {
 
     // --- Hàm vừa map vừa sort ---
     @Named("mapAndSortSkus")
-    default List<SkuDTO> mapAndSortSkus(List<Sku> skus) {
+    default List<SkuDTO> mapAndSortSkus(Set<Sku> skus) {
         if (skus == null) return null;
 
         return skus.stream()
@@ -64,7 +65,7 @@ public interface ProductMapper {
                 .collect(Collectors.toList());
     }
 
-    default List<ProductOptionValueDTO> mapSkuValuesToOptionValueDTOs(List<SkuValue> skuValues) {
+    default List<ProductOptionValueDTO> mapSkuValuesToOptionValueDTOs(Set<SkuValue> skuValues) {
         if (skuValues == null) return null;
 
         return skuValues.stream()
