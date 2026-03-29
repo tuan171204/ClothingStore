@@ -1,8 +1,8 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.request.AddressRequest;
-import com.example.clothingstore.dto.response.AddressResponse;
-import com.example.clothingstore.dto.response.ApiResponse;
+import com.example.clothingstore.dtos.address.request.AddressRequest;
+import com.example.clothingstore.dtos.address.response.AddressResponse;
+import com.example.clothingstore.dtos.ApiResponse;
 import com.example.clothingstore.service.impl.AddressService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

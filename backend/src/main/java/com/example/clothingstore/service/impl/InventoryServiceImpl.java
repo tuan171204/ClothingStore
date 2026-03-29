@@ -1,8 +1,8 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.request.StockAdjustmentRequest;
-import com.example.clothingstore.dto.request.UpdateLowStockThresholdRequest;
-import com.example.clothingstore.dto.response.*;
+import com.example.clothingstore.dtos.inventory.request.StockAdjustmentRequest;
+import com.example.clothingstore.dtos.inventory.request.UpdateLowStockThresholdRequest;
+import com.example.clothingstore.dtos.order.response.*;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.entity.Enum.StockMovementType;
 import com.example.clothingstore.entity.Enum.StockReferenceType;

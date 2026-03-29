@@ -1,12 +1,13 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.request.ProductRequest;
-import com.example.clothingstore.dto.response.ProductListResponse;
-import com.example.clothingstore.dto.response.ProductResponse;
-import com.example.clothingstore.dto.response.ProductVariantResponse;
+import com.example.clothingstore.dtos.product.request.ProductRequest;
+import com.example.clothingstore.dtos.product.response.ProductListResponse;
+import com.example.clothingstore.dtos.product.response.ProductResponse;
+import com.example.clothingstore.dtos.product.response.ProductVariantResponse;
 import com.example.clothingstore.service.cloudinary.CloudinaryService;
 import com.example.clothingstore.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -87,6 +88,13 @@ public class ProductController {
                 keyword, categoryId, brandId, minPrice, maxPrice, page, limit
         );
         return ResponseEntity.ok(response);
+    }
+    private final RedisConnectionFactory redisConnectionFactory;
+    @GetMapping("/clear-cache")
+    public String clearCache() {
+        // Lệnh này tương đương với việc xóa trắng toàn bộ Database hiện tại trong Redis
+        redisConnectionFactory.getConnection().serverCommands().flushDb();
+        return "Đã xóa sạch bộ nhớ đệm (FlushDB) trên Redis Cloud thành công!";
     }
 
     @GetMapping("/{id}/variants")

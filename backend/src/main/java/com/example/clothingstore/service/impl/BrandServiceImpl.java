@@ -1,12 +1,12 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.response.BrandResponse;
+import com.example.clothingstore.dtos.brand.response.BrandResponse;
 import com.example.clothingstore.entity.Brand;
 import com.example.clothingstore.exception.AppException;
 import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.repository.BrandRepository;
 import com.example.clothingstore.service.BrandService;
-import com.example.clothingstore.dto.request.BrandRequest;
+import com.example.clothingstore.dtos.brand.request.BrandRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;

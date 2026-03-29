@@ -1,8 +1,8 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.ProductOptionDTO;
-import com.example.clothingstore.dto.ProductOptionValueDTO;
-import com.example.clothingstore.dto.response.ApiResponse;
+import com.example.clothingstore.dtos.dto.ProductOptionDTO;
+import com.example.clothingstore.dtos.dto.ProductOptionValueDTO;
+import com.example.clothingstore.dtos.ApiResponse;
 import com.example.clothingstore.service.ProductOptionService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

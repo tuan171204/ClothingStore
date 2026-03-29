@@ -1,8 +1,8 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.request.CommentRequest;
-import com.example.clothingstore.dto.response.ApiResponse;
-import com.example.clothingstore.dto.response.CommentResponse;
+import com.example.clothingstore.dtos.comment.request.CommentRequest;
+import com.example.clothingstore.dtos.ApiResponse;
+import com.example.clothingstore.dtos.comment.response.CommentResponse;
 import com.example.clothingstore.service.impl.ProductCommentServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

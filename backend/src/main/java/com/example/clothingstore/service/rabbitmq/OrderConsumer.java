@@ -1,7 +1,7 @@
 package com.example.clothingstore.service.rabbitmq;
 
 import com.example.clothingstore.config.RabbitMQConfig;
-import com.example.clothingstore.dto.event.OrderMessage;
+import com.example.clothingstore.dtos.event.OrderMessage;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.repository.OrderRepository;
 import com.example.clothingstore.service.mail.MailService;

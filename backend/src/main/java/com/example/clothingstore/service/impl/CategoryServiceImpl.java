@@ -1,7 +1,7 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.request.CategoryRequest;
-import com.example.clothingstore.dto.response.CategoryResponse;
+import com.example.clothingstore.dtos.category.request.CategoryRequest;
+import com.example.clothingstore.dtos.category.response.CategoryResponse;
 import com.example.clothingstore.entity.Category;
 import com.example.clothingstore.exception.AppException;
 import com.example.clothingstore.exception.ErrorCode;

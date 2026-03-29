@@ -1,10 +1,10 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.document.ProductDocument;
-import com.example.clothingstore.dto.request.ProductRequest;
-import com.example.clothingstore.dto.response.ProductListResponse;
-import com.example.clothingstore.dto.response.ProductResponse;
-import com.example.clothingstore.dto.response.ProductVariantResponse;
+import com.example.clothingstore.dtos.product.request.ProductRequest;
+import com.example.clothingstore.dtos.product.response.ProductListResponse;
+import com.example.clothingstore.dtos.product.response.ProductResponse;
+import com.example.clothingstore.dtos.product.response.ProductVariantResponse;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.mapper.ProductMapper;
 import com.example.clothingstore.repository.*;

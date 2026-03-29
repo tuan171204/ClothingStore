@@ -1,9 +1,9 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.request.ReviewFromOrderRequest;
-import com.example.clothingstore.dto.response.OrderItemReviewStatus;
-import com.example.clothingstore.dto.response.ReviewDetailResponse;
-import com.example.clothingstore.dto.response.ReviewResponse;
+import com.example.clothingstore.dtos.review.request.ReviewFromOrderRequest;
+import com.example.clothingstore.dtos.order.response.OrderItemReviewStatus;
+import com.example.clothingstore.dtos.review.response.ReviewDetailResponse;
+import com.example.clothingstore.dtos.review.response.ReviewResponse;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.entity.Enum.ReviewStatus;

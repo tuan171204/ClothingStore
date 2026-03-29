@@ -1,6 +1,6 @@
 package com.example.clothingstore.service;
 
-import com.example.clothingstore.dto.response.ReviewDetailResponse;
+import com.example.clothingstore.dtos.review.response.ReviewDetailResponse;
 import com.example.clothingstore.entity.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

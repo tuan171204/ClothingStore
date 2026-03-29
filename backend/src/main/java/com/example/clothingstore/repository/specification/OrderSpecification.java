@@ -1,6 +1,6 @@
 package com.example.clothingstore.repository.specification;
 
-import com.example.clothingstore.dto.request.OrderFilterRequest;
+import com.example.clothingstore.dtos.order.request.OrderFilterRequest;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.Enum.OrderStatus;
 import org.springframework.data.jpa.domain.Specification;

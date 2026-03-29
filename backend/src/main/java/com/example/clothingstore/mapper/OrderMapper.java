@@ -1,6 +1,6 @@
 package com.example.clothingstore.mapper;
 
-import com.example.clothingstore.dto.OrderDTO;
+import com.example.clothingstore.dtos.dto.OrderDTO;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.Enum.OrderStatus;
 import org.mapstruct.Mapper;

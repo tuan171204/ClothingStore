@@ -1,7 +1,7 @@
 package com.example.clothingstore.service;
 
-import com.example.clothingstore.dto.request.CommentRequest;
-import com.example.clothingstore.dto.response.CommentResponse;
+import com.example.clothingstore.dtos.comment.request.CommentRequest;
+import com.example.clothingstore.dtos.comment.response.CommentResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

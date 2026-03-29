@@ -1,6 +1,6 @@
 package com.example.clothingstore.exception;
 
-import com.example.clothingstore.dto.response.ApiResponse;
+import com.example.clothingstore.dtos.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;

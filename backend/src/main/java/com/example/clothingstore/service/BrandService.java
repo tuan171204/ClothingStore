@@ -1,7 +1,7 @@
 package com.example.clothingstore.service;
 
-import com.example.clothingstore.dto.response.BrandResponse;
-import com.example.clothingstore.dto.request.BrandRequest;
+import com.example.clothingstore.dtos.brand.response.BrandResponse;
+import com.example.clothingstore.dtos.brand.request.BrandRequest;
 import java.util.List;
 
 public interface BrandService {

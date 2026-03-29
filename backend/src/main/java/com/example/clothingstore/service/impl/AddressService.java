@@ -1,22 +1,18 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.request.AddressRequest;
-import com.example.clothingstore.dto.response.AddressResponse;
+import com.example.clothingstore.dtos.address.request.AddressRequest;
+import com.example.clothingstore.dtos.address.response.AddressResponse;
 import com.example.clothingstore.entity.User;
 import com.example.clothingstore.entity.address.Address;
 import com.example.clothingstore.mapper.AddressMapper;
 import com.example.clothingstore.repository.AddressRepository;
 import com.example.clothingstore.repository.UserRepository;
-import com.example.clothingstore.repository.address.DistrictRepository;
-import com.example.clothingstore.repository.address.ProvinceRepository;
-import com.example.clothingstore.repository.address.WardRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Optional;

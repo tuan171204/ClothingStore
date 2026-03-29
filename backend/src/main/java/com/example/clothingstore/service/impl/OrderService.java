@@ -1,9 +1,9 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.OrderDTO;
-import com.example.clothingstore.dto.request.OrderFilterRequest;
-import com.example.clothingstore.dto.response.OrderResponse;
-import com.example.clothingstore.dto.response.PagedResponse;
+import com.example.clothingstore.dtos.dto.OrderDTO;
+import com.example.clothingstore.dtos.order.request.OrderFilterRequest;
+import com.example.clothingstore.dtos.order.response.OrderResponse;
+import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.OrderItem;
 import com.example.clothingstore.entity.Enum.OrderStatus;

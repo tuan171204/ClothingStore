@@ -1,9 +1,9 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.response.ApiResponse;
-import com.example.clothingstore.dto.request.UserCreationRequest;
-import com.example.clothingstore.dto.request.UserUpdateRequest;
-import com.example.clothingstore.dto.response.UserResponse;
+import com.example.clothingstore.dtos.ApiResponse;
+import com.example.clothingstore.dtos.user.request.UserCreationRequest;
+import com.example.clothingstore.dtos.user.request.UserUpdateRequest;
+import com.example.clothingstore.dtos.user.response.UserResponse;
 import com.example.clothingstore.service.cloudinary.CloudinaryService;
 import com.example.clothingstore.service.impl.UserServiceImpl;
 import lombok.AccessLevel;

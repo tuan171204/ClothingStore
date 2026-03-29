@@ -1,7 +1,7 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.ProductOptionDTO;
-import com.example.clothingstore.dto.ProductOptionValueDTO;
+import com.example.clothingstore.dtos.dto.ProductOptionDTO;
+import com.example.clothingstore.dtos.dto.ProductOptionValueDTO;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.mapper.ProductOptionMapper;
 import com.example.clothingstore.repository.*;
