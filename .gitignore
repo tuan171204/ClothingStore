@@ -1,2 +1,4 @@
 backend/.env
 backend/docker-compose.yml
+backend/resources/application-secret.yml
+backend/resources/application.yml
