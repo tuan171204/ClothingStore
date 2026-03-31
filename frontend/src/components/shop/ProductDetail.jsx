@@ -315,7 +315,7 @@ const ProductDetail = ({ product }) => {
         ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
         : null;
 
-    const displayImage = currentSku?.imgUrl || product.thumbnail || 'https://via.placeholder.com/600x800?text=No+Image';
+    const displayImage = currentSku?.imgUrl || product.thumbnail || 'https://placehold.co/600x800?text=No+Image';
     const isOutOfStock = !currentSku || currentSku.stockQuantity === 0;
 
     return (

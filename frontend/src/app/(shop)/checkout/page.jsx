@@ -150,7 +150,7 @@ export default function CheckoutPage() {
                 toWardCode: selectedAddr.wardCode,
                 shippingFee: shippingFee,
                 paymentMethod: paymentMethod,
-                items: cartItems.map(item => ({ skuId: item.skuId, name: item.name, quantity: item.quantity, price: item.price }))
+                items: cartItems.map(item => ({ skuId: item.skuId, name: item.productName, quantity: item.quantity, price: item.price }))
             };
         } else {
             if (!formData.fullName || !formData.phone || !formData.specificAddress || !selectedProvince || !selectedDistrict || !selectedWard) {
@@ -167,7 +167,7 @@ export default function CheckoutPage() {
                 toWardCode: String(selectedWard),
                 shippingFee: shippingFee,
                 paymentMethod: paymentMethod,
-                items: cartItems.map(item => ({ skuId: item.skuId, name: item.name, quantity: item.quantity, price: item.price }))
+                items: cartItems.map(item => ({ skuId: item.skuId, name: item.productName, quantity: item.quantity, price: item.price }))
             };
         }
 

@@ -147,7 +147,7 @@ export default function CartPage() {
                                             </button>
                                             <div className="w-30 h-30 rounded-lg overflow-hidden 
                                                             shrink-0 bg-white border border-gray-200">
-                                                <img src={item.thumbnailUrl || item.thumbnail}
+                                                <img src={item.thumbnailUrl || item.thumbnail || "https://placehold.co/120x120?text=No+Image"}
                                                     alt={item.productName || item.name}
                                                     className="w-full h-full object-contain" />
                                             </div>

@@ -170,13 +170,22 @@ public class CheckoutService {
         Order savedOrder = orderRepository.save(order);
 
         List<OrderItem> orderItems = request.getItems().stream()
-                .map(item -> OrderItem.builder()
-                        .order(savedOrder)
-                        .skuId(item.getSkuId())
-                        .productName(item.getProductName())
-                        .quantity(item.getQuantity())
-                        .priceAtPurchase(item.getPrice())
-                        .build())
+                .map(item -> {
+                    // Lấy trực tiếp thông tin chuẩn từ DB đã query ở Bước 2.1
+                    Inventory inv = inventoryMap.get(item.getSkuId());
+
+                    String realProductName = (inv != null && inv.getSku() != null && inv.getSku().getProduct() != null)
+                            ? inv.getSku().getProduct().getName()
+                            : item.getProductName(); // Fallback nhẹ nếu có lỗi relation
+
+                    return OrderItem.builder()
+                            .order(savedOrder)
+                            .skuId(item.getSkuId())
+                            .productName(realProductName)
+                            .quantity(item.getQuantity())
+                            .priceAtPurchase(item.getPrice())
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         orderItemRepository.saveAll(orderItems);
