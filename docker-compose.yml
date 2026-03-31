@@ -1,62 +1,27 @@
 version: '3.8'
 
 services:
-  # 1. MySQL Database
-  mysql-db:
-    image: mysql:8.0
-    container_name: ecom_mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: Tuan171204@
-      MYSQL_DATABASE: clothingstore_db
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - ecom_network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      timeout: 20s
-      retries: 10
-
-  # 2. Redis Cache (Lưu session, giỏ hàng)
-  redis-cache:
-    image: redis:alpine
-    container_name: ecom_redis
-    ports:
-      - "6379:6379"
-    networks:
-      - ecom_network
-
-  # 3. RabbitMQ (Hệ thống Message Queue)
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: ecom_rabbitmq
-    ports:
-      - "5672:5672" 
-      - "15672:15672" 
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    networks:
-      - ecom_network
-
-  # 4. Elasticsearch (Tìm kiếm toàn văn)
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
     container_name: ecom_elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
     ports:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    networks:
+      - ecom_network
+    deploy:
+      resources:
+        limits:
+          memory: 500M
 
 volumes:
-  mysql_data:
   es_data:
+
 
 networks:
   ecom_network:
