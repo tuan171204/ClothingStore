@@ -238,9 +238,31 @@ const ProductDetail = ({ product }) => {
     // ----------------------------------------------------------------
     // Handlers
     // ----------------------------------------------------------------
+    const checkOptionInStock = useCallback((optionName, value) => {
+        if (!product.skus?.length) return false;
+
+        const testSelections = { ...selections, [optionName]: value };
+
+        return product.skus.some(sku => {
+            if (sku.isActive === false || sku.stockQuantity <= 0) return false;
+
+            const skuValues = sku.optionValues?.map(ov => ov.value) || [];
+
+            return Object.values(testSelections).every(v => skuValues.includes(v));
+        });
+    }, [selections, product.skus]);
+
     const handleSelect = (optionName, value) => {
         setIsImageLoading(true);
-        setSelections(prev => ({ ...prev, [optionName]: value }));
+        setSelections(prev => {
+            const newState = { ...prev };
+            if (newState[optionName] === value) {
+                delete newState[optionName];
+            } else {
+                newState[optionName] = value;
+            }
+            return newState;
+        });
         setTimeout(() => setIsImageLoading(false), 300);
     };
 
@@ -356,19 +378,30 @@ const ProductDetail = ({ product }) => {
                                 )}
                             </div>
                             <div className="flex flex-wrap gap-3">
-                                {opt.values?.filter(v => v.isActive !== false).map(val => (
-                                    <button
-                                        key={val.id}
-                                        onClick={() => handleSelect(opt.name, val.value)}
-                                        className={`min-w-12 px-4 py-3 text-sm font-bold border transition-all cursor-pointer
-                                            ${selections[opt.name] === val.value
-                                                ? 'border-gray-900 bg-gray-900 text-white'
-                                                : 'border-gray-300 bg-white text-gray-700 hover:border-gray-900'
-                                            }`}
-                                    >
-                                        {val.value}
-                                    </button>
-                                ))}
+                                {opt.values?.filter(v => v.isActive !== false).map(val => {
+                                    const isSelected = selections[opt.name] === val.value;
+
+                                    const hasStock = checkOptionInStock(opt.name, val.value);
+
+                                    const isDisabled = !isSelected && !hasStock;
+
+                                    return (
+                                        <button
+                                            key={val.id}
+                                            disabled={isDisabled}
+                                            onClick={() => handleSelect(opt.name, val.value)}
+                                            className={`min-w-12 px-4 py-3 text-sm font-bold border transition-all
+                    ${isSelected
+                                                    ? 'border-gray-900 bg-gray-900 text-white'
+                                                    : isDisabled
+                                                        ? 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed opacity-60'
+                                                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-900 cursor-pointer'
+                                                }`}
+                                        >
+                                            {val.value}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

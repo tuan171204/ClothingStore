@@ -17,15 +17,14 @@ export const AuthProvider = ({ children }) => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    // Nếu có token, lấy thông tin user từ Backend
                     const response = await authService.getMyInfo();
-                    setUser(response.result); // Lưu vào state
+                    setUser(response.result);
                 } catch (error) {
-                    console.error("Token hết hạn hoặc lỗi:", error);
-                    localStorage.removeItem('token'); // Xóa token hỏng
+                    console.error("Phiên đăng nhập đã hết hạn hoàn toàn!");
+                    setUser(null);
                 }
             }
-            setLoading(false); // Load xong
+            setLoading(false);
         };
         loadUser();
     }, []);
