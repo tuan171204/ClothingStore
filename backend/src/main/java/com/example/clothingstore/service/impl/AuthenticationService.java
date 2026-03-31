@@ -1,8 +1,8 @@
 package com.example.clothingstore.service.impl;
 
-import com.example.clothingstore.dto.auth.request.*;
-import com.example.clothingstore.dto.auth.response.AuthenticationResponse;
-import com.example.clothingstore.dto.auth.response.IntrospectResponse;
+import com.example.clothingstore.dtos.auth.request.*;
+import com.example.clothingstore.dtos.auth.response.AuthenticationResponse;
+import com.example.clothingstore.dtos.auth.response.IntrospectResponse;
 import com.example.clothingstore.entity.User;
 import com.example.clothingstore.entity.auth.InvalidatedToken;
 import com.example.clothingstore.repository.UserRepository;
@@ -23,12 +23,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.Date;
 import java.util.StringJoiner;
 import java.util.UUID;

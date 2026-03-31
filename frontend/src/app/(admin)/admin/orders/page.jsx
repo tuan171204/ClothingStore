@@ -267,7 +267,7 @@ export default function AdminOrderPage() {
         try {
             toast.info('Đang kết nối GHN...');
             await shipOrder(orderId);
-            toast.success('✅ Tạo vận đơn thành công!');
+            toast.success('Tạo vận đơn thành công!');
             setSelectedOrder(null);
             fetchData();
         } catch (err) {
@@ -390,8 +390,8 @@ export default function AdminOrderPage() {
                                     key={opt.value}
                                     onClick={() => setStatus(opt.value === status ? '' : opt.value)}
                                     className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all cursor-pointer border ${status === opt.value
-                                            ? `${opt.color} border-transparent ring-2 ring-offset-1 ring-blue-400 shadow-sm`
-                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                                        ? `${opt.color} border-transparent ring-2 ring-offset-1 ring-blue-400 shadow-sm`
+                                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
                                         }`}>
                                     {opt.label}
                                 </button>
@@ -498,8 +498,8 @@ export default function AdminOrderPage() {
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <span className={`px-2 py-1 rounded-md text-sm font-semibold ${order.paymentMethod === 'VNPAY'
-                                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                                        : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                                    : 'bg-gray-100 text-gray-600 border border-gray-200'
                                                     }`}>
                                                     {order.paymentMethod}
                                                 </span>
@@ -647,8 +647,8 @@ const PaginationBtn = ({ onClick, disabled, active, label }) => (
         onClick={onClick}
         disabled={disabled}
         className={`min-w-[34px] h-[34px] px-2 flex items-center justify-center rounded-lg text-md font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${active
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+            ? 'bg-blue-600 text-white shadow-sm'
+            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}>
         {label}
     </button>

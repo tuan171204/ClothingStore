@@ -1,10 +1,9 @@
 package com.example.clothingstore.controller;
 
-import com.cloudinary.Api;
-import com.example.clothingstore.dto.auth.request.*;
-import com.example.clothingstore.dto.response.ApiResponse;
-import com.example.clothingstore.dto.auth.response.AuthenticationResponse;
-import com.example.clothingstore.dto.auth.response.IntrospectResponse;
+import com.example.clothingstore.dtos.auth.request.*;
+import com.example.clothingstore.dtos.ApiResponse;
+import com.example.clothingstore.dtos.auth.response.AuthenticationResponse;
+import com.example.clothingstore.dtos.auth.response.IntrospectResponse;
 import com.example.clothingstore.service.impl.AuthenticationService;
 import com.nimbusds.jose.JOSEException;
 import lombok.AccessLevel;

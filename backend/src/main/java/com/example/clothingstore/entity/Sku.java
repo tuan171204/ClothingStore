@@ -1,18 +1,19 @@
 package com.example.clothingstore.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "skus")
 @Data
+@EqualsAndHashCode(exclude = {"product", "values"})
+@ToString(exclude = {"product", "values"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -44,5 +45,5 @@ public class Sku {
     // Liên kết để biết SKU này gồm những giá trị nào (VD: Màu Đỏ + Size L)
     @OneToMany(mappedBy = "sku", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<SkuValue> values = new ArrayList<>();
+    private Set<SkuValue> values = new LinkedHashSet<>();
 }

@@ -1,6 +1,6 @@
 package com.example.clothingstore.mapper;
 
-import com.example.clothingstore.dto.response.OrderResponse;
+import com.example.clothingstore.dtos.order.response.OrderResponse;
 import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.OrderItem;
 import com.example.clothingstore.repository.SkuRepository;

@@ -2,11 +2,10 @@ package com.example.clothingstore.config.auth;
 
 import java.io.IOException;
 
-import com.example.clothingstore.dto.response.ApiResponse;
+import com.example.clothingstore.dtos.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;

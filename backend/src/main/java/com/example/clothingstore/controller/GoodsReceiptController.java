@@ -1,8 +1,8 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.request.CreateGoodsReceiptRequest;
-import com.example.clothingstore.dto.response.ApiResponse;
-import com.example.clothingstore.dto.response.GoodsReceiptResponse;
+import com.example.clothingstore.dtos.gooodsReceipt.request.CreateGoodsReceiptRequest;
+import com.example.clothingstore.dtos.ApiResponse;
+import com.example.clothingstore.dtos.gooodsReceipt.response.GoodsReceiptResponse;
 import com.example.clothingstore.service.GoodsReceiptService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

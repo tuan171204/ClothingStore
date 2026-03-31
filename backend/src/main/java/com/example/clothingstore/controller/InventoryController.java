@@ -1,8 +1,9 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.dto.request.StockAdjustmentRequest;
-import com.example.clothingstore.dto.request.UpdateLowStockThresholdRequest;
-import com.example.clothingstore.dto.response.*;
+import com.example.clothingstore.dtos.ApiResponse;
+import com.example.clothingstore.dtos.inventory.request.StockAdjustmentRequest;
+import com.example.clothingstore.dtos.inventory.request.UpdateLowStockThresholdRequest;
+import com.example.clothingstore.dtos.order.response.*;
 import com.example.clothingstore.service.InventoryService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

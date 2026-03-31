@@ -11,7 +11,9 @@ import { uploadUserAvatar } from '@/services/uploadService';
 import { updateUserProfile } from '@/services/userService';
 import Link from 'next/link';
 import { formatCurrency } from '@/services/productService';
-import { getMyReviewsByProducts } from '@/services/reviewService';
+// ĐÃ SỬA: Import API mới từ reviewService
+import { getReviewStatusByOrder } from '@/services/reviewService';
+import OrderReviewModal from '@/components/shop/OrderReviewModal';
 
 export default function ProfilePage() {
     const { user, logout, loading } = useAuth();
@@ -20,20 +22,23 @@ export default function ProfilePage() {
     const searchParams = useSearchParams();
     const initialTab = searchParams.get('tab') || 'profile';
 
-    const [activeTab, setActiveTab] = useState('profile');
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [orders, setOrders] = useState([]);
-    const [reviewMap, setReviewMap] = useState({});
 
-    // Đổi state này thành mảng để chứa toàn bộ sổ địa chỉ
+    // ĐÃ SỬA: State mới lưu trữ trạng thái review theo từng Order ID
+    const [orderReviewStatus, setOrderReviewStatus] = useState({});
+
     const [addresses, setAddresses] = useState([]);
-
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+    const [reviewingOrderId, setReviewingOrderId] = useState(null);
 
     const orderMapping = {
         "PENDING": "Chờ xác nhận",
         "SHIPPING": "Đang giao hàng",
         "COMPLETED": "Hoàn thành",
-        "CANCELLED": "Đã hủy"
+        "CANCELLED": "Đã hủy",
+        "CONFIRMED": 'Đã xác nhận thanh toán',
+
     }
 
     const [formData, setFormData] = useState({
@@ -46,7 +51,7 @@ export default function ProfilePage() {
     const reviewStatusMapping = {
         PENDING: 'Đang chờ duyệt',
         APPROVED: 'Đã duyệt',
-        REJECTED: 'Bị từ chối'
+        REJECTED: 'Bị từ chối',
     };
 
     useEffect(() => {
@@ -65,38 +70,26 @@ export default function ProfilePage() {
                     const userOrders = data || [];
                     setOrders(userOrders);
 
-                    const productIds = [...new Set(
-                        userOrders.flatMap(order =>
-                            (order.orderItems || [])
-                                .map(item => item.productId)
-                                .filter(Boolean)
-                        )
-                    )];
-
-                    if (productIds.length === 0) {
-                        setReviewMap({});
-                        return;
-                    }
-
-                    try {
-                        const myReviews = await getMyReviewsByProducts(productIds);
-                        const nextReviewMap = myReviews.reduce((acc, review) => {
-                            acc[review.productId] = review;
-                            return acc;
-                        }, {});
-                        setReviewMap(nextReviewMap);
-                    } catch (error) {
-                        console.error('Lỗi tải trạng thái đánh giá:', error);
-                        setReviewMap({});
+                    // ĐÃ SỬA: Lấy trạng thái review cho các đơn hàng đã COMPLETED
+                    const completedOrders = userOrders.filter(o => o.status === 'COMPLETED');
+                    if (completedOrders.length > 0) {
+                        const statusMap = {};
+                        await Promise.all(completedOrders.map(async (order) => {
+                            try {
+                                const statuses = await getReviewStatusByOrder(order.id);
+                                statusMap[order.id] = statuses; // Trả về mảng OrderItemReviewStatus
+                            } catch (error) {
+                                console.error(`Lỗi tải đánh giá đơn ${order.id}:`, error);
+                            }
+                        }));
+                        setOrderReviewStatus(statusMap);
                     }
                 });
             }
 
             if (activeTab === 'address') {
-                // Lấy toàn bộ danh sách địa chỉ
                 addressService.getAllMyAddresses().then(res => {
                     if (res.result) {
-                        // Sắp xếp để địa chỉ mặc định luôn nằm trên cùng
                         const sortedAddresses = res.result.sort((a, b) => {
                             const aIsDefault = a.default || a.isDefault;
                             const bIsDefault = b.default || b.isDefault;
@@ -107,9 +100,10 @@ export default function ProfilePage() {
                 });
             }
         }
-    }, [user, loading, activeTab, router]);
+    }, [user, loading, activeTab, router, reviewingOrderId]); // Load lại khi đóng Modal (reviewingOrderId thay đổi)
 
     const handleAvatarChange = async (e) => {
+        // ... (Giữ nguyên logic upload avatar của bạn)
         const file = e.target.files[0];
         if (!file) return;
 
@@ -133,6 +127,7 @@ export default function ProfilePage() {
     };
 
     const handleUpdateProfile = async (e) => {
+        // ... (Giữ nguyên logic update profile của bạn)
         e.preventDefault();
         try {
             await updateUserProfile(user.id, formData);
@@ -147,30 +142,39 @@ export default function ProfilePage() {
 
     const displayAvatar = formData.avatar || `https://ui-avatars.com/api/?name=${user.fullName || user.username}&background=0f172a&color=fff&size=128&bold=true`;
 
-    const getReviewUi = (orderStatus, productId) => {
-        const myReview = productId ? reviewMap[productId] : null;
-
-        if (myReview?.status) {
+    // ĐÃ SỬA: Hàm lấy UI cho Review dựa vào OrderItemReviewStatus từ Backend
+    const getReviewUi = (orderStatus, orderId, orderItemId) => {
+        if (orderStatus !== 'COMPLETED') {
             return {
-                text: reviewStatusMapping[myReview.status] || myReview.status,
-                className: myReview.status === 'APPROVED'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : myReview.status === 'REJECTED'
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                text: 'Chưa đủ điều kiện',
+                className: 'bg-gray-50 text-gray-500 border-gray-200',
+                canReview: false
             };
         }
 
-        if (orderStatus === 'COMPLETED') {
+        const statuses = orderReviewStatus[orderId];
+        if (!statuses) {
+            return { text: 'Đang tải...', className: 'bg-gray-50 text-gray-500', canReview: false };
+        }
+
+        const itemStatus = statuses.find(s => s.orderItemId === orderItemId);
+
+        if (!itemStatus || !itemStatus.reviewed) {
             return {
                 text: 'Chưa đánh giá',
-                className: 'bg-gray-50 text-gray-700 border-gray-200'
+                className: 'bg-gray-50 text-gray-700 border-gray-200',
+                canReview: true // Cho phép bấm nút Đánh giá
             };
         }
 
+        // Đã đánh giá -> Hiện trạng thái (PENDING, APPROVED, REJECTED)
+        const status = itemStatus.reviewStatus;
         return {
-            text: 'Chưa đủ điều kiện đánh giá',
-            className: 'bg-gray-50 text-gray-500 border-gray-200'
+            text: reviewStatusMapping[status] || status,
+            className: status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200',
+            canReview: false // Không cho đánh giá lại nếu không muốn (hoặc bạn có thể cho sửa tùy logic Backend)
         };
     };
 
@@ -180,6 +184,7 @@ export default function ProfilePage() {
 
                 {/* --- SIDEBAR TRÁI --- */}
                 <div className="w-full md:w-1/4 shrink-0">
+                    {/* ... (Giữ nguyên phần Sidebar) ... */}
                     <div className="sticky top-28">
                         <div className="flex flex-col items-center mb-8">
                             <div className="relative group mb-4">
@@ -198,23 +203,23 @@ export default function ProfilePage() {
                                 </label>
                             </div>
                             <h2 className="font-black text-xl text-gray-900 tracking-tight">{user.fullName || user.username}</h2>
-                            <p className="text-sm text-gray-500 mt-1">{user.email}</p>
+                            <p className="text-md text-gray-500 mt-1">{user.email}</p>
                         </div>
 
                         <nav className="flex flex-col gap-1">
-                            <button onClick={() => setActiveTab('profile')} className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ${activeTab === 'profile' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} cursor-pointer`}>
+                            <button onClick={() => setActiveTab('profile')} className={`flex items-center gap-3 px-4 py-3 rounded-md text-md font-bold uppercase tracking-wider transition-colors ${activeTab === 'profile' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} cursor-pointer`}>
                                 <User size={18} strokeWidth={2.5} /> Tài khoản
                             </button>
-                            <button onClick={() => setActiveTab('address')} className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ${activeTab === 'address' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} cursor-pointer`}>
+                            <button onClick={() => setActiveTab('address')} className={`flex items-center gap-3 px-4 py-3 rounded-md text-md font-bold uppercase tracking-wider transition-colors ${activeTab === 'address' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} cursor-pointer`}>
                                 <MapPin size={18} strokeWidth={2.5} /> Địa chỉ
                             </button>
-                            <button onClick={() => setActiveTab('orders')} className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ${activeTab === 'orders' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} cursor-pointer`}>
+                            <button onClick={() => setActiveTab('orders')} className={`flex items-center gap-3 px-4 py-3 rounded-md text-md font-bold uppercase tracking-wider transition-colors ${activeTab === 'orders' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'} cursor-pointer`}>
                                 <Package size={18} strokeWidth={2.5} /> Đơn mua
                             </button>
                         </nav>
 
                         <div className="mt-8 pt-6 border-t border-gray-200">
-                            <button onClick={logout} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-500 hover:text-red-600 transition-colors cursor-pointer uppercase tracking-wider">
+                            <button onClick={logout} className="flex items-center gap-2 px-4 py-2 text-md font-bold text-gray-500 hover:text-red-600 transition-colors cursor-pointer uppercase tracking-wider">
                                 <LogOut size={16} strokeWidth={2.5} /> Đăng xuất
                             </button>
                         </div>
@@ -223,37 +228,38 @@ export default function ProfilePage() {
 
                 {/* --- CONTENT PHẢI --- */}
                 <div className="w-full md:w-3/4">
-                    <div className="min-h-[500px]">
+                    <div className="min-h-125">
 
                         {/* TAB 1: PROFILE */}
                         {activeTab === 'profile' && (
+                            // ... (Giữ nguyên form Profile) ...
                             <div className="animate-fade-in">
                                 <h3 className="text-2xl font-black text-gray-900 mb-8 tracking-tight uppercase">Thông tin tài khoản</h3>
                                 <form onSubmit={handleUpdateProfile} className="max-w-2xl space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Họ và tên</label>
-                                            <input type="text" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} className="w-full border border-gray-300 px-4 py-3 rounded-md focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all text-sm" />
+                                            <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Họ và tên</label>
+                                            <input type="text" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} className="w-full border border-gray-300 px-4 py-3 rounded-md focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all text-md" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tên đăng nhập</label>
-                                            <input type="text" value={user.username} disabled className="w-full border border-gray-200 bg-gray-50 text-gray-500 px-4 py-3 rounded-md cursor-not-allowed text-sm" />
+                                            <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Tên đăng nhập</label>
+                                            <input type="text" value={user.username} disabled className="w-full border border-gray-200 bg-gray-50 text-gray-500 px-4 py-3 rounded-md cursor-not-allowed text-md" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Số điện thoại</label>
-                                            <input type="tel" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} className="w-full border border-gray-300 px-4 py-3 rounded-md focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all text-sm" />
+                                            <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Số điện thoại</label>
+                                            <input type="tel" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} className="w-full border border-gray-300 px-4 py-3 rounded-md focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all text-md" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Email</label>
-                                            <input type="email" value={user.email} disabled className="w-full border border-gray-200 bg-gray-50 text-gray-500 px-4 py-3 rounded-md cursor-not-allowed text-sm" />
+                                            <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Email</label>
+                                            <input type="email" value={user.email} disabled className="w-full border border-gray-200 bg-gray-50 text-gray-500 px-4 py-3 rounded-md cursor-not-allowed text-md" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Ngày sinh</label>
-                                            <input type="date" value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} className="w-full border border-gray-300 px-4 py-3 rounded-md focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all text-sm" />
+                                            <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Ngày sinh</label>
+                                            <input type="date" value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} className="w-full border border-gray-300 px-4 py-3 rounded-md focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all text-md" />
                                         </div>
                                     </div>
                                     <div className="pt-6">
-                                        <button type="submit" className="px-8 py-3.5 bg-gray-900 text-white text-sm font-bold rounded-md hover:bg-black transition-colors flex items-center gap-2 uppercase tracking-wider cursor-pointer">
+                                        <button type="submit" className="px-8 py-3.5 bg-gray-900 text-white text-md font-bold rounded-md hover:bg-black transition-colors flex items-center gap-2 uppercase tracking-wider cursor-pointer">
                                             <Save size={16} /> LƯU THAY ĐỔI
                                         </button>
                                     </div>
@@ -261,13 +267,14 @@ export default function ProfilePage() {
                             </div>
                         )}
 
-                        {/* TAB 2: ADDRESS (ĐÃ CẬP NHẬT THÀNH DANH SÁCH) */}
+                        {/* TAB 2: ADDRESS */}
                         {activeTab === 'address' && (
+                            // ... (Giữ nguyên danh sách Address) ...
                             <div className="animate-fade-in">
                                 <div className="flex justify-between items-center mb-8 border-b border-gray-200 pb-4">
                                     <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Sổ địa chỉ</h3>
                                     <Link href="/setup-address?redirect=/profile?tab=address"
-                                        className="px-4 py-2 border border-gray-900 text-gray-900 text-sm font-bold rounded-md hover:bg-gray-900 hover:text-white transition-colors uppercase tracking-wider cursor-pointer">
+                                        className="px-4 py-2 border border-gray-900 text-gray-900 text-md font-bold rounded-md hover:bg-gray-900 hover:text-white transition-colors uppercase tracking-wider cursor-pointer">
                                         + Thêm mới
                                     </Link>
                                 </div>
@@ -275,12 +282,10 @@ export default function ProfilePage() {
                                 {addresses && addresses.length > 0 ? (
                                     <div className="space-y-4">
                                         {addresses.map((addr) => {
-                                            // Xử lý cẩn thận boolean (tùy thuộc Jackson trả về là isDefault hay default)
                                             const isDefaultAddr = addr.default || addr.isDefault;
-
                                             return (
                                                 <div key={addr.id} className={`p-6 rounded-md flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 transition-colors border ${isDefaultAddr ? 'border-gray-900 bg-gray-50/50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
-                                                    <div className="space-y-1 text-sm">
+                                                    <div className="space-y-1 text-md">
                                                         <div className="flex items-center gap-3 mb-2">
                                                             <span className="font-bold text-base text-gray-900">{addr.receiverName}</span>
                                                             <span className="text-gray-300">|</span>
@@ -295,20 +300,11 @@ export default function ProfilePage() {
                                                             </div>
                                                         )}
                                                     </div>
-
-                                                    {/* Các nút hành động */}
                                                     <div className="flex sm:flex-col items-center sm:items-end gap-4 mt-2 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100 w-full sm:w-auto">
-                                                        {/* <Link href={`/setup-address?edit=${addr.id}&redirect=/profile?tab=address`}
-                                                         className="text-sm font-bold text-gray-500 hover:text-gray-900 uppercase tracking-wider transition-colors">
-                                                            Sửa
-                                                        </Link> */}
-
                                                         {!isDefaultAddr && (
                                                             <button
-                                                                onClick={() => {
-                                                                    toast.info("Tính năng xóa địa chỉ đang được phát triển!");
-                                                                }}
-                                                                className="text-sm font-bold text-red-500 hover:text-red-700 uppercase tracking-wider transition-colors cursor-pointer"
+                                                                onClick={() => toast.info("Tính năng xóa đang phát triển!")}
+                                                                className="text-md font-bold text-red-500 hover:text-red-700 uppercase tracking-wider transition-colors cursor-pointer"
                                                             >
                                                                 Xóa
                                                             </button>
@@ -321,7 +317,7 @@ export default function ProfilePage() {
                                 ) : (
                                     <div className="text-center py-16 border border-dashed border-gray-300 rounded-md bg-gray-50">
                                         <MapPin className="mx-auto text-gray-300 mb-3" size={32} />
-                                        <p className="text-gray-500 text-sm">Bạn chưa thiết lập địa chỉ giao hàng.</p>
+                                        <p className="text-gray-500 text-md">Bạn chưa thiết lập địa chỉ giao hàng.</p>
                                     </div>
                                 )}
                             </div>
@@ -337,46 +333,66 @@ export default function ProfilePage() {
                                         {[...orders].reverse().map(order => (
                                             <div key={order.id} className="border border-gray-200 rounded-md p-6 hover:border-gray-400 transition-colors">
                                                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-100">
-                                                    <span className="font-bold text-gray-900 text-lg">#{order.id}</span>
-                                                    <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border ${order.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                                                        order.status === 'SHIPPING' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                                            'bg-gray-100 text-gray-600 border-gray-200'
-                                                        }`}>
-                                                        {orderMapping[order.status] || order.status}
-                                                    </span>
+                                                    <span className="font-bold text-gray-900 text-xl">#{order.id}</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`px-3 py-1 text-sm font-bold uppercase tracking-wider border ${order.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                            order.status === 'SHIPPING' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                                'bg-gray-100 text-gray-600 border-gray-200'
+                                                            }`}>
+                                                            {orderMapping[order.status] || order.status}
+                                                        </span>
+
+                                                        {/* Nút Đánh giá cả đơn hàng -> Mở Modal */}
+                                                        {order.status === 'COMPLETED' && (
+                                                            <button
+                                                                onClick={() => setReviewingOrderId(order.id)}
+                                                                className="px-3 py-1 text-sm font-bold border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-full transition-colors cursor-pointer flex items-center gap-1"
+                                                            >
+                                                                ★ Quản lý đánh giá
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
+
                                                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
-                                                    <div className="text-sm text-gray-500 space-y-1">
+                                                    <div className="text-md text-gray-500 space-y-1">
                                                         <p>Ngày đặt: <span className="font-medium text-gray-900">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span></p>
                                                         <p>Thanh toán: <span className="font-medium text-gray-900">{order.paymentMethod}</span></p>
                                                     </div>
                                                     <div className="sm:text-right">
-                                                        <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Tổng tiền</div>
+                                                        <div className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Tổng tiền</div>
                                                         <div className="font-black text-xl text-gray-900">{formatCurrency(order.totalAmount)}</div>
                                                     </div>
                                                 </div>
 
                                                 <div className="mt-5 pt-4 border-t border-gray-100">
-                                                    <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Tình trạng đánh giá</div>
+                                                    <div className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">Sản phẩm trong đơn</div>
 
                                                     {order.orderItems && order.orderItems.length > 0 ? (
                                                         <div className="space-y-2">
                                                             {order.orderItems.map((item) => {
-                                                                const reviewUi = getReviewUi(order.status, item.productId);
+                                                                // ĐÃ SỬA: Lấy UI trạng thái đánh giá chính xác
+                                                                const reviewUi = getReviewUi(order.status, order.id, item.id);
+
                                                                 return (
                                                                     <div key={`${order.id}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
-                                                                        <div className="text-sm text-gray-700">
+                                                                        <div className="text-md text-gray-700">
                                                                             <span className="font-semibold text-gray-900">{item.productName}</span>
                                                                             <span className="text-gray-500"> x{item.quantity}</span>
                                                                         </div>
-                                                                        <div className="flex items-center gap-2">
+                                                                        <div className="flex items-center gap-3">
                                                                             <span className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider border rounded ${reviewUi.className}`}>
                                                                                 {reviewUi.text}
                                                                             </span>
-                                                                            {order.status === 'COMPLETED' && item.productId && (
-                                                                                <Link href={`/products/${item.productId}`} className="text-xs font-bold text-gray-700 hover:text-gray-900 uppercase tracking-wider">
-                                                                                    Đánh giá
-                                                                                </Link>
+
+                                                                            {/* Nút bấm Đánh giá trực tiếp sản phẩm -> Vẫn mở chung Modal của Order */}
+                                                                            {reviewUi.canReview && (
+                                                                                <button
+                                                                                    onClick={() => setReviewingOrderId(order.id)}
+                                                                                    className="text-sm font-bold text-blue-600 hover:text-blue-800 uppercase tracking-wider cursor-pointer"
+                                                                                >
+                                                                                    Viết đánh giá
+                                                                                </button>
                                                                             )}
                                                                         </div>
                                                                     </div>
@@ -384,7 +400,7 @@ export default function ProfilePage() {
                                                             })}
                                                         </div>
                                                     ) : (
-                                                        <p className="text-sm text-gray-500">Không có thông tin sản phẩm trong đơn này.</p>
+                                                        <p className="text-md text-gray-500">Không có thông tin sản phẩm trong đơn này.</p>
                                                     )}
                                                 </div>
                                             </div>
@@ -394,7 +410,7 @@ export default function ProfilePage() {
                                     <div className="text-center py-20 border border-dashed border-gray-300 rounded-md bg-gray-50">
                                         <Package className="mx-auto text-gray-300 mb-4" size={40} strokeWidth={1.5} />
                                         <p className="text-gray-500 mb-4">Bạn chưa có đơn hàng nào.</p>
-                                        <Link href="/" className="inline-block px-6 py-2 bg-gray-900 text-white text-sm font-bold rounded hover:bg-black transition-colors uppercase tracking-wider">
+                                        <Link href="/" className="inline-block px-6 py-2 bg-gray-900 text-white text-md font-bold rounded hover:bg-black transition-colors uppercase tracking-wider">
                                             Bắt đầu mua sắm
                                         </Link>
                                     </div>
@@ -404,6 +420,16 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal Đánh giá  */}
+            {reviewingOrderId && (
+                <OrderReviewModal
+                    orderId={reviewingOrderId}
+                    onClose={() => {
+                        setReviewingOrderId(null);
+                    }}
+                />
+            )}
         </div>
     );
 }

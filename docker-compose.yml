@@ -1,36 +1,23 @@
 version: '3.8'
 
 services:
-  # 2. Redis Cache (Lưu session, giỏ hàng)
-  redis-cache:
-    image: redis:alpine
-    container_name: ecom_redis
-    ports:
-      - "6379:6379"
-
-  # 3. RabbitMQ (Hệ thống Message Queue)
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: ecom_rabbitmq
-    ports:
-      - "5672:5672" 
-      - "15672:15672" 
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-
   # 4. Elasticsearch (Tìm kiếm toàn văn)
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
     container_name: ecom_elasticsearch
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false 
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" 
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 800M # Khóa chặt ở 800MB, không cho lấn sang RAM của IntelliJ
 
 volumes:
   mysql_data:

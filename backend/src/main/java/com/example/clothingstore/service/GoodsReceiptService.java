@@ -1,7 +1,7 @@
 package com.example.clothingstore.service;
 
-import com.example.clothingstore.dto.request.CreateGoodsReceiptRequest;
-import com.example.clothingstore.dto.response.GoodsReceiptResponse;
+import com.example.clothingstore.dtos.gooodsReceipt.request.CreateGoodsReceiptRequest;
+import com.example.clothingstore.dtos.gooodsReceipt.response.GoodsReceiptResponse;
 
 import java.util.List;
 

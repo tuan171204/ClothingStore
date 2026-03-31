@@ -1,9 +1,10 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.document.ProductDocument;
-import com.example.clothingstore.dto.request.ProductRequest;
-import com.example.clothingstore.dto.response.ProductListResponse;
-import com.example.clothingstore.dto.response.ProductResponse;
+import com.example.clothingstore.dtos.product.request.ProductRequest;
+import com.example.clothingstore.dtos.product.response.ProductListResponse;
+import com.example.clothingstore.dtos.product.response.ProductResponse;
+import com.example.clothingstore.dtos.product.response.ProductVariantResponse;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.mapper.ProductMapper;
 import com.example.clothingstore.repository.*;
@@ -13,6 +14,7 @@ import com.example.clothingstore.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -165,7 +167,10 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CacheEvict(value = "products", allEntries = true) // xóa cache Redis sau khi thêm/sửa/xóa danh sách sản phẩm
+    @Caching(evict = {
+            @CacheEvict(value = "products", allEntries = true),
+            @CacheEvict(value = "variantMatrix", key = "#productId")
+    }) // xóa cache Redis sau khi thêm/sửa/xóa danh sách sản phẩm
     @Transactional
     public ProductResponse updateProduct(Long id, ProductRequest request) {
         // 1. Tìm sản phẩm
@@ -285,5 +290,51 @@ public class ProductServiceImpl implements ProductService {
 
     }
 
+    @Cacheable(value = "variantMatrix", key = "#productId")
+    public ProductVariantResponse getVariantMatrix(Long productId) {
+        Product product = productRepository
+                .findByIdWithActiveSkusAndValues(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
 
+        // Build option groups (Color: [Red, Blue], Size: [M, L])
+        Map<String, LinkedHashSet<String>> optionValueMap = new LinkedHashMap<>();
+
+        List<ProductVariantResponse.SkuMatrix> skuMatrices = product.getSkus().stream()
+                .map(sku -> {
+                    Map<String, String> optionMap = new LinkedHashMap<>();
+
+                    sku.getValues().forEach(skuValue -> {
+                        String optionName = skuValue.getOptionValue().getProductOption().getName();
+                        String valueName  = skuValue.getOptionValue().getValue();
+                        optionMap.put(optionName, valueName);
+                        optionValueMap
+                                .computeIfAbsent(optionName, k -> new LinkedHashSet<>())
+                                .add(valueName);
+                    });
+
+                    boolean inStock = sku.getStockQuantity() != null && sku.getStockQuantity() > 0;
+
+                    return ProductVariantResponse.SkuMatrix.builder()
+                            .skuId(sku.getId())
+                            .options(optionMap)
+                            .inStock(inStock)
+                            .stockQuantity(sku.getStockQuantity())
+                            .price(sku.getPrice())
+                            .imgUrl(sku.getImgUrl())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        List<ProductVariantResponse.OptionGroup> optionGroups = optionValueMap.entrySet().stream()
+                .map(e -> ProductVariantResponse.OptionGroup.builder()
+                        .name(e.getKey())
+                        .values(new ArrayList<>(e.getValue()))
+                        .build())
+                .collect(Collectors.toList());
+
+        return ProductVariantResponse.builder()
+                .options(optionGroups)
+                .skus(skuMatrices)
+                .build();
+    }
 }

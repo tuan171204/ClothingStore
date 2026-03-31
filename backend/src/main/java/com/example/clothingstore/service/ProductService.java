@@ -1,8 +1,9 @@
 package com.example.clothingstore.service;
 
-import com.example.clothingstore.dto.request.ProductRequest;
-import com.example.clothingstore.dto.response.ProductListResponse;
-import com.example.clothingstore.dto.response.ProductResponse;
+import com.example.clothingstore.dtos.product.request.ProductRequest;
+import com.example.clothingstore.dtos.product.response.ProductListResponse;
+import com.example.clothingstore.dtos.product.response.ProductResponse;
+import com.example.clothingstore.dtos.product.response.ProductVariantResponse;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,4 +29,6 @@ public interface ProductService {
                                               Long brandId,
                                               BigDecimal minPrice, BigDecimal maxPrice,
                                               int page, int limit);
+
+    ProductVariantResponse getVariantMatrix(Long id);
 }

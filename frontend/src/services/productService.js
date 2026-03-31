@@ -78,3 +78,16 @@ export const deleteProduct = async (id) => {
         throw error; // Ném lỗi để UI hiển thị toast thông báo thất bại
     }
 };
+
+/*
+* API GET CÁC LOẠI SẢN PHẨM
+*/
+export const getVariantProdut = async (id) => {
+    try {
+        const response = await axios.get(`/products/${id}/variants`);
+        return response.data;
+    } catch (error) {
+        console.error(`Lỗi khi lấy các biến thể sản phẩm ${id}:`, error);
+        throw error; // Ném lỗi để UI hiển thị toast thông báo thất bại
+    }
+};

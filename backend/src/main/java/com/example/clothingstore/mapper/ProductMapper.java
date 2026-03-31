@@ -1,13 +1,14 @@
 package com.example.clothingstore.mapper;
 
-import com.example.clothingstore.dto.ProductOptionDTO;
-import com.example.clothingstore.dto.ProductOptionValueDTO;
-import com.example.clothingstore.dto.SkuDTO;
-import com.example.clothingstore.dto.response.ProductResponse;
+import com.example.clothingstore.dtos.dto.ProductOptionDTO;
+import com.example.clothingstore.dtos.dto.ProductOptionValueDTO;
+import com.example.clothingstore.dtos.dto.SkuDTO;
+import com.example.clothingstore.dtos.product.response.ProductResponse;
 import com.example.clothingstore.entity.*;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
+import java.util.Set;
 
 import java.util.Comparator;
 import java.util.List;
@@ -21,6 +22,7 @@ public interface ProductMapper {
     @Mapping(source = "category.name", target = "categoryName")
     @Mapping(source = "options", target = "options") // MapStruct tự hiểu map List -> List
     @Mapping(source = "skus", target = "skus", qualifiedByName = "mapAndSortSkus")
+    @Mapping(source = "active", target = "isActive")
     ProductResponse toProductResponse(Product product);
 
     // 2. Map Option & OptionValue
@@ -54,7 +56,7 @@ public interface ProductMapper {
 
     // --- Hàm vừa map vừa sort ---
     @Named("mapAndSortSkus")
-    default List<SkuDTO> mapAndSortSkus(List<Sku> skus) {
+    default List<SkuDTO> mapAndSortSkus(Set<Sku> skus) {
         if (skus == null) return null;
 
         return skus.stream()
@@ -64,7 +66,7 @@ public interface ProductMapper {
                 .collect(Collectors.toList());
     }
 
-    default List<ProductOptionValueDTO> mapSkuValuesToOptionValueDTOs(List<SkuValue> skuValues) {
+    default List<ProductOptionValueDTO> mapSkuValuesToOptionValueDTOs(Set<SkuValue> skuValues) {
         if (skuValues == null) return null;
 
         return skuValues.stream()

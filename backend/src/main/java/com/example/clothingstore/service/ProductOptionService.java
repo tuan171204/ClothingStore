@@ -1,8 +1,7 @@
 package com.example.clothingstore.service;
 
-import com.example.clothingstore.dto.ProductOptionDTO;
-import com.example.clothingstore.dto.ProductOptionValueDTO;
-import com.example.clothingstore.entity.ProductOptionValue;
+import com.example.clothingstore.dtos.dto.ProductOptionDTO;
+import com.example.clothingstore.dtos.dto.ProductOptionValueDTO;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

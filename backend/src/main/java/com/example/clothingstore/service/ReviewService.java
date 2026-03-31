@@ -1,9 +1,11 @@
 package com.example.clothingstore.service;
 
+import com.example.clothingstore.dtos.review.response.ReviewDetailResponse;
 import com.example.clothingstore.entity.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ReviewService {
@@ -23,4 +25,12 @@ public interface ReviewService {
     Review approveReview(Long reviewId);
 
     Review rejectReview(Long reviewId);
+
+    Page<ReviewDetailResponse> getPendingWithFilter(Integer minRating, Integer maxRating,
+                                                    String productName, LocalDateTime fromDate,
+                                                    Pageable pageable);
+
+    List<Long> bulkApprove(List<Long> reviewIds);
+
+    List<Long> bulkReject(List<Long> reviewIds);
 }

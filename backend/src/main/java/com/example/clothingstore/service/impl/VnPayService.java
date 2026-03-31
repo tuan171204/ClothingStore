@@ -1,7 +1,7 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.config.VnPayConfig;
-import com.example.clothingstore.dto.payment.response.VnPayResponse;
+import com.example.clothingstore.dtos.payment.response.VnPayResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

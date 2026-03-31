@@ -1,6 +1,6 @@
 package com.example.clothingstore.config.auth;
 
-import com.example.clothingstore.dto.auth.request.IntrospectRequest;
+import com.example.clothingstore.dtos.auth.request.IntrospectRequest;
 import com.example.clothingstore.service.impl.AuthenticationService;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jwt.SignedJWT;

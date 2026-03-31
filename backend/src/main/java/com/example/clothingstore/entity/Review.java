@@ -25,15 +25,20 @@ public class Review {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
+    /** orderId: Track review thuộc về đơn hàng nào (QUAN TRỌNG để check duplicate) */
+    @Column(name = "order_id")
+    private Long orderId;
+
     @Column(name = "rating", nullable = false)
-    private Integer rating; // 1-5 sao
+    private Integer rating; // 1–5
 
     @Column(name = "comment", columnDefinition = "TEXT")
     private String comment;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private ReviewStatus status;
+    @Builder.Default
+    private ReviewStatus status = ReviewStatus.PENDING;
 
     @Column(name = "verified_purchase")
     @Builder.Default
@@ -41,16 +46,14 @@ public class Review {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
-    
     @JoinColumn(name = "sku_id")
-    private Sku sku; // Lưu chính xác biến thể khách đã chọn đánh giá
+    private Sku sku;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        if (status == null) {
-            status = ReviewStatus.PENDING;
-        }
+        if (status == null) status = ReviewStatus.PENDING;
     }
 }

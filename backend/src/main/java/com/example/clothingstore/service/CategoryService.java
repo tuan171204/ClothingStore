@@ -1,7 +1,7 @@
 package com.example.clothingstore.service;
 
-import com.example.clothingstore.dto.request.CategoryRequest;
-import com.example.clothingstore.dto.response.CategoryResponse;
+import com.example.clothingstore.dtos.category.request.CategoryRequest;
+import com.example.clothingstore.dtos.category.response.CategoryResponse;
 
 import java.util.List;
 

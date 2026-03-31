@@ -10,7 +10,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -19,21 +19,20 @@ spring:
   main:
     allow-bean-definition-overriding: true
 
-  data:
-    redis:
-      host: localhost
-      port: 6379
+#  data:
+#    redis:
+#      host: localhost
+#      port: 6379
 
   elasticsearch:
     uris: http://localhost:9200
-  # Cấu hình RabbitMQ
+
   rabbitmq:
     host: localhost
     port: 5672
     username: guest
     password: guest
-  
-  # Cấu hình Mail
+
   mail:
     host: smtp.gmail.com
     port: 587
@@ -48,6 +47,7 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 1
+    repair-on-migrate: true
 
 logging:
   level:
@@ -67,13 +67,12 @@ springdoc:
     tags-sorter: alpha
 
 
-# Cấu hình VNPay
 payment:
   vnpay:
     url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-    return-url: "http://localhost:3000/payment-result" # Frontend nhận kết quả ở đây
+    return-url: "http://localhost:3000/payment-result"
 
 shipping:
   ghn:
-    fee-url: "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee" # URL tính phí
+    fee-url: "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee"
     address-url: "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data"
