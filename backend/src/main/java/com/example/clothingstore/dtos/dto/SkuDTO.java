@@ -17,6 +17,7 @@ public class SkuDTO {
     BigDecimal price;
     BigDecimal importPrice;
     Integer stockQuantity;
+    BigDecimal profitMargin;
     // Tên hiển thị gợi ý (VD: Màu Đỏ - Size M)
     String skuName;
     Boolean isActive;

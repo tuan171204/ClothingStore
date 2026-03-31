@@ -1,5 +1,6 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dtos.dto.SkuDTO;
 import com.example.clothingstore.dtos.product.request.ProductRequest;
 import com.example.clothingstore.dtos.product.response.ProductListResponse;
 import com.example.clothingstore.dtos.product.response.ProductResponse;
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("${api.prefix}/products")
@@ -89,6 +91,22 @@ public class ProductController {
         );
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * PATCH /api/v1/products/skus/{skuId}/profit-margin
+     * Update profit margin for a specific SKU.
+     * Body: { "profitMargin": 30.0 }
+     * If SKU has existing importPrice, also recalculates and saves selling price.
+     */
+    @PatchMapping("/skus/{skuId}/profit-margin")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<SkuDTO> updateProfitMargin(
+            @PathVariable Long skuId,
+            @RequestBody Map<String, Object> body
+    ) {
+        return ResponseEntity.ok(productService.updateSkuProfitMargin(skuId, body));
+    }
+
     private final RedisConnectionFactory redisConnectionFactory;
     @GetMapping("/clear-cache")
     public String clearCache() {

@@ -1,17 +1,20 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.document.ProductDocument;
+import com.example.clothingstore.dtos.dto.SkuDTO;
 import com.example.clothingstore.dtos.product.request.ProductRequest;
 import com.example.clothingstore.dtos.product.response.ProductListResponse;
 import com.example.clothingstore.dtos.product.response.ProductResponse;
 import com.example.clothingstore.dtos.product.response.ProductVariantResponse;
 import com.example.clothingstore.entity.*;
+import com.example.clothingstore.entity.Enum.GrnStatus;
 import com.example.clothingstore.mapper.ProductMapper;
 import com.example.clothingstore.repository.*;
 import com.example.clothingstore.repository.search.ProductSearchRepository;
 import com.example.clothingstore.repository.specification.ProductSpecification;
 import com.example.clothingstore.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ProductOptionRepository optionRepository;
@@ -41,6 +45,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductMapper productMapper;
 
     private final ProductSearchRepository productSearchRepository;
+    private final GoodsReceiptItemRepository goodsReceiptItemRepository;
 
     @Override
     @Cacheable(value = "products")
@@ -223,17 +228,26 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CacheEvict(value = "products", allEntries = true) // xóa cache Redis sau khi thêm/sửa/xóa danh sách sản phẩm
+    @CacheEvict(value = "products", allEntries = true)
     @Transactional
     public void deleteProduct(Long id) {
-        if (!productRepository.existsById(id)) {
-            throw new RuntimeException("Product not found");
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found: " + id));
+
+        // Check if any SKU of this product has been imported (has GRN items with CONFIRMED status)
+        boolean hasImportHistory = product.getSkus().stream()
+                .anyMatch(sku -> goodsReceiptItemRepository
+                        .existsBySkuIdAndGoodsReceiptStatus(sku.getId(), GrnStatus.CONFIRMED));
+
+        if (hasImportHistory) {
+            // Soft delete: mark as inactive
+            product.setActive(false);
+            productRepository.save(product);
+        } else {
+            // Hard delete
+            productRepository.deleteById(id);
+            productSearchRepository.deleteById(id);
         }
-
-        productRepository.deleteById(id);
-
-        // Xóa trong Elasticsearch
-        productSearchRepository.deleteById(id);
     }
 
     @Override
@@ -336,5 +350,47 @@ public class ProductServiceImpl implements ProductService {
                 .options(optionGroups)
                 .skus(skuMatrices)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public SkuDTO updateSkuProfitMargin(Long skuId, Map<String, Object> body) {
+        // 1. Kiểm tra SKU tồn tại
+        Sku sku = skuRepository.findById(skuId)
+                .orElseThrow(() -> new RuntimeException("SKU không tồn tại"));
+
+        if (!body.containsKey("profitMargin")) {
+            throw new RuntimeException("Vui lòng cung cấp tỷ lệ lợi nhuận (profitMargin)");
+        }
+
+        try {
+            // 2. Parse an toàn giá trị từ Map (tránh ClassCastException do Jackson có thể parse thành Integer/Double)
+            BigDecimal newMargin = new BigDecimal(body.get("profitMargin").toString());
+            if (newMargin.compareTo(BigDecimal.ZERO) < 0) {
+                throw new RuntimeException("Tỷ lệ lợi nhuận không được âm");
+            }
+
+            sku.setProfitMargin(newMargin);
+
+            // 3. Tự động tính toán lại Giá Bán (Price) dựa trên Giá Nhập (ImportPrice) mới nhất
+            if (sku.getImportPrice() != null && sku.getImportPrice().compareTo(BigDecimal.ZERO) > 0) {
+                // Công thức: Giá Bán = Giá Nhập * (1 + ProfitMargin / 100)
+                BigDecimal multiplier = BigDecimal.ONE.add(newMargin.divide(BigDecimal.valueOf(100)));
+                BigDecimal newPrice = sku.getImportPrice().multiply(multiplier);
+
+                sku.setPrice(newPrice);
+            } else {
+                // Nếu chưa có giá nhập (hàng chưa từng nhập kho), chỉ lưu margin chờ đợt nhập hàng tiếp theo tự tính
+                log.warn("SKU {} chưa có giá nhập kho, chỉ cập nhật Profit Margin", sku.getCode());
+            }
+
+            skuRepository.save(sku);
+
+            // 4. Trả về DTO cập nhật mới nhất cho Frontend
+            return productMapper.toSkuDTO(sku);
+
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Định dạng profitMargin không hợp lệ");
+        }
     }
 }

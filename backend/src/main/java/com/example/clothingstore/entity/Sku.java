@@ -27,7 +27,14 @@ public class Sku {
 
     private BigDecimal price; // giá bán riêng của biến thể này
 
-    private BigDecimal importPrice; // giá nhập
+    private BigDecimal importPrice; // giá nhập bình quân (weighted average)
+
+    /**
+     * Tỷ lệ lợi nhuận % cho SKU này (VD: 30.00 = 30%).
+     * Giá bán = giá nhập * (1 + profitMargin/100)
+     */
+    @Column(name = "profit_margin", precision = 5, scale = 2)
+    private BigDecimal profitMargin;
 
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
@@ -42,7 +49,6 @@ public class Sku {
     @JoinColumn(name = "product_id")
     private Product product;
 
-    // Liên kết để biết SKU này gồm những giá trị nào (VD: Màu Đỏ + Size L)
     @OneToMany(mappedBy = "sku", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private Set<SkuValue> values = new LinkedHashSet<>();
