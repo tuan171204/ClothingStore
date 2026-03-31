@@ -10,19 +10,28 @@ import java.time.LocalDateTime;
 public class OrderSpecification {
 
     /**
-     * Tìm theo keyword: kiểm tra mã đơn (id) hoặc tên khách hàng
+     * Tìm theo keyword: kiểm tra mã đơn (id) hoặc tên khách hàng, SĐT, mã vận đơn
      */
     public static Specification<Order> hasKeyword(String keyword) {
         return (root, query, cb) -> {
             if (keyword == null || keyword.trim().isEmpty()) return null;
-            String pattern = "%" + keyword.trim().toLowerCase() + "%";
-            // Tìm theo fullName hoặc cast id sang string để so sánh
-            return cb.or(
-                    cb.like(cb.lower(root.get("fullName")), pattern),
-                    cb.like(cb.lower(root.get("phoneNumber")), pattern),
-                    cb.like(cb.lower(root.get("trackingCode")), pattern),
-                    cb.like(cb.function("CAST", String.class, root.get("id")), pattern)
-            );
+            String kw = keyword.trim();
+            String pattern = "%" + kw.toLowerCase() + "%";
+
+            // Khởi tạo các điều kiện tìm kiếm trên cột chuỗi
+            var fullNamePredicate = cb.like(cb.lower(root.get("fullName")), pattern);
+            var phonePredicate = cb.like(cb.lower(root.get("phoneNumber")), pattern);
+            var trackingPredicate = cb.like(cb.lower(root.get("trackingCode")), pattern);
+
+            try {
+                // Thử parse keyword thành số Long.
+                // Nếu parse thành công (user tìm theo ID), gộp thêm điều kiện cb.equal
+                Long id = Long.valueOf(kw);
+                return cb.or(fullNamePredicate, phonePredicate, trackingPredicate, cb.equal(root.get("id"), id));
+            } catch (NumberFormatException e) {
+                // Nếu keyword chứa chữ (VD: mã vận đơn "LTAPGC"), chỉ tìm kiếm trên các trường chuỗi
+                return cb.or(fullNamePredicate, phonePredicate, trackingPredicate);
+            }
         };
     }
 
@@ -70,7 +79,7 @@ public class OrderSpecification {
      * Build Specification từ filter request
      */
     public static Specification<Order> buildSpec(OrderFilterRequest filter) {
-        return Specification.where(hasKeyword(filter.getKeyword()))
+        return hasKeyword(filter.getKeyword())
                 .and(hasStatus(filter.getStatus()))
                 .and(hasPaymentMethod(filter.getPaymentMethod()))
                 .and(fromDate(filter.getFromDate()))

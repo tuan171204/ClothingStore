@@ -29,7 +29,6 @@ public class VnPayService {
         String vnp_TxnRef = String.valueOf(orderId);
         String vnp_IpAddr = VnPayConfig.getIpAddress(request);
 
-        // SỬA LỖI Ở ĐÂY: Dùng biến vnPayConfig (chữ thường) để gọi Getter
         String vnp_TmnCode = vnPayConfig.getVnp_TmnCode();
 
         Map<String, String> vnp_Params = new HashMap<>();
@@ -111,7 +110,6 @@ public class VnPayService {
 
             String vnp_SecureHash = request.getParameter("vnp_SecureHash");
 
-            // Xóa 2 tham số hash này đi để tính toán lại checksum (vì lúc gửi đi không có chúng)
             if (fields.containsKey("vnp_SecureHashType")) {
                 fields.remove("vnp_SecureHashType");
             }
