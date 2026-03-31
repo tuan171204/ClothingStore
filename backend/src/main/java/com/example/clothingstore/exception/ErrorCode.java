@@ -37,7 +37,11 @@ public enum ErrorCode {
     REVIEW_NOT_FOUND(5001, "Không tìm thấy đánh giá", HttpStatus.NOT_FOUND),
     REVIEW_ALREADY_EXISTS(5002, "Bạn đã đánh giá sản phẩm này rồi", HttpStatus.BAD_REQUEST),
     REVIEW_NOT_VERIFIED_BUYER(5003, "Chỉ khách hàng đã mua mới được đánh giá sản phẩm", HttpStatus.FORBIDDEN),
-    REVIEW_EDIT_FORBIDDEN(5004, "Bạn không có quyền sửa đánh giá này", HttpStatus.FORBIDDEN);
+    REVIEW_EDIT_FORBIDDEN(5004, "Bạn không có quyền sửa đánh giá này", HttpStatus.FORBIDDEN),
+
+    //nhom 60: Module Coupons
+    COUPON_NOT_FOUND(6001, "Không tìm thấy mã giảm giá", HttpStatus.NOT_FOUND),
+    COUPON_CODE_ALREADY_EXISTS(6002, "Mã giảm giá đã tồn tại", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

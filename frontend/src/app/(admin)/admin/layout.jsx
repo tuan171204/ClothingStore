@@ -7,7 +7,7 @@ import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import AdminHeader from '@/components/admin/AdminHeader';
 import {
     LayoutDashboard, Package, ShoppingCart, FolderTree,
-    Tag, Inbox, Archive, Star, LogOut, Store, Coins
+    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins
 } from 'lucide-react';
 
 // ==========================================
@@ -28,6 +28,7 @@ function Sidebar() {
         { href: '/admin/goods-receipts', icon: Inbox, label: 'Nhập kho' },
         { href: '/admin/inventory', icon: Archive, label: 'Tồn kho' },
         { href: '/admin/reviews', icon: Star, label: 'Duyệt đánh giá' },
+        { href: '/admin/coupons', icon: Ticket, label: 'Quản lý Mã giảm giá' },
     ];
 
     return (
