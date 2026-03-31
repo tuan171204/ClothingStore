@@ -1,63 +1,52 @@
 package com.example.clothingstore.controller;
 
-import com.example.clothingstore.entity.Order;
-import com.example.clothingstore.entity.Enum.OrderStatus;
-import com.example.clothingstore.repository.OrderRepository;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.example.clothingstore.dtos.webhook.GhnWebhookPayload;
+import com.example.clothingstore.service.impl.GhnWebhookService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
-
+/**
+ * Controller nhận Webhook callback từ GHN (Giao Hàng Nhanh).
+ *
+ * Endpoint: POST /api/webhook/ghn
+ *
+ * Lưu ý bảo mật:
+ *  - Endpoint này phải được EXCLUDE khỏi Spring Security JWT filter
+ *    (GHN gọi không có Authorization header).
+ *  - Validation ShopID được thực hiện trong GhnWebhookService để đảm bảo
+ *    chỉ chấp nhận request từ đúng shop.
+ *
+ * Quy tắc GHN Retry:
+ *  - GHN mong đợi HTTP 200. Nếu nhận 4xx/5xx, GHN sẽ retry tối đa 10 lần,
+ *    mỗi lần cách nhau 5 giây.
+ *  - Do đó controller LUÔN trả về 200, dù có lỗi nghiệp vụ nội bộ.
+ *    Lỗi được log và xử lý trong service, không throw ra ngoài.
+ */
+@Slf4j
 @RestController
 @RequestMapping("/api/webhook")
 @RequiredArgsConstructor
 public class WebhookController {
 
-    private final OrderRepository orderRepository;
-    // private final OrderProducer orderProducer; // Uncomment nếu muốn gửi mail
+    private final GhnWebhookService ghnWebhookService;
 
+    /**
+     * Nhận webhook từ GHN.
+     *
+     * Luôn trả về 200 OK — xem javadoc class.
+     */
     @PostMapping("/ghn")
-    public ResponseEntity<String> handleGhnWebhook(@RequestBody JsonNode payload) {
-        System.out.println("🔔 [WEBHOOK] Nhận tín hiệu từ GHN: " + payload);
-
+    public ResponseEntity<String> handleGhnWebhook(@RequestBody GhnWebhookPayload payload) {
+        log.debug("[WebhookController] Nhận GHN webhook: type={}, orderCode={}",
+                payload.getType(), payload.getOrderCode());
         try {
-            String orderCode = payload.get("OrderCode").asText();
-            String status = payload.get("Status").asText(); // Vd: "delivered", "picking", "return"
-
-            // 1. Tìm đơn hàng trong DB bằng Tracking Code
-            Optional<Order> orderOpt = orderRepository.findByTrackingCode(orderCode);
-
-            if (orderOpt.isPresent()) {
-                Order order = orderOpt.get();
-
-                // 2. Cập nhật trạng thái
-                switch (status.toLowerCase()) {
-                    case "picking": // Đang lấy hàng
-                        // order.setStatus(OrderStatus.SHIPPING); // Đã set lúc tạo rồi
-                        break;
-                    case "delivered": // Giao thành công
-                        order.setStatus(OrderStatus.COMPLETED);
-                        System.out.println("✅ Đơn hàng " + order.getId() + " đã giao thành công!");
-                        // orderProducer.sendOrderCompletedEmail(order.getId()); // Gửi mail cảm ơn
-                        break;
-                    case "cancel": // Hủy
-                        order.setStatus(OrderStatus.CANCELLED);
-                        break;
-                    case "return": // Trả hàng
-                        order.setStatus(OrderStatus.CANCELLED); // Hoặc trạng thái RETURNED
-                        break;
-                }
-                orderRepository.save(order);
-            } else {
-                System.out.println("⚠️ Không tìm thấy đơn hàng với mã vận đơn: " + orderCode);
-            }
-
+            ghnWebhookService.handle(payload);
         } catch (Exception e) {
-            System.err.println("Lỗi xử lý Webhook: " + e.getMessage());
+            // Log lỗi nhưng vẫn trả 200 để GHN không retry vô ích
+            log.error("[WebhookController] Lỗi xử lý webhook GHN (đã catch): {}", e.getMessage(), e);
         }
-
         return ResponseEntity.ok("Received");
     }
 }

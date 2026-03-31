@@ -1,6 +1,7 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.dtos.gooodsReceipt.request.CreateGoodsReceiptRequest;
+import com.example.clothingstore.dtos.gooodsReceipt.request.UpdateGoodsReceiptRequest;
 import com.example.clothingstore.dtos.gooodsReceipt.response.GoodsReceiptItemResponse;
 import com.example.clothingstore.dtos.gooodsReceipt.response.GoodsReceiptResponse;
 import com.example.clothingstore.entity.*;
@@ -17,6 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,13 +39,11 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     // ============================================================
     // INV-002: Tạo phiếu nhập kho
     // ============================================================
-
     @Override
     @Transactional
     public GoodsReceiptResponse createGoodsReceipt(CreateGoodsReceiptRequest request) {
         String userId = resolveCurrentUserId();
 
-        // 1. Tạo header GRN
         GoodsReceipt grn = goodsReceiptRepository.save(
                 GoodsReceipt.builder()
                         .createdBy(userId)
@@ -50,13 +51,11 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                         .status(GrnStatus.PENDING)
                         .build());
 
-        // 2. Validate và tạo từng dòng hàng
         for (CreateGoodsReceiptRequest.GrnItemRequest itemReq : request.getItems()) {
             Sku sku = skuRepository.findById(itemReq.getSkuId())
                     .orElseThrow(() -> new RuntimeException(
                             "Không tìm thấy SKU ID: " + itemReq.getSkuId()));
 
-            // INV-003 Validation: passed + failed phải = received
             if (itemReq.getQuantityPassed() + itemReq.getQuantityFailed() != itemReq.getQuantityReceived()) {
                 throw new RuntimeException(
                         "Dữ liệu QC không hợp lệ cho SKU " + itemReq.getSkuId()
@@ -70,18 +69,60 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                             .quantityReceived(itemReq.getQuantityReceived())
                             .quantityPassed(itemReq.getQuantityPassed())
                             .quantityFailed(itemReq.getQuantityFailed())
+                            .importPrice(itemReq.getImportPrice())
                             .build());
         }
 
-        // Reload để lấy đủ items
         GoodsReceipt savedGrn = goodsReceiptRepository.findByIdWithItems(grn.getId()).orElse(grn);
         return toGrnResponse(savedGrn);
     }
 
     // ============================================================
-    // INV-002 + INV-003: Xác nhận phiếu nhập → cập nhật tồn kho
+    // Sửa phiếu nhập (chỉ khi PENDING)
     // ============================================================
+    @Override
+    @Transactional
+    public GoodsReceiptResponse updateGoodsReceipt(Long grnId, UpdateGoodsReceiptRequest request) {
+        GoodsReceipt grn = goodsReceiptRepository.findByIdWithItems(grnId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy GRN ID: " + grnId));
 
+        if (grn.getStatus() == GrnStatus.CONFIRMED) {
+            throw new RuntimeException("Không thể sửa phiếu nhập đã xác nhận!");
+        }
+
+        grn.setNote(request.getNote());
+
+        // Xóa items cũ và tạo lại
+        goodsReceiptItemRepository.deleteAll(grn.getItems());
+        grn.getItems().clear();
+
+        for (UpdateGoodsReceiptRequest.GrnItemRequest itemReq : request.getItems()) {
+            Sku sku = skuRepository.findById(itemReq.getSkuId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy SKU ID: " + itemReq.getSkuId()));
+
+            if (itemReq.getQuantityPassed() + itemReq.getQuantityFailed() != itemReq.getQuantityReceived()) {
+                throw new RuntimeException("Dữ liệu QC không hợp lệ cho SKU " + itemReq.getSkuId());
+            }
+
+            goodsReceiptItemRepository.save(
+                    GoodsReceiptItem.builder()
+                            .goodsReceipt(grn)
+                            .sku(sku)
+                            .quantityReceived(itemReq.getQuantityReceived())
+                            .quantityPassed(itemReq.getQuantityPassed())
+                            .quantityFailed(itemReq.getQuantityFailed())
+                            .importPrice(itemReq.getImportPrice())
+                            .build());
+        }
+
+        goodsReceiptRepository.save(grn);
+        GoodsReceipt updated = goodsReceiptRepository.findByIdWithItems(grnId).orElse(grn);
+        return toGrnResponse(updated);
+    }
+
+    // ============================================================
+    // INV-002 + INV-003: Xác nhận phiếu nhập → cập nhật tồn kho + giá nhập bình quân
+    // ============================================================
     @Override
     @Transactional
     public GoodsReceiptResponse confirmGoodsReceipt(Long grnId) {
@@ -98,24 +139,48 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
 
             int beforeAvailable = inv.getAvailableQuantity();
 
-            // INV-002: Cộng hàng đạt QC vào physical + available
             if (item.getQuantityPassed() > 0) {
+                // Tính giá nhập bình quân (Weighted Average Cost)
+                if (item.getImportPrice() != null && item.getImportPrice().compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal currentImportPrice = sku.getImportPrice() != null ? sku.getImportPrice() : BigDecimal.ZERO;
+                    int currentStock = inv.getAvailableQuantity();
+                    int newQty = item.getQuantityPassed();
+                    BigDecimal newImportPrice = item.getImportPrice();
+
+                    // Công thức bình quân: (tồn hiện tại * giá hiện tại + nhập mới * giá mới) / (tồn + nhập mới)
+                    BigDecimal totalCurrentValue = currentImportPrice.multiply(BigDecimal.valueOf(currentStock));
+                    BigDecimal totalNewValue = newImportPrice.multiply(BigDecimal.valueOf(newQty));
+                    int totalQty = currentStock + newQty;
+
+                    BigDecimal avgImportPrice = totalQty > 0
+                            ? totalCurrentValue.add(totalNewValue).divide(BigDecimal.valueOf(totalQty), 2, RoundingMode.HALF_UP)
+                            : newImportPrice;
+
+                    sku.setImportPrice(avgImportPrice);
+
+                    // Cập nhật giá bán theo tỷ lệ lợi nhuận nếu có
+                    if (sku.getProfitMargin() != null && sku.getProfitMargin().compareTo(BigDecimal.ZERO) > 0) {
+                        BigDecimal sellingPrice = avgImportPrice.multiply(
+                                BigDecimal.ONE.add(sku.getProfitMargin().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
+                        ).setScale(0, RoundingMode.CEILING);
+                        sku.setPrice(sellingPrice);
+                    }
+                }
+
                 inv.setPhysicalQuantity(inv.getPhysicalQuantity() + item.getQuantityPassed());
                 inv.setAvailableQuantity(inv.getAvailableQuantity() + item.getQuantityPassed());
             }
 
-            // INV-003: Cộng hàng lỗi vào defect bucket (KHÔNG vào physical hay available)
             if (item.getQuantityFailed() > 0) {
                 inv.setDefectQuantity(inv.getDefectQuantity() + item.getQuantityFailed());
             }
 
             inventoryRepository.save(inv);
 
-            // Đồng bộ lại Sku.stockQuantity để các flow cũ vẫn hoạt động
+            // Đồng bộ lại Sku.stockQuantity
             sku.setStockQuantity(inv.getAvailableQuantity());
             skuRepository.save(sku);
 
-            // Ghi StockMovement cho hàng đạt QC
             if (item.getQuantityPassed() > 0) {
                 stockMovementRepository.save(
                         StockMovement.builder()
@@ -126,7 +191,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                                 .referenceId(String.valueOf(grnId))
                                 .beforeQuantity(beforeAvailable)
                                 .afterQuantity(inv.getAvailableQuantity())
-                                .note("Nhập kho từ GRN #" + grnId + " - Hàng đạt QC")
+                                .note("Nhập kho từ GRN #" + grnId + " - Giá nhập: " + item.getImportPrice())
                                 .build());
             }
         }
@@ -155,7 +220,6 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     // ============================================================
     // Private Helpers
     // ============================================================
-
     private String resolveCurrentUserId() {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -178,19 +242,21 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                             .id(item.getId())
                             .skuId(item.getSku().getId())
                             .skuCode(item.getSku().getCode())
+                            .skuName(item.getSku() != null ? buildSkuName(item.getSku()) : null)
                             .productName(item.getSku().getProduct() != null
                                     ? item.getSku().getProduct().getName() : null)
                             .quantityReceived(item.getQuantityReceived())
                             .quantityPassed(item.getQuantityPassed())
                             .quantityFailed(item.getQuantityFailed())
+                            .importPrice(item.getImportPrice())
                             .defectRate(defectRate)
                             .build();
                 })
                 .collect(Collectors.toList());
 
         int totalReceived = grn.getItems().stream().mapToInt(GoodsReceiptItem::getQuantityReceived).sum();
-        int totalPassed   = grn.getItems().stream().mapToInt(GoodsReceiptItem::getQuantityPassed).sum();
-        int totalFailed   = grn.getItems().stream().mapToInt(GoodsReceiptItem::getQuantityFailed).sum();
+        int totalPassed = grn.getItems().stream().mapToInt(GoodsReceiptItem::getQuantityPassed).sum();
+        int totalFailed = grn.getItems().stream().mapToInt(GoodsReceiptItem::getQuantityFailed).sum();
 
         return GoodsReceiptResponse.builder()
                 .id(grn.getId())
@@ -203,5 +269,12 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                 .totalPassed(totalPassed)
                 .totalFailed(totalFailed)
                 .build();
+    }
+
+    private String buildSkuName(Sku sku) {
+        if (sku.getValues() == null || sku.getValues().isEmpty()) return sku.getCode();
+        return sku.getValues().stream()
+                .map(v -> v.getOptionValue().getValue())
+                .collect(Collectors.joining(" - "));
     }
 }

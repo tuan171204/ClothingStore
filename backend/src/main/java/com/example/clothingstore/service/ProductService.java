@@ -1,5 +1,6 @@
 package com.example.clothingstore.service;
 
+import com.example.clothingstore.dtos.dto.SkuDTO;
 import com.example.clothingstore.dtos.product.request.ProductRequest;
 import com.example.clothingstore.dtos.product.response.ProductListResponse;
 import com.example.clothingstore.dtos.product.response.ProductResponse;
@@ -7,6 +8,7 @@ import com.example.clothingstore.dtos.product.response.ProductVariantResponse;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public interface ProductService {
     // Lấy danh sách hiển thị trang chủ
@@ -31,4 +33,6 @@ public interface ProductService {
                                               int page, int limit);
 
     ProductVariantResponse getVariantMatrix(Long id);
+
+    SkuDTO updateSkuProfitMargin(Long skuId, Map<String, Object> body);
 }

@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/cart/guest/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cart/guest/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cart/merge").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/webhook/ghn").permitAll()
                         .requestMatchers("/api/v1/cart/**").authenticated()
                         .anyRequest().authenticated()
                 )

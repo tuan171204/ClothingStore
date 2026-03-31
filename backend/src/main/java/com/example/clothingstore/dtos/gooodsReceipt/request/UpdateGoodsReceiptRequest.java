@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Data
-public class CreateGoodsReceiptRequest {
+public class UpdateGoodsReceiptRequest {
 
     private String note;
 
@@ -35,7 +35,6 @@ public class CreateGoodsReceiptRequest {
         @Min(value = 0, message = "Số lượng lỗi QC không được âm")
         private Integer quantityFailed;
 
-        /** Giá nhập cho lô này (VNĐ) */
         @NotNull(message = "Giá nhập không được để trống")
         @DecimalMin(value = "0.01", message = "Giá nhập phải lớn hơn 0")
         private BigDecimal importPrice;

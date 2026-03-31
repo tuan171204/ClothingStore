@@ -3,10 +3,13 @@ package com.example.clothingstore.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 /**
  * INV-002 + INV-003: Từng dòng hàng trong phiếu nhập kho.
  * Lưu dữ liệu QC: received = passed + failed.
  * Chỉ quantity_passed mới được cộng vào tồn kho khi GRN xác nhận.
+ * importPrice: Giá nhập cho lô hàng này (dùng tính giá nhập bình quân).
  */
 @Entity
 @Table(name = "goods_receipt_items")
@@ -42,4 +45,8 @@ public class GoodsReceiptItem {
     @Column(name = "quantity_failed", nullable = false)
     @Builder.Default
     private Integer quantityFailed = 0;
+
+    /** Giá nhập cho lô này (VNĐ) - dùng để tính giá nhập bình quân */
+    @Column(name = "import_price", precision = 15, scale = 2)
+    private BigDecimal importPrice;
 }

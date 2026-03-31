@@ -2,23 +2,30 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Eye, X, CheckCircle, Clock, PackageOpen, ShieldCheck } from 'lucide-react';
+import { Plus, Eye, X, CheckCircle, Clock, PackageOpen, ShieldCheck, Edit2, Search } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { getAllGoodsReceipts, getGoodsReceiptById, confirmGoodsReceipt } from '@/services/goodsReceiptService';
+
+const formatCurrency = (amount) =>
+    amount != null ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount) : '—';
+
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(dateString));
+};
 
 export default function GoodsReceiptsPage() {
     const { adminUser } = useAdminAuth();
     const [receipts, setReceipts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchKeyword, setSearchKeyword] = useState('');
 
-    // Modal States
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReceipt, setSelectedReceipt] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [confirming, setConfirming] = useState(false);
 
-    // Lấy danh sách phiếu nhập
     const fetchReceipts = async () => {
         setLoading(true);
         const data = await getAllGoodsReceipts();
@@ -26,24 +33,10 @@ export default function GoodsReceiptsPage() {
         setLoading(false);
     };
 
-    useEffect(() => {
-        fetchReceipts();
-    }, []);
+    useEffect(() => { fetchReceipts(); }, []);
 
-    // Format ngày giờ đẹp
-    const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return new Intl.DateTimeFormat('vi-VN', {
-            dateStyle: 'short',
-            timeStyle: 'short',
-        }).format(date);
-    };
-
-    // Kiểm tra quyền Duyệt phiếu (Chỉ ADMIN và SUPER_ADMIN)
     const canConfirm = adminUser?.role?.name === 'ADMIN' || adminUser?.role?.name === 'SUPER_ADMIN';
 
-    // Mở Modal xem chi tiết
     const handleViewDetails = async (id) => {
         setIsModalOpen(true);
         setLoadingDetail(true);
@@ -55,7 +48,7 @@ export default function GoodsReceiptsPage() {
                 toast.error("Không tải được chi tiết phiếu nhập!");
                 setIsModalOpen(false);
             }
-        } catch (error) {
+        } catch {
             toast.error("Có lỗi xảy ra khi lấy chi tiết!");
             setIsModalOpen(false);
         } finally {
@@ -63,19 +56,15 @@ export default function GoodsReceiptsPage() {
         }
     };
 
-    // Xử lý Duyệt Phiếu
     const handleConfirmReceipt = async () => {
         if (!selectedReceipt) return;
-        if (!window.confirm("Bạn có chắc chắn muốn duyệt phiếu này? Số lượng tồn kho sẽ được cộng thêm ngay lập tức và không thể hoàn tác!")) {
-            return;
-        }
-
+        if (!window.confirm("Xác nhận duyệt phiếu này? Tồn kho và giá nhập sẽ được cập nhật ngay lập tức và không thể hoàn tác!")) return;
         setConfirming(true);
         try {
             await confirmGoodsReceipt(selectedReceipt.id);
-            toast.success("Đã duyệt phiếu nhập kho thành công!");
+            toast.success("Đã duyệt phiếu nhập kho thành công! Giá nhập bình quân đã được cập nhật.");
             setIsModalOpen(false);
-            fetchReceipts(); // Refresh lại danh sách bên ngoài
+            fetchReceipts();
         } catch (error) {
             toast.error(error.message || "Lỗi khi duyệt phiếu!");
         } finally {
@@ -83,9 +72,18 @@ export default function GoodsReceiptsPage() {
         }
     };
 
+    const filteredReceipts = receipts.filter(grn => {
+        if (!searchKeyword.trim()) return true;
+        const kw = searchKeyword.toLowerCase();
+        return (
+            String(grn.id).includes(kw) ||
+            (grn.note || '').toLowerCase().includes(kw) ||
+            (grn.createdBy || '').toLowerCase().includes(kw)
+        );
+    });
+
     return (
-        <div className="max-w mx-auto relative">
-            {/* Header */}
+        <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <PackageOpen size={24} className="text-blue-600" /> Quản lý Nhập kho (GRN)
@@ -98,28 +96,41 @@ export default function GoodsReceiptsPage() {
                 </Link>
             </div>
 
-            {/* Bảng danh sách phiếu nhập */}
+            {/* Search */}
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4">
+                <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Tìm theo mã phiếu, ghi chú..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-md"
+                        value={searchKeyword}
+                        onChange={e => setSearchKeyword(e.target.value)}
+                    />
+                </div>
+            </div>
+
             <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="w-full border-collapse font-sans text-center text-md">
-                    <thead className="bg-gray-50 text-gray-600 border-b uppercase">
+                <table className="w-full border-collapse text-md text-center">
+                    <thead className="bg-gray-50 text-gray-600 border-b uppercase text-sm">
                         <tr>
-                            <th className="p-4 border-b">Mã Phiếu</th>
-                            <th className="p-4 border-b text-left">Ghi chú</th>
-                            <th className="p-4 border-b">Trạng thái</th>
-                            <th className="p-4 border-b">Ngày tạo</th>
-                            <th className="p-4 border-b">Tổng SL Nhận</th>
-                            <th className="p-4 border-b">Thao tác</th>
+                            <th className="p-4">Mã Phiếu</th>
+                            <th className="p-4 text-left">Ghi chú</th>
+                            <th className="p-4">Trạng thái</th>
+                            <th className="p-4">Ngày tạo</th>
+                            <th className="p-4">Tổng SL</th>
+                            <th className="p-4">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
                         {loading ? (
                             <tr><td colSpan="6" className="p-8 text-center text-gray-500">Đang tải dữ liệu...</td></tr>
-                        ) : receipts.length > 0 ? (
-                            receipts.map((grn) => (
+                        ) : filteredReceipts.length > 0 ? (
+                            filteredReceipts.map((grn) => (
                                 <tr key={grn.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="p-4 font-semibold text-gray-700">GRN-{grn.id}</td>
+                                    <td className="p-4 font-semibold text-gray-700">GRN-{String(grn.id).padStart(4, '0')}</td>
                                     <td className="p-4 text-left max-w-xs truncate text-gray-600" title={grn.note}>
-                                        {grn.note || "Không có ghi chú"}
+                                        {grn.note || <span className="italic text-gray-400">Không có ghi chú</span>}
                                     </td>
                                     <td className="p-4">
                                         {grn.status === 'PENDING' ? (
@@ -135,50 +146,60 @@ export default function GoodsReceiptsPage() {
                                     <td className="p-4 text-gray-500">{formatDate(grn.createdAt)}</td>
                                     <td className="p-4 font-medium text-blue-600">{grn.totalReceived}</td>
                                     <td className="p-4">
-                                        <button
-                                            onClick={() => handleViewDetails(grn.id)}
-                                            className="text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 p-2 rounded-lg transition-colors inline-flex items-center justify-center"
-                                            title="Xem chi tiết"
-                                        >
-                                            <Eye size={18} />
-                                        </button>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => handleViewDetails(grn.id)}
+                                                className="text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                                title="Xem chi tiết"
+                                            >
+                                                <Eye size={16} />
+                                            </button>
+                                            {grn.status === 'PENDING' && (
+                                                <Link
+                                                    href={`/admin/goods-receipts/${grn.id}/edit`}
+                                                    className="text-gray-600 hover:text-amber-600 bg-gray-100 hover:bg-amber-50 p-2 rounded-lg transition-colors"
+                                                    title="Sửa phiếu nhập"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </Link>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="6" className="p-8 text-center text-gray-400">Chưa có phiếu nhập kho nào.</td></tr>
+                            <tr><td colSpan="6" className="p-8 text-center text-gray-400">Không tìm thấy phiếu nhập nào.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {/* Modal Chi Tiết Phiếu Nhập */}
+            {/* Detail Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-                        {/* Modal Header */}
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                         <div className="flex justify-between items-center p-5 border-b bg-gray-50">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-800">Chi tiết phiếu nhập #GRN-{selectedReceipt?.id}</h2>
+                                <h2 className="text-xl font-bold text-gray-800">
+                                    Chi tiết phiếu nhập GRN-{String(selectedReceipt?.id || '').padStart(4, '0')}
+                                </h2>
                                 <p className="text-md text-gray-500 mt-1">Ngày tạo: {selectedReceipt ? formatDate(selectedReceipt.createdAt) : '...'}</p>
                             </div>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        {/* Modal Body */}
                         <div className="p-6 overflow-y-auto flex-1">
                             {loadingDetail ? (
                                 <div className="flex justify-center items-center h-32 text-gray-500">Đang tải chi tiết...</div>
                             ) : selectedReceipt && (
                                 <div className="space-y-6">
-                                    {/* Info Panel */}
-                                    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 grid grid-cols-2 md:grid-cols-4 gap-4 text-md">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100 text-md">
                                         <div>
                                             <span className="block text-gray-500 mb-1">Trạng thái</span>
                                             <span className={`font-semibold ${selectedReceipt.status === 'PENDING' ? 'text-amber-600' : 'text-green-600'}`}>
-                                                {selectedReceipt.status === 'PENDING' ? 'Chờ duyệt' : 'Đã nhập kho'}
+                                                {selectedReceipt.status === 'PENDING' ? '⏳ Chờ duyệt' : '✅ Đã nhập kho'}
                                             </span>
                                         </div>
                                         <div>
@@ -186,76 +207,83 @@ export default function GoodsReceiptsPage() {
                                             <span className="font-semibold text-gray-800">{selectedReceipt.totalReceived}</span>
                                         </div>
                                         <div>
-                                            <span className="block text-gray-500 mb-1">Tổng SL Đạt (QC)</span>
+                                            <span className="block text-gray-500 mb-1">Đạt QC</span>
                                             <span className="font-semibold text-green-600">{selectedReceipt.totalPassed}</span>
                                         </div>
                                         <div>
-                                            <span className="block text-gray-500 mb-1">Tổng SL Lỗi</span>
+                                            <span className="block text-gray-500 mb-1">Lỗi QC</span>
                                             <span className="font-semibold text-red-600">{selectedReceipt.totalFailed}</span>
                                         </div>
-                                        <div className="col-span-2 md:col-span-4">
-                                            <span className="block text-gray-500 mb-1">Ghi chú</span>
-                                            <span className="text-gray-700 italic">{selectedReceipt.note || "Không có"}</span>
-                                        </div>
+                                        {selectedReceipt.note && (
+                                            <div className="col-span-4">
+                                                <span className="block text-gray-500 mb-1">Ghi chú</span>
+                                                <span className="text-gray-700 italic">"{selectedReceipt.note}"</span>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {/* Items Table */}
-                                    <div>
-                                        <h3 className="font-semibold text-gray-800 mb-3">Danh sách sản phẩm nhập ({selectedReceipt.items?.length || 0} mục)</h3>
-                                        <div className="border rounded-lg overflow-hidden">
-                                            <table className="w-full text-md text-center">
-                                                <thead className="bg-gray-100 text-gray-600">
-                                                    <tr>
-                                                        <th className="p-3 text-left">Sản phẩm (SKU)</th>
-                                                        <th className="p-3">Mã SKU</th>
-                                                        <th className="p-3">SL Nhận</th>
-                                                        <th className="p-3 text-green-600">Đạt (Pass)</th>
-                                                        <th className="p-3 text-red-600">Lỗi (Fail)</th>
-                                                        <th className="p-3">Tỷ lệ lỗi</th>
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <table className="w-full text-md text-center">
+                                            <thead className="bg-gray-100 text-gray-600 text-sm uppercase">
+                                                <tr>
+                                                    <th className="p-3 text-left">Sản phẩm / SKU</th>
+                                                    <th className="p-3">Mã SKU</th>
+                                                    <th className="p-3">SL Nhận</th>
+                                                    <th className="p-3 text-green-600">Đạt (Pass)</th>
+                                                    <th className="p-3 text-red-600">Lỗi (Fail)</th>
+                                                    <th className="p-3 text-blue-600">Giá nhập</th>
+                                                    <th className="p-3">Tỷ lệ lỗi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {selectedReceipt.items?.map((item, idx) => (
+                                                    <tr key={idx} className="hover:bg-gray-50">
+                                                        <td className="p-3 text-left">
+                                                            <div className="font-medium text-gray-800">{item.productName || 'N/A'}</div>
+                                                            {item.skuName && <div className="text-sm text-gray-500">{item.skuName}</div>}
+                                                        </td>
+                                                        <td className="p-3 text-gray-500 font-mono text-sm">{item.skuCode}</td>
+                                                        <td className="p-3">{item.quantityReceived}</td>
+                                                        <td className="p-3 font-medium text-green-600">{item.quantityPassed}</td>
+                                                        <td className="p-3 font-medium text-red-600">{item.quantityFailed}</td>
+                                                        <td className="p-3 font-medium text-blue-700">{formatCurrency(item.importPrice)}</td>
+                                                        <td className="p-3">
+                                                            <span className={`px-2 py-1 rounded text-sm ${item.defectRate > 0.1 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                                {(item.defectRate * 100).toFixed(1)}%
+                                                            </span>
+                                                        </td>
                                                     </tr>
-                                                </thead>
-                                                <tbody className="divide-y">
-                                                    {selectedReceipt.items?.map((item, idx) => (
-                                                        <tr key={idx} className="hover:bg-gray-50">
-                                                            <td className="p-3 text-left font-medium text-gray-800">{item.productName || 'N/A'}</td>
-                                                            <td className="p-3 text-gray-500">{item.skuCode}</td>
-                                                            <td className="p-3">{item.quantityReceived}</td>
-                                                            <td className="p-3 font-medium text-green-600">{item.quantityPassed}</td>
-                                                            <td className="p-3 font-medium text-red-600">{item.quantityFailed}</td>
-                                                            <td className="p-3">
-                                                                <span className={`px-2 py-1 rounded-md text-sm ${item.defectRate > 0.1 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                                    {(item.defectRate * 100).toFixed(1)}%
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        {/* Modal Footer - Nút Hành động */}
-                        <div className="p-5 border-t bg-gray-50 flex justify-end gap-3">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-5 py-2 text-gray-600 bg-white border hover:bg-gray-100 rounded-lg font-medium transition-colors"
-                            >
-                                Đóng
-                            </button>
-
-                            {/* Logic hiển thị nút Duyệt: Chỉ Phiếu PENDING và có quyền ADMIN+ */}
-                            {selectedReceipt?.status === 'PENDING' && canConfirm && (
+                        <div className="p-5 border-t bg-gray-50 flex justify-between items-center">
+                            <div className="text-md text-gray-500">
+                                {selectedReceipt?.status === 'PENDING' && canConfirm && (
+                                    <span className="text-amber-600 font-medium">⚠️ Sau khi duyệt, giá nhập bình quân sẽ được tính tự động</span>
+                                )}
+                            </div>
+                            <div className="flex gap-3">
                                 <button
-                                    onClick={handleConfirmReceipt}
-                                    disabled={confirming}
-                                    className="px-5 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:bg-green-400"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-5 py-2 text-gray-600 bg-white border hover:bg-gray-100 rounded-lg font-medium transition-colors"
                                 >
-                                    {confirming ? 'Đang xử lý...' : <><ShieldCheck size={18} /> Duyệt & Nhập Kho</>}
+                                    Đóng
                                 </button>
-                            )}
+                                {selectedReceipt?.status === 'PENDING' && canConfirm && (
+                                    <button
+                                        onClick={handleConfirmReceipt}
+                                        disabled={confirming}
+                                        className="px-5 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:bg-green-400"
+                                    >
+                                        {confirming ? 'Đang xử lý...' : <><ShieldCheck size={18} /> Duyệt & Nhập Kho</>}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
