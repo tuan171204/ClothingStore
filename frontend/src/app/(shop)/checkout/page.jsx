@@ -7,12 +7,13 @@ import { calculateShippingFee, getProvinces, getDistricts, getWards } from '@/se
 import { createPaymentUrl } from '@/services/paymentService';
 import { createOrder } from '@/services/orderService';
 import { addressService } from '@/services/addressService';
+import { checkoutService } from '@/services/checkoutService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, User, Phone, CheckCircle2, Plus } from 'lucide-react';
 
 export default function CheckoutPage() {
-    const { cartItems, cartTotal, clearCart } = useCart();
+    const { cartItems, cartTotal, clearCart, validateCart } = useCart();
     const router = useRouter();
 
     // --- State SỔ ĐỊA CHỈ ---
@@ -34,6 +35,9 @@ export default function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState('COD');
     const [shippingFee, setShippingFee] = useState(0);
     const [loadingFee, setLoadingFee] = useState(false);
+
+    const [stockMismatches, setStockMismatches] = useState([]);
+    const [checkoutError, setCheckoutError] = useState(null);
 
     const finalTotal = cartTotal + shippingFee;
 
@@ -125,6 +129,10 @@ export default function CheckoutPage() {
 
     // --- ĐẶT HÀNG ---
     const handlePlaceOrder = async () => {
+        setStockMismatches([]);
+        setCheckoutError(null);
+        setLoadingFee(true);
+
         if (cartItems.length === 0) return alert("Giỏ hàng trống!");
 
         let finalOrderData = {};
@@ -165,16 +173,33 @@ export default function CheckoutPage() {
 
         setLoadingFee(true);
         try {
-            const newOrder = await createOrder(finalOrderData);
-            if (paymentMethod === 'VNPAY') {
-                localStorage.setItem("PENDING_ORDER", JSON.stringify(finalOrderData));
-                window.location.href = await createPaymentUrl(newOrder.totalAmount, newOrder.id);
-            } else {
-                clearCart();
-                router.push('/order-success');
+            const result = await checkoutService.checkout(finalOrderData);
+
+            if (result.status === 'SUCCESS') {
+                if (paymentMethod === 'VNPAY') {
+                    window.location.href = await createPaymentUrl(
+                        result.totalAmount, result.orderId
+                    );
+                } else {
+                    clearCart();
+                    router.push('/order-success');
+                }
             }
         } catch (error) {
-            alert("Lỗi đặt hàng: " + (error.response?.data || error.message));
+            const responseData = error.response?.data?.result;
+
+            if (responseData?.status === 'OUT_OF_STOCK'
+                || responseData?.status === 'PARTIAL_AVAILABLE') {
+                // Backend trả về structured mismatch data
+                setStockMismatches(responseData.stockMismatches || []);
+                setCheckoutError(responseData.message);
+
+                // Sync lại cart
+                await validateCart();
+                toast.warn("Giỏ hàng đã được cập nhật theo tồn kho mới nhất");
+            } else {
+                toast.error(error.response?.data?.message || "Lỗi đặt hàng");
+            }
         } finally {
             setLoadingFee(false);
         }
@@ -184,6 +209,29 @@ export default function CheckoutPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 py-10 font-sans">
+            {stockMismatches.length > 0 && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={18} className="text-red-500" />
+                        <p className="font-bold text-red-800">Không thể đặt hàng</p>
+                    </div>
+                    <ul className="space-y-2">
+                        {stockMismatches.map(m => (
+                            <li key={m.skuId} className="text-sm text-red-700 
+                                              flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
+                                {m.userMessage}
+                                {m.canPartialFulfill && (
+                                    <span className="text-gray-500 ml-1">
+                                        (Bạn có thể đặt {m.availableQuantity} sản phẩm)
+                                    </span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             <div className="container mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* --- CỘT TRÁI --- */}
@@ -333,10 +381,13 @@ export default function CheckoutPage() {
                         {/* NÚT ĐẶT HÀNG NGAY - Đã cập nhật Gradient Anim */}
                         <button
                             onClick={handlePlaceOrder}
-                            disabled={loadingFee || isFetchingAddress}
-                            className="w-full flex items-center justify-center gap-2 py-4 rounded-md font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-blue-800 to-gray-900 bg-[length:300%_auto] bg-[0%_center] hover:bg-[100%_center] transition-all duration-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer uppercase tracking-wider"
+                            disabled={loadingFee || isFetchingAddress || stockMismatches.length > 0}
+                            className="w-full flex items-center justify-center gap-2 py-4 rounded-md font-bold text-sm text-white bg-linear-to-r from-blue-600 via-blue-800 to-gray-900 bg-size-[300%_auto] bg-position-[0%_center] hover:bg-position-[100%_center] transition-all duration-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer uppercase tracking-widerdisabled:opacity-50"
                         >
-                            {paymentMethod === 'VNPAY' ? 'THANH TOÁN VNPAY' : 'ĐẶT HÀNG NGAY'}
+                            {stockMismatches.length > 0
+                                ? "Vui lòng cập nhật giỏ hàng"
+                                : paymentMethod === 'VNPAY' ? 'THANH TOÁN VNPAY' : 'ĐẶT HÀNG NGAY'
+                            }
                         </button>
                     </div>
                 </div>

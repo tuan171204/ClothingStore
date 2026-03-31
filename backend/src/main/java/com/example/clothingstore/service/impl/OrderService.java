@@ -1,5 +1,6 @@
 package com.example.clothingstore.service.impl;
 
+import com.example.clothingstore.dtos.cart.response.CartResponse;
 import com.example.clothingstore.dtos.dto.OrderDTO;
 import com.example.clothingstore.dtos.order.request.OrderFilterRequest;
 import com.example.clothingstore.dtos.order.response.OrderResponse;
@@ -16,6 +17,7 @@ import com.example.clothingstore.repository.OrderRepository;
 import com.example.clothingstore.repository.SkuRepository;
 import com.example.clothingstore.repository.UserRepository;
 import com.example.clothingstore.repository.specification.OrderSpecification;
+import com.example.clothingstore.service.CartService;
 import com.example.clothingstore.service.InventoryService;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +48,7 @@ public class OrderService {
     private final OrderResponseMapper orderResponseMapper;
     private final OrderProducer orderProducer;
     private final InventoryService inventoryService;
+    private final CartService cartService;
 
     // =========================================================
     // LẤY DANH SÁCH ĐƠN HÀNG (CÓ FILTER + PHÂN TRANG)
@@ -120,12 +123,18 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(OrderDTO orderDTO) {
-        Order order = orderMapper.toOrder(orderDTO);
-
         var context = SecurityContextHolder.getContext();
         String userName = context.getAuthentication().getName();
         User user = userRepository.findByUsername(userName)
                 .orElseThrow(() -> new RuntimeException("User not found!"));
+
+        CartResponse validatedCart = cartService.getCart(user.getId()); // Re-check stock
+        if (validatedCart.getItems().stream().anyMatch(CartResponse.CartItemResponse::isStockWarning)) {
+            throw new RuntimeException(
+                    "Một số sản phẩm trong giỏ hàng đã thay đổi tồn kho. Vui lòng kiểm tra lại giỏ hàng.");
+        }
+
+        Order order = orderMapper.toOrder(orderDTO);
 
         order.setUserId(user.getId());
 
@@ -166,6 +175,8 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
         orderItemRepository.saveAll(orderItems);
+
+        cartService.clearCart(user.getId());
 
         if ("COD".equals(savedOrder.getPaymentMethod())) {
             orderProducer.sendOrderConfirmation(savedOrder.getId());

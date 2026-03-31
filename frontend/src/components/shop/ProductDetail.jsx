@@ -244,11 +244,16 @@ const ProductDetail = ({ product }) => {
         setTimeout(() => setIsImageLoading(false), 300);
     };
 
-    const handleAddToCart = () => {
+    const handleAddToCart = async () => {
         if (!currentSku) return toast.error("Vui lòng chọn đầy đủ phân loại!");
         if (currentSku.stockQuantity < quantity) return toast.error("Kho không đủ hàng!");
-        addToCart(product, currentSku, quantity);
-        toast.success("Đã thêm vào giỏ hàng!");
+
+        try {
+            await addToCart(product, currentSku, quantity);
+            toast.success("Đã thêm vào giỏ hàng!");
+        } catch (error) {
+            console.error("Lỗi thêm giỏ hàng:", error);
+        }
     };
 
     const handleCommentSubmit = async () => {

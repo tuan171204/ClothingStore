@@ -48,4 +48,9 @@ public class Inventory {
     @Column(name = "low_stock_threshold", nullable = false)
     @Builder.Default
     private Integer lowStockThreshold = 0;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Integer version = 0;
 }

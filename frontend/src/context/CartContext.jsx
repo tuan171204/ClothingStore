@@ -1,119 +1,151 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { cartService } from "@/services/cartService";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-toastify";
+import { checkoutService } from "@/services/checkoutService";
 
 const CartContext = createContext();
+const GUEST_SESSION_KEY = "guest_session_id";
+
+// Tạo/lấy guest session ID
+const getOrCreateSessionId = () => {
+  if (typeof window === "undefined") return null;
+  let id = localStorage.getItem(GUEST_SESSION_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(GUEST_SESSION_KEY, id);
+  }
+  return id;
+};
 
 export const CartProvider = ({ children }) => {
+  const { user } = useAuth();
   const [cartItems, setCartItems] = useState([]);
+  const [cartTotal, setCartTotal] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  // 1. Load giỏ hàng từ LocalStorage khi web vừa mở
-  useEffect(() => {
-    const savedCart = localStorage.getItem("cartItems");
-    if (savedCart) {
-      try {
-        setCartItems(JSON.parse(savedCart));
-      } catch (error) {
-        console.error("Lỗi đọc LocalStorage:", error);
-      }
-    }
-  }, []);
+  const syncFromResponse = (cartResponse) => {
+    if (!cartResponse) return;
+    setCartItems(cartResponse.items || []);
+    setCartTotal(cartResponse.totalAmount || 0);
+    setCartCount(cartResponse.totalItems || 0);
 
-  // 2. Lưu giỏ hàng vào LocalStorage mỗi khi cartItems thay đổi
-  useEffect(() => {
-    localStorage.setItem("cartItems", JSON.stringify(cartItems));
-  }, [cartItems]);
-
-  // 3. Hàm thêm vào giỏ
-  const addToCart = (product, sku, quantity = 1) => {
-    setCartItems((prevItems) => {
-      const currentSkuId = sku.skuId || sku.id;
-
-      const existingItemIndex = prevItems.findIndex(
-        (item) => item.skuId === currentSkuId
-      );
-
-      if (existingItemIndex > -1) {
-        const newItems = [...prevItems];
-        const updatedItem = { ...newItems[existingItemIndex] };
-        const newQuantity = updatedItem.quantity + quantity;
-
-        if (newQuantity > sku.stockQuantity) {
-          alert(`Chỉ còn ${sku.stockQuantity} sản phẩm trong kho!`);
-          return prevItems;
-        }
-
-        updatedItem.quantity = newQuantity;
-        newItems[existingItemIndex] = updatedItem;
-        return newItems;
-      } else {
-        const optionSummary = sku.options
-          ? Object.values(sku.options).join(' - ')
-          : '';
-
-        const newItem = {
-          skuId: currentSkuId,
-          productId: product.id,
-          name: product.name,
-          thumbnail: product.thumbnail,
-          price: sku.price,
-          variantName: optionSummary,
-          stock: sku.stockQuantity,
-          quantity: quantity,
-        };
-        return [...prevItems, newItem];
+    // Hiển thị warning nếu stock thay đổi
+    cartResponse.items?.forEach(item => {
+      if (item.stockWarning) {
+        toast.warn(`⚠️ ${item.productName}: ${item.warningMessage}`);
       }
     });
   };
 
-  // 4. Hàm xóa sản phẩm
-  const removeFromCart = (skuId) => {
-    setCartItems((prev) => prev.filter((item) => item.skuId !== skuId));
-  };
-
-  // 5. Hàm cập nhật số lượng (+/-)
-  const updateQuantity = (skuId, newQuantity) => {
-    setCartItems((prevItems) =>
-      prevItems.map((item) => {
-        if (item.skuId === skuId) {
-          // Validate tồn kho và số lượng tối thiểu
-          if (newQuantity < 1) return item;
-          if (newQuantity > item.stock) {
-            alert(`Rất tiếc, kho chỉ còn ${item.stock} sản phẩm.`);
-            return item;
-          }
-          return { ...item, quantity: newQuantity };
+  const fetchCart = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (user) {
+        const data = await cartService.getCart();
+        syncFromResponse(data);
+      } else {
+        const sessionId = getOrCreateSessionId();
+        if (sessionId) {
+          const data = await cartService.getGuestCart(sessionId);
+          syncFromResponse(data);
         }
-        return item;
-      })
-    );
+      }
+    } catch (err) {
+      console.error("Lỗi load cart:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Load cart khi user state thay đổi
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  // Merge guest cart khi user vừa login
+  useEffect(() => {
+    if (!user) return;
+    const sessionId = localStorage.getItem(GUEST_SESSION_KEY);
+    if (sessionId) {
+      cartService.mergeCart(sessionId)
+        .then(merged => {
+          syncFromResponse(merged);
+          localStorage.removeItem(GUEST_SESSION_KEY);
+        })
+        .catch(() => fetchCart());
+    }
+  }, [user]);
+
+  const addToCart = async (product, sku, quantity = 1) => {
+    try {
+      const skuId = sku.skuId || sku.id;
+      let data;
+      if (user) {
+        data = await cartService.addItem(skuId, quantity);
+      } else {
+        const sessionId = getOrCreateSessionId();
+        data = await cartService.addToGuestCart(sessionId, skuId, quantity);
+      }
+      syncFromResponse(data);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Lỗi thêm vào giỏ";
+      toast.error(msg);
+      throw err;
+    }
   };
 
-  // Xóa giỏ hàng sau khi thanh toán thành công
-  const clearCart = () => {
-    setCartItems([]); // Xóa sạch state
-    localStorage.removeItem("cartItems"); // Xóa luôn trong storage cho chắc
+  const removeFromCart = async (skuId) => {
+    try {
+      await cartService.removeItem(skuId);
+      setCartItems(prev => prev.filter(i => i.skuId !== skuId));
+      await fetchCart(); // Re-sync để cập nhật total
+    } catch (err) {
+      toast.error("Lỗi xóa sản phẩm");
+    }
   };
 
-  // 6. Tính tổng tiền tạm tính
-  const cartTotal = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const updateQuantity = async (skuId, newQuantity) => {
+    try {
+      const data = await cartService.updateItem(skuId, newQuantity);
+      syncFromResponse(data);
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Lỗi cập nhật số lượng";
+      toast.error(msg);
+    }
+  };
 
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const clearCart = async () => {
+    try {
+      if (user) await cartService.clearCart();
+      setCartItems([]);
+      setCartTotal(0);
+      setCartCount(0);
+    } catch (err) {
+      console.error("Lỗi clear cart:", err);
+    }
+  };
+
+  const validateCart = useCallback(async () => {
+    if (!user) return null;
+    try {
+      const validated = await checkoutService.validateCart();
+      syncFromResponse(validated);
+      return validated;
+    } catch (err) {
+      console.error("Lỗi validate cart:", err);
+      return null;
+    }
+  }, [user]);
+
 
   return (
-    <CartContext.Provider
-      value={{
-        cartItems,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        cartTotal,
-        cartCount,
-      }}
-    >
+    <CartContext.Provider value={{
+      cartItems, cartTotal, cartCount, loading,
+      addToCart, removeFromCart, updateQuantity, clearCart, fetchCart, validateCart
+    }}>
       {children}
     </CartContext.Provider>
   );

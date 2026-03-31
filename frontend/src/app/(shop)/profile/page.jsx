@@ -36,7 +36,9 @@ export default function ProfilePage() {
         "PENDING": "Chờ xác nhận",
         "SHIPPING": "Đang giao hàng",
         "COMPLETED": "Hoàn thành",
-        "CANCELLED": "Đã hủy"
+        "CANCELLED": "Đã hủy",
+        "CONFIRMED": 'Đã xác nhận thanh toán',
+
     }
 
     const [formData, setFormData] = useState({
@@ -49,7 +51,7 @@ export default function ProfilePage() {
     const reviewStatusMapping = {
         PENDING: 'Đang chờ duyệt',
         APPROVED: 'Đã duyệt',
-        REJECTED: 'Bị từ chối'
+        REJECTED: 'Bị từ chối',
     };
 
     useEffect(() => {
