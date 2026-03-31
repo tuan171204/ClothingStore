@@ -2,6 +2,7 @@ package com.example.clothingstore.dtos.coupon.request; // Package phải sâu nh
 
 import com.example.clothingstore.entity.ApplyType;
 import com.example.clothingstore.entity.DiscountType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,7 +20,11 @@ public class CouponRequest {
     private BigDecimal minOrderValue;
     private ApplyType applyType;
     private Integer usageLimit;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
     private boolean isActive;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime startDate;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime endDate;
 }
