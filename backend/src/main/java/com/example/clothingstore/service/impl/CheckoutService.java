@@ -24,6 +24,15 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Luồng mới:
+ *   Checkout thành công → Tạo Order (PENDING)
+ *                       → Gọi OrderService.autoConfirmAndShip() NGAY LẬP TỨC
+ *                       → PENDING → CONFIRMED → SHIPPING (nếu GHN thành công)
+ *
+ * Với VNPAY: autoConfirmAndShip được gọi từ PaymentController sau khi verify callback.
+ * Với COD  : autoConfirmAndShip được gọi ngay trong executeCheckoutWithRetry.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,38 +45,31 @@ public class CheckoutService {
     private final InventoryRepository   inventoryRepository;
     private final CartService           cartService;
     private final OrderProducer         orderProducer;
+    private final OrderService          orderService; // Dùng để gọi autoConfirmAndShip
 
     private static final int MAX_RETRY = 3;
 
-    /**
-     * MAIN CHECKOUT — Entry point.
-     * Tách validation ra ngoài @Transactional để có thể trả về
-     * PARTIAL_AVAILABLE response mà không rollback.
-     */
+    // ----------------------------------------------------------------
+    // Main entry point
+    // ----------------------------------------------------------------
+
     public CheckoutResponse checkout(CheckoutRequest request) {
         String userId = resolveUserId();
 
-        // === BƯỚC 1: Pre-validation (không lock, không transaction) ===
-        // Đọc nhanh để fail-fast trước khi vào critical section
         List<StockMismatch> mismatches = preValidateStock(request.getItems());
         if (!mismatches.isEmpty()) {
-            boolean allOutOfStock = mismatches.stream()
-                    .allMatch(m -> m.getAvailableQuantity() == 0);
-
+            boolean allOut = mismatches.stream().allMatch(m -> m.getAvailableQuantity() == 0);
             return CheckoutResponse.builder()
-                    .status(allOutOfStock
-                            ? CheckoutResponse.Status.OUT_OF_STOCK
+                    .status(allOut ? CheckoutResponse.Status.OUT_OF_STOCK
                             : CheckoutResponse.Status.PARTIAL_AVAILABLE)
                     .message(buildMismatchMessage(mismatches))
                     .stockMismatches(mismatches)
                     .build();
         }
 
-        // === BƯỚC 2: Atomic checkout với retry ===
         try {
             return executeCheckoutWithRetry(request, userId);
         } catch (StockException e) {
-            // Stock hết sau khi đã vào transaction (race condition)
             return CheckoutResponse.builder()
                     .status(e.getType() == StockException.Type.OUT_OF_STOCK
                             ? CheckoutResponse.Status.OUT_OF_STOCK
@@ -78,24 +80,12 @@ public class CheckoutService {
         }
     }
 
-    /**
-     * CRITICAL SECTION — Optimistic Lock với retry.
-     *
-     * Spring @Retryable tự động retry khi ObjectOptimisticLockingFailureException.
-     * Mỗi lần retry: 50ms, 100ms, 200ms (exponential backoff).
-     *
-     * SQL behavior (PostgreSQL/MySQL):
-     *   UPDATE inventory
-     *   SET available_quantity = available_quantity - ?,
-     *       reserved_quantity = reserved_quantity + ?,
-     *       version = version + 1
-     *   WHERE sku_id = ? AND version = ?  ← Optimistic lock check
-     *
-     * Nếu version không khớp → 0 rows updated → JPA throw OptimisticLockException
-     */
+    // ----------------------------------------------------------------
+    // Critical section với Optimistic Lock + Retry
+    // ----------------------------------------------------------------
+
     @Retryable(
-            retryFor  = {ObjectOptimisticLockingFailureException.class,
-                    OptimisticLockException.class},
+            retryFor  = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class},
             maxAttempts = MAX_RETRY,
             backoff   = @Backoff(delay = 50, multiplier = 2, random = true)
     )
@@ -106,43 +96,35 @@ public class CheckoutService {
                 .map(CheckoutRequest.CheckoutItem::getSkuId)
                 .collect(Collectors.toList());
 
-        // === BƯỚC 2.1: Load tất cả inventory trong 1 query (tránh N+1) ===
-        // QUAN TRỌNG: Sort by sku_id để tránh deadlock khi có nhiều transaction
-        Map<Long, Inventory> inventoryMap = inventoryRepository
-                .findBySkuIdIn(skuIds).stream()
+        Map<Long, Inventory> inventoryMap = inventoryRepository.findBySkuIdIn(skuIds).stream()
                 .collect(Collectors.toMap(i -> i.getSku().getId(), i -> i));
 
-        // === BƯỚC 2.2: Final stock validation trong transaction ===
+        // Final stock check trong transaction
         List<StockException.StockIssue> issues = new ArrayList<>();
         for (CheckoutRequest.CheckoutItem item : request.getItems()) {
             Inventory inv = inventoryMap.get(item.getSkuId());
             if (inv == null || inv.getAvailableQuantity() < item.getQuantity()) {
                 int available = inv == null ? 0 : inv.getAvailableQuantity();
                 issues.add(new StockException.StockIssue(
-                        item.getSkuId(), item.getProductName(),
-                        item.getQuantity(), available));
+                        item.getSkuId(), item.getProductName(), item.getQuantity(), available));
             }
         }
-
         if (!issues.isEmpty()) {
-            // Tìm loại lỗi: nếu tất cả available = 0 → OUT_OF_STOCK,
-            // còn 1 số có hàng nhưng ít hơn yêu cầu → PARTIAL_AVAILABLE
             boolean allOut = issues.stream().allMatch(i -> i.getAvailable() == 0);
             throw new StockException(
-                    allOut ? StockException.Type.OUT_OF_STOCK
-                            : StockException.Type.PARTIAL_AVAILABLE,
+                    allOut ? StockException.Type.OUT_OF_STOCK : StockException.Type.PARTIAL_AVAILABLE,
                     issues);
         }
 
-        // === BƯỚC 2.3: Deduct stock (trigger optimistic lock) ===
+        // Deduct stock (trigger optimistic lock)
         for (CheckoutRequest.CheckoutItem item : request.getItems()) {
             Inventory inv = inventoryMap.get(item.getSkuId());
             inv.setAvailableQuantity(inv.getAvailableQuantity() - item.getQuantity());
             inv.setReservedQuantity(inv.getReservedQuantity() + item.getQuantity());
-            inventoryRepository.save(inv); // ← JPA check version ở đây
+            inventoryRepository.save(inv);
         }
 
-        // === BƯỚC 2.4: Tạo Order ===
+        // Tạo Order
         User user = userRepository.findByUsername(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -169,36 +151,32 @@ public class CheckoutService {
 
         Order savedOrder = orderRepository.save(order);
 
-        List<OrderItem> orderItems = request.getItems().stream()
-                .map(item -> {
-                    // Lấy trực tiếp thông tin chuẩn từ DB đã query ở Bước 2.1
-                    Inventory inv = inventoryMap.get(item.getSkuId());
-
-                    String realProductName = (inv != null && inv.getSku() != null && inv.getSku().getProduct() != null)
-                            ? inv.getSku().getProduct().getName()
-                            : item.getProductName(); // Fallback nhẹ nếu có lỗi relation
-
-                    return OrderItem.builder()
-                            .order(savedOrder)
-                            .skuId(item.getSkuId())
-                            .productName(realProductName)
-                            .quantity(item.getQuantity())
-                            .priceAtPurchase(item.getPrice())
-                            .build();
-                })
-                .collect(Collectors.toList());
+        List<OrderItem> orderItems = request.getItems().stream().map(item -> {
+            Inventory inv = inventoryMap.get(item.getSkuId());
+            String productName = (inv != null && inv.getSku() != null && inv.getSku().getProduct() != null)
+                    ? inv.getSku().getProduct().getName()
+                    : item.getProductName();
+            return OrderItem.builder()
+                    .order(savedOrder).skuId(item.getSkuId())
+                    .productName(productName).quantity(item.getQuantity())
+                    .priceAtPurchase(item.getPrice()).build();
+        }).collect(Collectors.toList());
 
         orderItemRepository.saveAll(orderItems);
-
-        // === BƯỚC 2.5: Clear cart ===
         cartService.clearCart(user.getId());
 
-        // === BƯỚC 2.6: Gửi email async ===
-        if ("COD".equals(request.getPaymentMethod())) {
-            orderProducer.sendOrderConfirmation(savedOrder.getId());
-        }
+        log.info("✅ Checkout thành công: orderId={}, userId={}, method={}",
+                savedOrder.getId(), user.getId(), request.getPaymentMethod());
 
-        log.info("✅ Checkout thành công: orderId={}, userId={}", savedOrder.getId(), user.getId());
+        // -------------------------------------------------------
+        // AUTO-SHIP:
+        //   COD    → xác nhận + ship ngay
+        //   VNPAY  → chờ callback từ VNPay, PaymentController gọi autoConfirmAndShip
+        // -------------------------------------------------------
+        if ("COD".equals(request.getPaymentMethod())) {
+            // Gọi async-safe: dùng transaction mới để không bị rollback cùng checkout
+            orderService.autoConfirmAndShip(savedOrder.getId());
+        }
 
         return CheckoutResponse.builder()
                 .status(CheckoutResponse.Status.SUCCESS)
@@ -208,10 +186,10 @@ public class CheckoutService {
                 .build();
     }
 
-    /**
-     * Pre-validation: đọc nhanh không lock, chỉ để fail-fast trước khi vào transaction.
-     * Không phải "final check" — final check thực sự là trong executeCheckoutWithRetry.
-     */
+    // ----------------------------------------------------------------
+    // Helpers
+    // ----------------------------------------------------------------
+
     private List<StockMismatch> preValidateStock(List<CheckoutRequest.CheckoutItem> items) {
         List<Long> skuIds = items.stream()
                 .map(CheckoutRequest.CheckoutItem::getSkuId)
@@ -227,15 +205,12 @@ public class CheckoutService {
         for (CheckoutRequest.CheckoutItem item : items) {
             Inventory inv = invMap.get(item.getSkuId());
             int available = inv != null ? inv.getAvailableQuantity() : 0;
-
             if (available < item.getQuantity()) {
                 Sku sku = skuMap.get(item.getSkuId());
-                String variant = buildVariantName(sku);
-
                 mismatches.add(StockMismatch.builder()
                         .skuId(item.getSkuId())
                         .productName(item.getProductName())
-                        .variantName(variant)
+                        .variantName(buildVariantName(sku))
                         .requestedQuantity(item.getQuantity())
                         .availableQuantity(available)
                         .canPartialFulfill(available > 0)
@@ -260,23 +235,17 @@ public class CheckoutService {
     }
 
     private String buildMismatchMessage(List<StockMismatch> mismatches) {
-        return mismatches.stream()
-                .map(StockMismatch::getUserMessage)
-                .collect(Collectors.joining(". "));
+        return mismatches.stream().map(StockMismatch::getUserMessage).collect(Collectors.joining(". "));
     }
 
     private List<StockMismatch> toMismatchDtos(List<StockException.StockIssue> issues) {
-        return issues.stream()
-                .map(i -> StockMismatch.builder()
-                        .skuId(i.getSkuId())
-                        .productName(i.getProductName())
-                        .requestedQuantity(i.getRequested())
-                        .availableQuantity(i.getAvailable())
-                        .canPartialFulfill(i.getAvailable() > 0)
-                        .userMessage(i.getAvailable() == 0
-                                ? "\"" + i.getProductName() + "\" đã hết hàng"
-                                : "\"" + i.getProductName() + "\" hiện chỉ còn " + i.getAvailable() + " sản phẩm")
-                        .build())
-                .collect(Collectors.toList());
+        return issues.stream().map(i -> StockMismatch.builder()
+                .skuId(i.getSkuId()).productName(i.getProductName())
+                .requestedQuantity(i.getRequested()).availableQuantity(i.getAvailable())
+                .canPartialFulfill(i.getAvailable() > 0)
+                .userMessage(i.getAvailable() == 0
+                        ? "\"" + i.getProductName() + "\" đã hết hàng"
+                        : "\"" + i.getProductName() + "\" hiện chỉ còn " + i.getAvailable() + " sản phẩm")
+                .build()).collect(Collectors.toList());
     }
 }

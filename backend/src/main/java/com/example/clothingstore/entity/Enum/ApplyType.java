@@ -1,2 +1,3 @@
-package com.example.clothingstore.entity;
+package com.example.clothingstore.entity.Enum;
+
 public enum ApplyType { ORDER, PRODUCT }

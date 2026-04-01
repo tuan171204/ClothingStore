@@ -7,7 +7,7 @@ import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import AdminHeader from '@/components/admin/AdminHeader';
 import {
     LayoutDashboard, Package, ShoppingCart, FolderTree,
-    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins
+    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck
 } from 'lucide-react';
 
 // ==========================================
@@ -23,6 +23,7 @@ function Sidebar() {
         { href: '/admin/products', icon: Package, label: 'Sản phẩm' },
         { href: '/admin/pircing', icon: Coins, label: 'Quản lý giá' },
         { href: '/admin/orders', icon: ShoppingCart, label: 'Đơn hàng' },
+        { href: '/admin/ghn-simulator', icon: Truck, label: 'GHN Webhook Test' },
         { href: '/admin/categories', icon: FolderTree, label: 'Danh mục' },
         { href: '/admin/brands', icon: Tag, label: 'Thương hiệu' },
         { href: '/admin/goods-receipts', icon: Inbox, label: 'Nhập kho' },

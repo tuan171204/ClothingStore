@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 public class OrderConsumer {
 
     private final OrderRepository orderRepository;
-     private final MailService mailService;
+    private final MailService mailService;
 
     // Lắng nghe hàng đợi "order_email_queue"
     @RabbitListener(queues = RabbitMQConfig.QUEUE_NAME)
@@ -45,9 +45,21 @@ public class OrderConsumer {
             }
 
             // Có đơn hàng rồi thì gửi mail
-            System.out.println("✅ Đã tìm thấy đơn hàng, đang gửi mail...");
-            mailService.sendOrderConfirmation(order);
-            System.out.println("✅ [SUCCESS] Đã gửi mail thành công!");
+            System.out.println("✅ Đã tìm thấy đơn hàng, đang chuẩn bị gửi mail...");
+
+            String action = message.getMessage(); // "CONFIRM", "DELIVERED", hoặc "CANCELLED"
+            switch (action) {
+                case "DELIVERED":
+                    mailService.sendOrderDeliveredEmail(order);
+                    break;
+                case "CANCELLED":
+                    mailService.sendOrderCancelledEmail(order);
+                    break;
+                default:
+                    mailService.sendOrderConfirmation(order);
+                    break;
+            }
+            System.out.println("✅ [SUCCESS] Đã gửi mail thành công loại: " + action);
 
         } catch (Exception e) {
             System.err.println("❌ [ERROR] Lỗi xử lý: " + e.getMessage());

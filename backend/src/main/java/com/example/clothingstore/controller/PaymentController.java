@@ -18,6 +18,7 @@ public class PaymentController {
     private final VnPayService vnPayService;
     private final OrderService orderService;
 
+
     // API tạo link thanh toán (Test trước khi ghép vào Order)
     // GET http://localhost:8080/api/v1/payment/create-payment?amount=100000
     @GetMapping("/create-payment")
@@ -48,6 +49,7 @@ public class PaymentController {
                 try {
                     Long orderId = Long.parseLong(txnRef);
                     orderService.updateOrderStatus(orderId, OrderStatus.CONFIRMED); // CONFIRMED = Đã thanh toán
+                    orderService.autoConfirmAndShip(orderId);
                 } catch (NumberFormatException e) {
                     System.err.println("Lỗi parse OrderID: " + e.getMessage());
                 }

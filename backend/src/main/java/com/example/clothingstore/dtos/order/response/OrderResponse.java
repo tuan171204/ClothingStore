@@ -18,18 +18,27 @@ public class OrderResponse {
     private String note;
     private LocalDateTime createdAt;
 
-    // Tiền nong
     private BigDecimal totalAmount;
     private BigDecimal shippingFee;
 
-    // Trạng thái & Thanh toán
     private String paymentMethod;
     private OrderStatus status;
 
     // GHN Tracking
     private String trackingCode;
 
-    // Danh sách sản phẩm
+    /**
+     * Raw status code của GHN (VD: "delivering", "delivered").
+     * Dùng để Front-end hiển thị icon trạng thái chính xác.
+     */
+    private String trackingStatus;
+
+    /**
+     * Thông báo thân thiện cho khách hàng xem.
+     * VD: "Shipper đang giao hàng đến bạn"
+     */
+    private String trackingMessage;
+
     private List<OrderItemResponse> orderItems;
 
     @Data
@@ -41,6 +50,6 @@ public class OrderResponse {
         private String productName;
         private int quantity;
         private BigDecimal price;
-        private BigDecimal subtotal; // quantity * price
+        private BigDecimal subtotal;
     }
 }

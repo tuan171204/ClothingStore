@@ -57,4 +57,50 @@ public class MailService {
             // Có thể throw lại ngoại lệ để RabbitMQ biết mà retry nếu muốn
         }
     }
+
+    public void sendOrderDeliveredEmail(Order order) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, StandardCharsets.UTF_8.name());
+
+            Context context = new Context();
+            context.setVariable("order", order);
+
+            // Lưu ý: Bạn cần tạo file email-order-delivered.html trong thư mục resources/templates
+            String html = templateEngine.process("email-order-delivered", context);
+
+            helper.setTo(order.getUserId()); // Tạm dùng userId hoặc order.getEmail() nếu có
+            helper.setSubject("🎉 Đơn hàng #" + order.getId() + " đã giao thành công!");
+            helper.setText(html, true);
+
+            mailSender.send(message);
+            System.out.println("✅ [MailService] Đã gửi mail Giao thành công cho đơn: " + order.getId());
+
+        } catch (MessagingException e) {
+            System.err.println("❌ [MailService] Lỗi gửi mail Delivered: " + e.getMessage());
+        }
+    }
+
+    public void sendOrderCancelledEmail(Order order) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, StandardCharsets.UTF_8.name());
+
+            Context context = new Context();
+            context.setVariable("order", order);
+
+            // Lưu ý: Bạn cần tạo file email-order-cancelled.html trong thư mục resources/templates
+            String html = templateEngine.process("email-order-cancelled", context);
+
+            helper.setTo(order.getUserId());
+            helper.setSubject("⚠️ Thông báo hủy đơn hàng #" + order.getId());
+            helper.setText(html, true);
+
+            mailSender.send(message);
+            System.out.println("✅ [MailService] Đã gửi mail Hủy đơn cho đơn: " + order.getId());
+
+        } catch (MessagingException e) {
+            System.err.println("❌ [MailService] Lỗi gửi mail Cancelled: " + e.getMessage());
+        }
+    }
 }

@@ -28,51 +28,135 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum GhnStatus {
 
-    // ---- Trạng thái "đang trong luồng giao" ----
-    READY_TO_PICK("ready_to_pick", null),       // Không cần đổi OrderStatus
-    PICKING("picking",             null),
-    PICKED("picked",               null),
-    ON_HOLD("on_hold",             null),
-    IN_TRANSIT("in_transit",       null),
-    OUT_FOR_DELIVERY("out_for_delivery", null),
+    // ---- Luồng giao hàng tiến (không thay đổi OrderStatus) ----
+    READY_TO_PICK(
+            "ready_to_pick",
+            null,
+            "Đơn hàng đang chờ shipper đến lấy"
+    ),
+    PICKING(
+            "picking",
+            null,
+            "Shipper đang trên đường đến lấy hàng"
+    ),
+    PICKED(
+            "picked",
+            null,
+            "Shipper đã lấy hàng, đang vận chuyển"
+    ),
+    STORING(
+            "storing",
+            null,
+            "Hàng đang được lưu kho trung chuyển"
+    ),
+    TRANSPORTING(
+            "transporting",
+            null,
+            "Hàng đang được vận chuyển liên tỉnh"
+    ),
+    SORTING(
+            "sorting",
+            null,
+            "Hàng đang được phân loại tại bưu cục"
+    ),
+    ON_HOLD(
+            "on_hold",
+            null,
+            "Đơn hàng tạm dừng, chúng tôi đang liên hệ bạn"
+    ),
+    IN_TRANSIT(
+            "in_transit",
+            null,
+            "Hàng đang trên đường đến bưu cục gần bạn"
+    ),
+    DELIVERING(
+            "delivering",
+            null,
+            "Shipper đang giao hàng đến bạn"
+    ),
+    DELIVERY_FAIL(
+            "delivery_fail",
+            null,
+            "Giao hàng thất bại, shipper sẽ thử lại"
+    ),
 
-    // ---- Trạng thái cuối — CÓ ảnh hưởng tới OrderStatus ----
-    DELIVERED("delivered",         OrderStatus.COMPLETED),
-    CANCEL("cancel",               OrderStatus.CANCELLED),
-    RETURN("return",               OrderStatus.CANCELLED),
-    RETURN_TRANSIT("return_transit", OrderStatus.CANCELLED),
-    RETURNED("returned",           OrderStatus.CANCELLED),
+    // ---- Trạng thái cuối — thay đổi OrderStatus ----
+    DELIVERED(
+            "delivered",
+            OrderStatus.COMPLETED,
+            "Giao hàng thành công. Cảm ơn bạn đã mua hàng!"
+    ),
+    CANCEL(
+            "cancel",
+            OrderStatus.CANCELLED,
+            "Đơn hàng đã bị hủy"
+    ),
+    RETURN(
+            "return",
+            OrderStatus.CANCELLED,
+            "Đơn hàng đang được hoàn trả về người gửi"
+    ),
+    RETURN_TRANSIT(
+            "return_transit",
+            OrderStatus.CANCELLED,
+            "Hàng đang trên đường hoàn về người bán"
+    ),
+    RETURNED(
+            "returned",
+            OrderStatus.CANCELLED,
+            "Hàng đã được hoàn về người bán thành công"
+    ),
+    LOST(
+            "lost",
+            OrderStatus.CANCELLED,
+            "Hàng bị thất lạc trong quá trình vận chuyển"
+    ),
+    DAMAGE(
+            "damage",
+            null,
+            "Hàng bị hư hỏng trong quá trình vận chuyển"
+    ),
+    EXCEPTION(
+            "exception",
+            null,
+            "Xảy ra sự cố trong quá trình vận chuyển, đang xử lý"
+    ),
 
-    // ---- Trạng thái đặc biệt ----
-    EXCEPTION("exception",         null),
-    DAMAGE("damage",               null),
-    LOST("lost",                   OrderStatus.CANCELLED),
+    UNKNOWN(
+            "unknown",
+            null,
+            "Đang cập nhật trạng thái vận chuyển"
+    );
 
-    UNKNOWN("unknown",             null);
-
-    /** Chuỗi trạng thái GHN trả về trong webhook payload */
+    /** Chuỗi status code GHN gửi trong webhook payload */
     private final String ghnCode;
 
     /**
      * OrderStatus tương ứng trong hệ thống.
-     * null = không cần cập nhật OrderStatus khi nhận được trạng thái này.
+     * null = không cần cập nhật OrderStatus khi nhận trạng thái này.
      */
     private final OrderStatus mappedOrderStatus;
 
     /**
-     * Parse chuỗi trạng thái từ GHN.
-     * Trả về UNKNOWN nếu không khớp bất kỳ enum nào (tránh exception).
+     * Thông báo thân thiện hiển thị cho khách hàng xem trên trang đơn hàng.
+     */
+    private final String trackingMessage;
+
+    /**
+     * Parse chuỗi status từ GHN.
+     * Case-insensitive, trim whitespace.
+     * Trả về UNKNOWN nếu không khớp (tránh exception).
      */
     public static GhnStatus fromCode(String code) {
-        if (code == null) return UNKNOWN;
-        String lower = code.toLowerCase().trim();
+        if (code == null || code.isBlank()) return UNKNOWN;
+        String normalized = code.toLowerCase().trim();
         for (GhnStatus s : values()) {
-            if (s.ghnCode.equals(lower)) return s;
+            if (s.ghnCode.equals(normalized)) return s;
         }
         return UNKNOWN;
     }
 
-    /** Kiểm tra trạng thái này có cần cập nhật OrderStatus không */
+    /** true nếu trạng thái này cần cập nhật OrderStatus */
     public boolean hasMappedStatus() {
         return mappedOrderStatus != null;
     }

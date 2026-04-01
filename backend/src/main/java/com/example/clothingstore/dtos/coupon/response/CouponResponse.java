@@ -1,7 +1,7 @@
 package com.example.clothingstore.dtos.coupon.response;
 
-import com.example.clothingstore.entity.ApplyType;
-import com.example.clothingstore.entity.DiscountType;
+import com.example.clothingstore.entity.Enum.ApplyType;
+import com.example.clothingstore.entity.Enum.DiscountType;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>Thông báo hủy đơn hàng</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    /* Đổi màu header sang đỏ (danger/cancelled) */
+    .header { background: #dc3545; color: white; padding: 10px; text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    .total { color: red; font-weight: bold; text-align: right; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <h2>Thông báo hủy đơn hàng</h2>
+</div>
+
+<p>Xin chào <b th:text="${order.fullName}">Khách hàng</b>,</p>
+<p>Rất tiếc phải thông báo rằng đơn hàng <b>#<span th:text="${order.id}">000</span></b> của bạn đã bị hủy hoặc được hoàn trả thành công.</p>
+
+<h3>Chi tiết đơn hàng đã hủy:</h3>
+<table>
+  <thead>
+  <tr>
+    <th>Sản phẩm</th> <th>SL</th> <th>Giá</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr th:each="item : ${order.orderItems}">
+    <td th:text="${item.productName}">Tên SP</td>
+    <td th:text="${item.quantity}">1</td>
+    <td th:text="${item.priceAtPurchase}">100000</td>
+  </tr>
+  </tbody>
+</table>
+
+<div class="total">
+  Tổng tiền: <span th:text="${order.totalAmount}">0</span> đ
+</div>
+
+<hr />
+<p>Nếu bạn đã thanh toán trước (VNPay), hệ thống sẽ tiến hành hoàn tiền cho bạn theo quy định.</p>
+<p>Rất mong được phục vụ bạn trong những lần mua sắm tiếp theo!</p>
+</body>
+</html>

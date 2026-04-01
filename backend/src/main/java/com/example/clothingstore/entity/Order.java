@@ -20,9 +20,8 @@ public class Order {
     private Long id;
 
     @Column(name = "user_id")
-    private String userId; // Có thể null nếu là khách vãng lai
+    private String userId;
 
-    // --- Thông tin khách hàng (Snapshot lưu tại thời điểm đặt) ---
     @Column(name = "full_name")
     private String fullName;
 
@@ -32,7 +31,6 @@ public class Order {
     @Column(name = "shipping_address")
     private String shippingAddress;
 
-    // Thông tin địa chỉ theo format GHN
     @Column(name = "to_province_id")
     private Integer toProvinceId;
 
@@ -41,25 +39,24 @@ public class Order {
 
     @Column(name = "to_ward_code")
     private String toWardCode;
-    // -------------------------------------------------------------
 
     @Column(name = "subtotal")
-    private BigDecimal subtotal; // Tổng tiền hàng
+    private BigDecimal subtotal;
 
     @Column(name = "shipping_fee")
-    private BigDecimal shippingFee; // Phí ship
+    private BigDecimal shippingFee;
 
     @Column(name = "discount_amount")
-    private BigDecimal discountAmount; // Giảm giá
+    private BigDecimal discountAmount;
 
     @Column(name = "total_amount")
-    private BigDecimal totalAmount; // Tổng thanh toán cuối cùng
+    private BigDecimal totalAmount;
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
     @Column(name = "payment_method")
-    private String paymentMethod; // COD, VNPAY
+    private String paymentMethod;
 
     @Column(name = "note")
     private String note;
@@ -68,9 +65,24 @@ public class Order {
     private LocalDateTime createdAt;
 
     @Column(name = "tracking_code")
-    private String trackingCode; // Lưu mã vận đơn GHN (VD: LE812345)
+    private String trackingCode;
 
-    // Quan hệ 1-N với OrderItems
+    /**
+     * Trạng thái vận chuyển raw từ GHN.
+     * Dùng để ánh xạ chính xác mà không mất thông tin.
+     * VD: "ready_to_pick", "delivering", "delivered", "return_transit"
+     */
+    @Column(name = "tracking_status", length = 50)
+    private String trackingStatus;
+
+    /**
+     * Chuỗi thông báo thân thiện hiển thị cho khách hàng.
+     * VD: "Đơn hàng đang trên đường giao đến bạn"
+     * Được cập nhật mỗi lần GHN gọi webhook switch_status.
+     */
+    @Column(name = "tracking_message", length = 255)
+    private String trackingMessage;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<OrderItem> orderItems;
 

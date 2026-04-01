@@ -29,8 +29,12 @@ public class OrderResponseMapper {
                 .shippingFee(order.getShippingFee())
                 .paymentMethod(order.getPaymentMethod())
                 .status(order.getStatus())
-                .trackingCode(order.getTrackingCode()) // Quan trọng
-                .orderItems(order.getOrderItems().stream().map(this::toItemResponse).collect(Collectors.toList()))
+                .trackingCode(order.getTrackingCode())
+                .trackingStatus(order.getTrackingStatus())   // ← MỚI
+                .trackingMessage(order.getTrackingMessage()) // ← MỚI
+                .orderItems(order.getOrderItems().stream()
+                        .map(this::toItemResponse)
+                        .collect(Collectors.toList()))
                 .build();
     }
 
@@ -42,15 +46,13 @@ public class OrderResponseMapper {
                 .productName(item.getProductName())
                 .quantity(item.getQuantity())
                 .price(item.getPriceAtPurchase())
-                .subtotal(item.getPriceAtPurchase().multiply(java.math.BigDecimal.valueOf(item.getQuantity())))
+                .subtotal(item.getPriceAtPurchase()
+                        .multiply(java.math.BigDecimal.valueOf(item.getQuantity())))
                 .build();
     }
 
     private Long resolveProductId(Long skuId) {
-        if (skuId == null) {
-            return null;
-        }
-
+        if (skuId == null) return null;
         return skuRepository.findById(skuId)
                 .map(sku -> sku.getProduct() != null ? sku.getProduct().getId() : null)
                 .orElse(null);

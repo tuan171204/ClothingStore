@@ -1,5 +1,7 @@
 package com.example.clothingstore.entity;
 
+import com.example.clothingstore.entity.Enum.ApplyType;
+import com.example.clothingstore.entity.Enum.DiscountType;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;

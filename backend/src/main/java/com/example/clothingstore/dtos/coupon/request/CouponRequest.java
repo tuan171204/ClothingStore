@@ -1,7 +1,7 @@
 package com.example.clothingstore.dtos.coupon.request; // Package phải sâu như này mới đúng
 
-import com.example.clothingstore.entity.ApplyType;
-import com.example.clothingstore.entity.DiscountType;
+import com.example.clothingstore.entity.Enum.ApplyType;
+import com.example.clothingstore.entity.Enum.DiscountType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import java.math.BigDecimal;

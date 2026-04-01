@@ -24,4 +24,14 @@ public class OrderProducer {
                 message
         );
     }
+
+    public void sendOrderDelivered(Long orderId) {
+        OrderMessage message = new OrderMessage(orderId, "DELIVERED");
+        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ROUTING_KEY, message);
+    }
+
+    public void sendOrderCancelled(Long orderId) {
+        OrderMessage message = new OrderMessage(orderId, "CANCELLED");
+        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ROUTING_KEY, message);
+    }
 }

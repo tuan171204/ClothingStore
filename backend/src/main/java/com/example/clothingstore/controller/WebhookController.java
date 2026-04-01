@@ -42,7 +42,8 @@ public class WebhookController {
         log.debug("[WebhookController] Nhận GHN webhook: type={}, orderCode={}",
                 payload.getType(), payload.getOrderCode());
         try {
-            ghnWebhookService.handle(payload);
+            ghnWebhookService.handle(payload); // Xử lý logic
+            return ResponseEntity.ok("Success");
         } catch (Exception e) {
             // Log lỗi nhưng vẫn trả 200 để GHN không retry vô ích
             log.error("[WebhookController] Lỗi xử lý webhook GHN (đã catch): {}", e.getMessage(), e);
