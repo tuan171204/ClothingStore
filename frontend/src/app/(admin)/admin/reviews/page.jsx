@@ -100,7 +100,7 @@ export default function AdminReviewPage() {
             <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
                 <div>
                     <h1 className="text-xl font-semibold text-gray-900">Duyệt đánh giá sản phẩm</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <p className="text-md text-gray-500 mt-0.5">
                         {selected.size > 0
                             ? `Đã chọn ${selected.size} / ${reviews.length} đánh giá`
                             : `${reviews.length} đánh giá đang chờ duyệt`}
@@ -114,7 +114,7 @@ export default function AdminReviewPage() {
                             `Bạn có chắc muốn duyệt ${selected.size} đánh giá đã chọn?`,
                             () => executeBulk('approve')
                         )}
-                        className="px-4 py-2 text-sm font-medium rounded-lg bg-emerald-50 text-emerald-700
+                        className="px-4 py-2 text-md font-medium rounded-lg bg-emerald-50 text-emerald-700
                        border border-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {bulkWorking ? '...' : `Duyệt đã chọn (${selected.size})`}
@@ -126,7 +126,7 @@ export default function AdminReviewPage() {
                             `Bạn có chắc muốn từ chối ${selected.size} đánh giá đã chọn?`,
                             () => executeBulk('reject')
                         )}
-                        className="px-4 py-2 text-sm font-medium rounded-lg bg-rose-50 text-rose-700
+                        className="px-4 py-2 text-md font-medium rounded-lg bg-rose-50 text-rose-700
                        border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {bulkWorking ? '...' : `Từ chối đã chọn (${selected.size})`}
@@ -147,7 +147,7 @@ export default function AdminReviewPage() {
                                 placeholder="Tìm tên sản phẩm..."
                                 value={filters.productName}
                                 onChange={e => handleFilterChange('productName', e.target.value)}
-                                className="w-full pl-3 pr-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all shadow-sm"
+                                className="w-full pl-3 pr-3 py-2.5 bg-white border border-gray-200 rounded-lg text-md focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition-all shadow-sm"
                             />
                         </div>
                     </div>
@@ -158,7 +158,7 @@ export default function AdminReviewPage() {
                         <select
                             value={filters.minRating}
                             onChange={e => handleFilterChange('minRating', e.target.value)}
-                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-gray-900 outline-none transition-all shadow-sm appearance-none cursor-pointer"
+                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-md focus:border-gray-900 outline-none transition-all shadow-sm appearance-none cursor-pointer"
                         >
                             <option value="">Tất cả mức sao</option>
                             {[5, 4, 3, 2, 1].map(n => (
@@ -174,7 +174,7 @@ export default function AdminReviewPage() {
                             type="date"
                             value={filters.fromDate}
                             onChange={e => handleFilterChange('fromDate', e.target.value)}
-                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-gray-900 outline-none transition-all shadow-sm cursor-pointer"
+                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-md focus:border-gray-900 outline-none transition-all shadow-sm cursor-pointer"
                         />
                     </div>
 
@@ -185,7 +185,7 @@ export default function AdminReviewPage() {
                                 const f = { productName: '', minRating: '', fromDate: '', page: 0, size: 20 };
                                 setFilters(f); load(f);
                             }}
-                            className="flex-1 h-10.5 text-sm font-bold border border-gray-200 text-gray-600 rounded-lg hover:bg-white hover:border-gray-900 hover:text-gray-900 transition-all shadow-sm uppercase tracking-widest bg-white cursor-pointer"
+                            className="flex-1 h-10.5 text-md font-bold border border-gray-200 text-gray-600 rounded-lg hover:bg-white hover:border-gray-900 hover:text-gray-900 transition-all shadow-sm uppercase tracking-widest bg-white cursor-pointer"
                         >
                             Xóa lọc
                         </button>
@@ -204,12 +204,12 @@ export default function AdminReviewPage() {
 
             {/* Table */}
             {loading ? (
-                <p className="text-gray-400 text-sm py-8 text-center">Đang tải...</p>
+                <p className="text-gray-400 text-md py-8 text-center">Đang tải...</p>
             ) : reviews.length === 0 ? (
-                <p className="text-gray-400 text-sm py-8 text-center">Không có đánh giá nào.</p>
+                <p className="text-gray-400 text-md py-8 text-center">Không có đánh giá nào.</p>
             ) : (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    <table className="min-w-full text-sm">
+                    <table className="min-w-full text-md">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th className="p-3 w-8 pl-5">
@@ -239,18 +239,18 @@ export default function AdminReviewPage() {
                                         </td>
                                         <td className="p-3">
                                             <div className="font-medium text-gray-900">{r.product?.name}</div>
-                                            <div className="text-xs text-gray-500 mt-0.5">
+                                            <div className="text-sm text-gray-500 mt-0.5">
                                                 {r.sku?.optionSummary}
                                             </div>
                                             {r.orderId && (
-                                                <div className="text-xs text-blue-600 font-medium mt-1">
+                                                <div className="text-sm text-blue-600 font-medium mt-1">
                                                     Đơn hàng: #{r.orderId}
                                                 </div>
                                             )}
                                         </td>
                                         <td className="p-3">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-semibold shrink-0">
+                                                <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-sm font-semibold shrink-0">
                                                     {r.user?.fullName ? r.user.fullName.charAt(0).toUpperCase() : 'U'}
                                                 </div>
                                                 <span className="text-gray-800">{r.user?.fullName}</span>
@@ -266,10 +266,10 @@ export default function AdminReviewPage() {
                                         <td className="p-3 max-w-xs">
                                             <p className="text-gray-700 line-clamp-2">{r.comment}</p>
                                             {r.verifiedPurchase && (
-                                                <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-700">Đã mua hàng</span>
+                                                <span className="inline-block mt-1 text-sm px-2 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-700">Đã mua hàng</span>
                                             )}
                                         </td>
-                                        <td className="p-3 text-xs text-gray-500 whitespace-nowrap">
+                                        <td className="p-3 text-sm text-gray-500 whitespace-nowrap">
                                             {r.createdAt?.slice(0, 10)}
                                         </td>
                                         <td className="p-3 pr-5">
@@ -280,7 +280,7 @@ export default function AdminReviewPage() {
                                                         `Duyệt đánh giá của ${r.user?.fullName}?`,
                                                         () => executeSingle(r.id, 'approve')
                                                     )}
-                                                    className="px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
+                                                    className="px-3 py-1.5 text-sm font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
                                                     {isWorking ? '...' : 'Duyệt'}
                                                 </button>
                                                 <button disabled={isWorking}
@@ -289,7 +289,7 @@ export default function AdminReviewPage() {
                                                         `Từ chối đánh giá của ${r.user?.fullName}?`,
                                                         () => executeSingle(r.id, 'reject')
                                                     )}
-                                                    className="px-3 py-1.5 text-xs font-medium rounded-md bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50">
+                                                    className="px-3 py-1.5 text-sm font-medium rounded-md bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50">
                                                     {isWorking ? '...' : 'Từ chối'}
                                                 </button>
                                             </div>
@@ -307,15 +307,15 @@ export default function AdminReviewPage() {
                 <div className="flex items-center gap-3 mt-6 justify-center">
                     <button disabled={filters.page === 0}
                         onClick={() => handleFilterChange('page', filters.page - 1)}
-                        className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40">
+                        className="px-3 py-1.5 text-md border border-gray-200 rounded-lg disabled:opacity-40">
                         ← Trang trước
                     </button>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-md text-gray-500">
                         Trang {filters.page + 1} / {totalPages}
                     </span>
                     <button disabled={filters.page >= totalPages - 1}
                         onClick={() => handleFilterChange('page', filters.page + 1)}
-                        className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40">
+                        className="px-3 py-1.5 text-md border border-gray-200 rounded-lg disabled:opacity-40">
                         Trang sau →
                     </button>
                 </div>
@@ -325,14 +325,14 @@ export default function AdminReviewPage() {
             {modal && (
                 <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center animate-fade-in">
                     <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-                        <h3 className="text-lg font-bold mb-2">{modal.title}</h3>
-                        <p className="text-sm text-gray-500 mb-6">{modal.body}</p>
+                        <h3 className="text-xl font-bold mb-2">{modal.title}</h3>
+                        <p className="text-md text-gray-500 mb-6">{modal.body}</p>
                         <div className="flex gap-3 justify-end">
                             <button onClick={() => setModal(null)}
-                                className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Hủy</button>
+                                className="px-4 py-2 text-md border border-gray-200 rounded-lg hover:bg-gray-50">Hủy</button>
                             <button
                                 onClick={() => { setModal(null); modal.onConfirm(); }}
-                                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-black">
+                                className="px-4 py-2 text-md font-medium rounded-lg bg-gray-900 text-white hover:bg-black">
                                 Xác nhận
                             </button>
                         </div>

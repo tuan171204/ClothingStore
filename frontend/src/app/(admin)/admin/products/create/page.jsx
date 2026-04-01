@@ -5,7 +5,7 @@ import axios from '@/lib/axios';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import ImageUpload from '@/components/admin/ImageUpload';
-import { Trash2, Plus, Info } from 'lucide-react';
+import { Trash2, Plus, Info, X, Bold } from 'lucide-react';
 import { getCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';
 import { createProduct } from '@/services/productService';
@@ -27,6 +27,8 @@ export default function CreateProductPage() {
 
     const [options, setOptions] = useState([]);
     const [skus, setSkus] = useState([]);
+
+    const [bulkProfitMargin, setBulkProfitMargin] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -89,6 +91,7 @@ export default function CreateProductPage() {
                 code: existing?.code || `SKU-${Date.now()}-${index}`,
                 name: skuName,
                 stock: existing?.stock || 0,
+                profitMargin: existing?.profitMargin || 0,
                 optionValues: combo.map((val, idx) => ({
                     optionName: validOptions[idx].name,
                     value: val
@@ -96,6 +99,19 @@ export default function CreateProductPage() {
             };
         });
         setSkus(newSkus);
+    };
+
+    const applyBulkProfitMargin = () => {
+        const margin = parseFloat(bulkProfitMargin);
+        if (isNaN(margin) || margin < 0) {
+            return toast.warning("Vui lòng nhập tỷ lệ lợi nhuận hợp lệ (>= 0)");
+        }
+        const updatedSkus = skus.map(sku => ({
+            ...sku,
+            profitMargin: margin
+        }));
+        setSkus(updatedSkus);
+        toast.success(`Đã áp dụng lợi nhuận ${margin}% cho tất cả biến thể`);
     };
 
     const handleSubmit = async () => {
@@ -118,6 +134,7 @@ export default function CreateProductPage() {
                     price: 0,         // Giá bán = 0 khi tạo mới, sẽ được tính sau khi nhập hàng
                     importPrice: 0,   // Giá nhập = 0 ban đầu
                     stockQuantity: s.stock,
+                    profitMargin: s.profitMargin || 0,
                     optionValues: s.optionValues
                 }))
             };
@@ -134,14 +151,14 @@ export default function CreateProductPage() {
     };
 
     return (
-        <div className="p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
+        <div className="p-2 max-w-7xl mx-auto bg-gray-50 min-h-screen">
             <div className="flex justify-center items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Thêm sản phẩm mới</h1>
             </div>
 
             {/* Info banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-start gap-3 text-sm text-blue-800">
-                <Info size={18} className="shrink-0 mt-0.5 text-blue-600" />
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-start gap-3 text-md text-blue-800">
+                <Info size={22} className="shrink-0 mt-0.5 text-blue-600" />
                 <div>
                     <strong>Quy trình mới:</strong> Khi tạo sản phẩm, bạn chỉ cần nhập thông tin và các phân loại (biến thể).
                     <br />Giá nhập và giá bán sẽ được tính tự động khi bạn <strong>tạo phiếu nhập kho</strong> cho sản phẩm này.
@@ -157,7 +174,7 @@ export default function CreateProductPage() {
                         <h2 className="font-bold text-gray-800 mb-4 border-b pb-2">Thông tin cơ bản</h2>
                         <div className="grid grid-cols-1 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Tên sản phẩm <span className="text-red-500">*</span></label>
+                                <label className="block text-md font-medium mb-1">Tên sản phẩm <span className="text-red-500">*</span></label>
                                 <input
                                     className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                                     value={product.name}
@@ -166,7 +183,7 @@ export default function CreateProductPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Mô tả chi tiết</label>
+                                <label className="block text-md font-medium mb-1">Mô tả chi tiết</label>
                                 <textarea
                                     className="w-full border border-gray-300 p-2 rounded h-24 focus:ring-2 focus:ring-blue-500 outline-none"
                                     value={product.description}
@@ -180,8 +197,8 @@ export default function CreateProductPage() {
                     <div className="bg-white p-6 rounded-lg shadow-sm border">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                             <h2 className="font-bold text-gray-800">Phân loại hàng</h2>
-                            <button onClick={addOption} className="text-blue-600 text-sm font-medium flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded">
-                                <Plus size={16} /> Thêm nhóm phân loại
+                            <button onClick={addOption} className="text-blue-600 text-md font-medium flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded">
+                                <Plus size={22} /> Thêm nhóm phân loại
                             </button>
                         </div>
 
@@ -189,11 +206,11 @@ export default function CreateProductPage() {
                             {options.map((opt, optIdx) => (
                                 <div key={optIdx} className="bg-gray-50 p-4 rounded-lg border relative">
                                     <button onClick={() => removeOption(optIdx)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500">
-                                        <Trash2 size={18} />
+                                        <Trash2 size={22} />
                                     </button>
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                         <div className="md:col-span-4">
-                                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">Tên nhóm <span className="text-red-500">*</span></label>
+                                            <label className="text-sm font-semibold text-gray-500 uppercase mb-1 block">Tên nhóm <span className="text-red-500">*</span></label>
                                             <select
                                                 className="w-full border border-gray-300 p-2 rounded focus:border-blue-500 outline-none bg-white"
                                                 value={opt.name}
@@ -204,7 +221,7 @@ export default function CreateProductPage() {
                                             </select>
                                         </div>
                                         <div className="md:col-span-8">
-                                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">Giá trị (Enter để thêm)</label>
+                                            <label className="text-sm font-semibold text-gray-500 uppercase mb-1 block">Giá trị (Enter để thêm)</label>
                                             <input
                                                 className="w-full border border-gray-300 p-2 rounded focus:border-blue-500 outline-none"
                                                 placeholder="VD: Đỏ, Xanh, S, M..."
@@ -217,9 +234,11 @@ export default function CreateProductPage() {
                                             />
                                             <div className="flex flex-wrap gap-2 mt-2">
                                                 {opt.values.map((val, valIdx) => (
-                                                    <span key={valIdx} className="bg-white border px-3 py-1 text-sm rounded-full flex items-center gap-2 shadow-sm">
+                                                    <span key={valIdx} className="bg-white border px-3 py-1 text-md rounded-full flex items-center gap-2 shadow-sm">
                                                         {val}
-                                                        <button onClick={() => removeOptionValue(optIdx, valIdx)} className="text-red-400 hover:text-red-600 font-bold">×</button>
+                                                        <button onClick={() => removeOptionValue(optIdx, valIdx)} className="text-red-400 hover:text-red-600 font-bold text-md px-1.5">
+                                                            <X size={18} fontWeight={Bold} className="shrink-0 text-red-600 hover:text-red-800" />
+                                                        </button>
                                                     </span>
                                                 ))}
                                             </div>
@@ -232,15 +251,38 @@ export default function CreateProductPage() {
                         {/* SKU preview table - chỉ hiển thị tên và số lượng ban đầu */}
                         {skus.length > 0 && (
                             <div className="mt-6 border-t pt-4">
-                                <p className="text-sm font-bold text-gray-700 mb-3">Danh sách biến thể sẽ được tạo:</p>
+                                <div className="flex justify-between items-end mb-3">
+                                    <p className="text-md font-bold text-gray-700">Danh sách biến thể sẽ được tạo:</p>
+
+                                    {/* UI: Set lợi nhuận hàng loạt */}
+                                    <div className="flex items-center gap-2 bg-blue-50 p-2 rounded border border-blue-100">
+                                        <label className="text-sm font-semibold text-blue-800">Set lợi nhuận chung (%):</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            className="w-20 border-gray-300 rounded p-1 text-md outline-none focus:border-blue-500"
+                                            value={bulkProfitMargin}
+                                            onChange={(e) => setBulkProfitMargin(e.target.value)}
+                                            placeholder="VD: 30"
+                                        />
+                                        <button
+                                            onClick={applyBulkProfitMargin}
+                                            className="bg-blue-600 text-white text-sm px-3 py-1.5 rounded hover:bg-blue-700 font-medium"
+                                        >
+                                            Áp dụng
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="overflow-x-auto border rounded-lg">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="bg-gray-100 text-gray-600 text-xs uppercase">
+                                    <table className="w-full text-md text-left">
+                                        <thead className="bg-gray-100 text-gray-600 text-sm uppercase">
                                             <tr>
                                                 <th className="p-3">Phiên bản</th>
                                                 <th className="p-3 w-40">Mã SKU</th>
-                                                <th className="p-3 w-32">Tồn kho ban đầu</th>
-                                                <th className="p-3 text-gray-400 text-xs">Giá nhập / Giá bán</th>
+                                                <th className="p-3 w-32 text-center">Tồn kho đầu</th>
+                                                <th className="p-3 w-32 text-center">Lợi nhuận (%)</th>
+                                                <th className="p-3 text-gray-400 text-sm">Giá nhập / Bán</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">
@@ -248,14 +290,22 @@ export default function CreateProductPage() {
                                                 <tr key={idx} className="hover:bg-gray-50">
                                                     <td className="p-3 font-medium text-gray-800">{sku.name}</td>
                                                     <td className="p-3">
-                                                        <input type="text" className="border border-gray-300 p-1.5 w-full rounded text-xs font-mono" value={sku.code}
+                                                        <input type="text" className="border border-gray-300 p-1.5 w-full rounded text-sm font-mono outline-none focus:border-blue-500"
+                                                            value={sku.code}
                                                             onChange={e => { const s = [...skus]; s[idx].code = e.target.value; setSkus(s); }} />
                                                     </td>
                                                     <td className="p-3">
-                                                        <input type="number" min="0" className="border border-gray-300 p-1.5 w-full rounded text-center" value={sku.stock}
+                                                        <input type="number" min="0" className="border border-gray-300 p-1.5 w-full rounded text-center outline-none focus:border-blue-500"
+                                                            value={sku.stock}
                                                             onChange={e => { const s = [...skus]; s[idx].stock = parseInt(e.target.value) || 0; setSkus(s); }} />
                                                     </td>
-                                                    <td className="p-3 text-gray-400 text-xs italic">Sẽ được cập nhật khi nhập hàng</td>
+                                                    <td className="p-3">
+                                                        {/* UI: Cột nhập lợi nhuận cho từng SKU */}
+                                                        <input type="number" min="0" className="border border-gray-300 p-1.5 w-full rounded text-center outline-none focus:border-blue-500 font-semibold text-green-600"
+                                                            value={sku.profitMargin}
+                                                            onChange={e => { const s = [...skus]; s[idx].profitMargin = parseFloat(e.target.value) || 0; setSkus(s); }} />
+                                                    </td>
+                                                    <td className="p-3 text-gray-400 text-sm italic">Sẽ cập nhật khi nhập hàng</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -277,14 +327,14 @@ export default function CreateProductPage() {
                         <h2 className="font-bold text-gray-800 mb-4">Phân loại</h2>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Danh mục <span className="text-red-500">*</span></label>
+                                <label className="block text-md font-medium mb-1">Danh mục <span className="text-red-500">*</span></label>
                                 <select className="w-full border border-gray-300 p-2 rounded" onChange={e => setProduct({ ...product, categoryId: e.target.value })}>
                                     <option value="">-- Chọn danh mục --</option>
                                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Thương hiệu <span className="text-red-500">*</span></label>
+                                <label className="block text-md font-medium mb-1">Thương hiệu <span className="text-red-500">*</span></label>
                                 <select className="w-full border border-gray-300 p-2 rounded" onChange={e => setProduct({ ...product, brandId: e.target.value })}>
                                     <option value="">-- Chọn thương hiệu --</option>
                                     {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}

@@ -27,30 +27,30 @@ const ProductCard = ({ product }) => {
 
                 {/* Nút Quick Add ẩn đi, chỉ hiện khi Hover chuột vào ảnh */}
                 <div className="absolute bottom-0 left-0 w-full p-8 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                    <Link href={`/products/${product.id}`} className="w-full bg-white text-black py-3 text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors flex justify-center items-center gap-2 shadow-lg cursor-pointer border border-gray-100">
+                    <Link href={`/products/${product.id}`} className="w-full bg-white text-black py-3 text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors flex justify-center items-center gap-2 shadow-lg cursor-pointer border border-gray-100">
                         <ShoppingBag size={18} /> Xem Chi Tiết
                     </Link>
                 </div>
             </div>
 
             {/* 2. Phần Thông tin (Căn giữa, Monochrome) */}
-            <div className="flex flex-col text-center px-2">
+            <div className="flex flex-col text-center px-2 py-4">
                 {/* Brand Name */}
-                <span className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">
+                <span className="text-sm text-gray-500 uppercase tracking-widest mb-1">
                     {product.brand?.name || 'Local Brand'}
                 </span>
 
                 {/* Product Name */}
                 <Link href={`/products/${product.id}`}>
-                    <h3 className="text-sm font-bold text-gray-900 mb-2 hover:underline underline-offset-4 transition-all line-clamp-2 uppercase tracking-wide">
+                    <h3 className="text-md font-bold text-gray-900 mb-2 hover:underline underline-offset-4 transition-all line-clamp-2 uppercase tracking-wide">
                         {product.name}
                     </h3>
                 </Link>
 
                 {/* Price */}
-                <span className="text-sm font-medium text-gray-900">
+                {/* <span className="text-md font-medium text-gray-900">
                     {formatCurrency(product.basePrice)}
-                </span>
+                </span> */}
             </div>
         </div>
     );

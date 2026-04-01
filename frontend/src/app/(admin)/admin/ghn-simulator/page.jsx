@@ -92,14 +92,14 @@ export default function GhnSimulatorPage() {
                 baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
             });
 
-            toast.success('✅ Đã bắn Webhook thành công!');
+            toast.success('Đã bắn Webhook thành công!');
             setResponseLog({
                 type: 'success',
                 data: res.data || 'Received',
                 payloadSent: payload,
             });
         } catch (error) {
-            toast.error('❌ Lỗi khi bắn Webhook!');
+            toast.error('Lỗi khi bắn Webhook!');
             setResponseLog({
                 type: 'error',
                 data: error.response?.data || error.message,

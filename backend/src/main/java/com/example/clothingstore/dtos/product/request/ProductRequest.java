@@ -37,6 +37,7 @@ public class ProductRequest {
         private BigDecimal price;
         private BigDecimal importPrice;
         private Integer stockQuantity;
+        private BigDecimal profitMargin;
         // Để biết SKU này thuộc màu gì, size gì
         private List<SkuOptionValueRequest> optionValues;
         private String imgUrl;

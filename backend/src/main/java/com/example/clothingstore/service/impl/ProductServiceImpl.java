@@ -139,6 +139,10 @@ public class ProductServiceImpl implements ProductService {
                 sku.setPrice(skuReq.getPrice());
                 sku.setImportPrice(skuReq.getImportPrice());
                 sku.setStockQuantity(skuReq.getStockQuantity());
+
+                BigDecimal margin = skuReq.getProfitMargin() != null ? skuReq.getProfitMargin() : BigDecimal.ZERO;
+                sku.setProfitMargin(margin);
+
                 Sku savedSku = skuRepository.save(sku);
 
                 // Map SKU với Option Values tương ứng
