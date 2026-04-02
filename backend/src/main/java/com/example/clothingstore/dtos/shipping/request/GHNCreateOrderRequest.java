@@ -68,5 +68,11 @@ public class GHNCreateOrderRequest {
         private int price;
         @JsonProperty("weight")
         private int weight;
+        @JsonProperty("length")
+        private int length;
+        @JsonProperty("width")
+        private int width;
+        @JsonProperty("height")
+        private int height;
     }
 }

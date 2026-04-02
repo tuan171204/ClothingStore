@@ -25,7 +25,6 @@ public class VnPayService {
 
         long amountVal = amount * 100;
 
-        // Các hàm tiện ích này là static nên giữ nguyên cách gọi VnPayConfig...
         String vnp_TxnRef = String.valueOf(orderId);
         String vnp_IpAddr = VnPayConfig.getIpAddress(request);
 
@@ -47,7 +46,6 @@ public class VnPayService {
         vnp_Params.put("vnp_OrderType", orderType);
         vnp_Params.put("vnp_Locale", "vn");
 
-        // SỬA LỖI Ở ĐÂY: Dùng Getter thay vì gọi trực tiếp biến private
         vnp_Params.put("vnp_ReturnUrl", vnPayConfig.getVnp_ReturnUrl());
 
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);

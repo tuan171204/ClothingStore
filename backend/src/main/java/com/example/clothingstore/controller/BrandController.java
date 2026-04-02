@@ -1,5 +1,6 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.dtos.brand.response.BrandResponse;
 import com.example.clothingstore.dtos.brand.request.BrandRequest;
 import com.example.clothingstore.service.BrandService;
@@ -8,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("${api.prefix}/brands")
@@ -17,19 +17,22 @@ public class BrandController {
     private final BrandService brandService;
 
     /**
-     * GET /brands?keyword=cool
+     * GET /brands?keyword=cool&page=0&size=10
+     * Returns paginated list of brands
      */
     @GetMapping
-    public ResponseEntity<List<BrandResponse>> getAllBrands(
-            @RequestParam(required = false) String keyword
+    public ResponseEntity<?> getAllBrands(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "false") boolean paginate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        List<BrandResponse> brands = brandService.getAllBrands();
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            String kw = keyword.trim().toLowerCase();
-            brands = brands.stream()
-                    .filter(b -> b.getName().toLowerCase().contains(kw))
-                    .collect(Collectors.toList());
+        if (paginate) {
+            PagedResponse<BrandResponse> result = brandService.getBrandsPaged(keyword, page, size);
+            return ResponseEntity.ok(result);
         }
+        // Legacy: return flat list for dropdowns
+        List<BrandResponse> brands = brandService.getAllBrands(keyword);
         return ResponseEntity.ok(brands);
     }
 

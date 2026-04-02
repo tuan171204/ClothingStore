@@ -1,46 +1,55 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { getBrands, createBrand, updateBrand, deleteBrand } from '@/services/brandService';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { getBrandsPaged, createBrand, updateBrand, deleteBrand } from '@/services/brandService';
 import { Plus, Edit, Trash2, Tag, X, Search, RefreshCw, ImageOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ImageUpload from '@/components/admin/ImageUpload';
+import Pagination from '@/components/admin/Pagination';
+
+const PAGE_SIZE = 8;
 
 export default function BrandsPage() {
-    const [brands, setBrands] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [keyword, setKeyword] = useState('');
+    const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 });
+    const [page, setPage] = useState(0);
 
-    // Modal state
+    const [keyword, setKeyword] = useState('');
+    const [queryKeyword, setQueryKeyword] = useState('');
+
+    const [loading, setLoading] = useState(true);
+    const debounceRef = useRef(null);
+
+    // Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBrand, setEditingBrand] = useState(null);
     const [formData, setFormData] = useState({ name: '', logo: '' });
     const [saving, setSaving] = useState(false);
 
-    const fetchBrands = async () => {
+    const fetchBrands = useCallback(async () => {
         setLoading(true);
-        const data = await getBrands();
-        setBrands(data);
+        const res = await getBrandsPaged({ keyword: queryKeyword, page: page, size: PAGE_SIZE });
+        setData(res);
         setLoading(false);
+    }, [page, queryKeyword]); // Đủ dependencies
+
+    // 2. Cập nhật state sau khi chờ
+    const handleKeywordChange = (val) => {
+        setKeyword(val);
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            setQueryKeyword(val);
+            setPage(0);
+        }, 350);
     };
 
-    useEffect(() => { fetchBrands(); }, []);
-
-    // Filter phía frontend (data ít)
-    const filtered = useMemo(() => {
-        if (!keyword.trim()) return brands;
-        const kw = keyword.trim().toLowerCase();
-        return brands.filter(b => b.name.toLowerCase().includes(kw));
-    }, [brands, keyword]);
+    // 3. Effect chạy khi fetchBrands thay đổi
+    useEffect(() => {
+        fetchBrands();
+    }, [fetchBrands]);
 
     const openModal = (brand = null) => {
-        if (brand) {
-            setEditingBrand(brand);
-            setFormData({ name: brand.name, logo: brand.logo || '' });
-        } else {
-            setEditingBrand(null);
-            setFormData({ name: '', logo: '' });
-        }
+        setEditingBrand(brand);
+        setFormData(brand ? { name: brand.name, logo: brand.logo || '' } : { name: '', logo: '' });
         setIsModalOpen(true);
     };
 
@@ -69,7 +78,10 @@ export default function BrandsPage() {
         try {
             await deleteBrand(id);
             toast.success('Xóa thương hiệu thành công!');
-            fetchBrands();
+            // If last item on page, go back one page
+            const newPage = data.content.length === 1 && page > 0 ? page - 1 : page;
+            setPage(newPage);
+            fetchBrands(newPage, keyword);
         } catch {
             toast.error('Lỗi khi xóa thương hiệu!');
         }
@@ -85,7 +97,7 @@ export default function BrandsPage() {
                         Quản lý Thương hiệu
                     </h1>
                     <p className="text-md text-gray-500 mt-0.5">
-                        {brands.length} thương hiệu · {filtered.length} hiển thị
+                        {data.totalElements} thương hiệu · Trang {page + 1}/{data.totalPages || 1}
                     </p>
                 </div>
                 <button
@@ -103,18 +115,18 @@ export default function BrandsPage() {
                         type="text"
                         placeholder="Tìm kiếm tên thương hiệu..."
                         value={keyword}
-                        onChange={e => setKeyword(e.target.value)}
+                        onChange={e => handleKeywordChange(e.target.value)}
                         className="w-full pl-9 pr-9 py-2.5 text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
                     />
                     {keyword && (
-                        <button onClick={() => setKeyword('')}
+                        <button onClick={() => handleKeywordChange('')}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
                             <X size={14} />
                         </button>
                     )}
                 </div>
                 <button
-                    onClick={fetchBrands}
+                    onClick={() => fetchBrands()}
                     className="flex items-center gap-2 px-4 py-2.5 text-md border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors bg-white text-gray-600 cursor-pointer font-medium">
                     <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                     Làm mới
@@ -127,58 +139,63 @@ export default function BrandsPage() {
                     <div className="py-16 flex justify-center">
                         <RefreshCw size={28} className="animate-spin text-purple-400" />
                     </div>
-                ) : filtered.length === 0 ? (
+                ) : data.content.length === 0 ? (
                     <div className="py-16 text-center text-gray-400">
                         <Tag size={40} className="mx-auto mb-3 text-gray-200" />
                         <p>{keyword ? `Không tìm thấy thương hiệu "${keyword}"` : 'Chưa có thương hiệu nào'}</p>
                     </div>
                 ) : (
-                    <table className="w-full text-md">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                                <th className="px-5 py-3 text-left w-16">ID</th>
-                                <th className="px-5 py-3 text-left w-24">Logo</th>
-                                <th className="px-5 py-3 text-left">Tên thương hiệu</th>
-                                <th className="px-5 py-3 text-left">Số sản phẩm</th>
-                                <th className="px-5 py-3 text-center w-28">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {filtered.map(brand => (
-                                <tr key={brand.id} className="hover:bg-gray-50/60 transition-colors">
-                                    <td className="px-5 py-4 text-gray-400 font-mono text-sm">#{brand.id}</td>
-                                    <td className="px-5 py-4">
-                                        <div className="w-12 h-12 rounded-xl border bg-gray-50 overflow-hidden flex items-center justify-center shadow-sm">
-                                            {brand.logo ? (
-                                                <img src={brand.logo} alt={brand.name}
-                                                    className="w-full h-full object-cover" />
-                                            ) : (
-                                                <ImageOff size={18} className="text-gray-300" />
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <span className="font-semibold text-gray-800">{brand.name}</span>
-                                    </td>
-                                    <td className="px-5 py-4 text-gray-400 text-sm">—</td>
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <button onClick={() => openModal(brand)}
-                                                className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors cursor-pointer"
-                                                title="Sửa">
-                                                <Edit size={15} />
-                                            </button>
-                                            <button onClick={() => handleDelete(brand.id)}
-                                                className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer"
-                                                title="Xóa">
-                                                <Trash2 size={15} />
-                                            </button>
-                                        </div>
-                                    </td>
+                    <>
+                        <table className="w-full text-md">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                                    <th className="px-5 py-3 text-left w-16">ID</th>
+                                    <th className="px-5 py-3 text-left w-24">Logo</th>
+                                    <th className="px-5 py-3 text-left">Tên thương hiệu</th>
+                                    <th className="px-5 py-3 text-center w-28">Hành động</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {data.content.map(brand => (
+                                    <tr key={brand.id} className="hover:bg-gray-50/60 transition-colors">
+                                        <td className="px-5 py-4 text-gray-400 font-mono text-sm">#{brand.id}</td>
+                                        <td className="px-5 py-4">
+                                            <div className="w-12 h-12 rounded-xl border bg-gray-50 overflow-hidden flex items-center justify-center shadow-sm">
+                                                {brand.logo ? (
+                                                    <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <ImageOff size={18} className="text-gray-300" />
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <span className="font-semibold text-gray-800">{brand.name}</span>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button onClick={() => openModal(brand)}
+                                                    className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors cursor-pointer" title="Sửa">
+                                                    <Edit size={15} />
+                                                </button>
+                                                <button onClick={() => handleDelete(brand.id)}
+                                                    className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer" title="Xóa">
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <Pagination
+                            page={page}
+                            totalPages={data.totalPages}
+                            totalElements={data.totalElements}
+                            size={PAGE_SIZE}
+                            onPageChange={setPage}
+                            loading={loading}
+                        />
+                    </>
                 )}
             </div>
 

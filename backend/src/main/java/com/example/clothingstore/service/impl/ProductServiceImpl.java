@@ -178,7 +178,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Caching(evict = {
             @CacheEvict(value = "products", allEntries = true),
-            @CacheEvict(value = "variantMatrix", key = "#productId")
+            @CacheEvict(value = "variantMatrix", key = "#id")
     }) // xóa cache Redis sau khi thêm/sửa/xóa danh sách sản phẩm
     @Transactional
     public ProductResponse updateProduct(Long id, ProductRequest request) {

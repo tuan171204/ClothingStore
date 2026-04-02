@@ -76,7 +76,14 @@ export default function EditProductPage() {
 
     const handleUpdateBasicInfo = async () => {
         try {
-            await updateProduct(id, product);
+            const payload = {
+                ...product,
+                basePrice: product.basePrice ? Number(product.basePrice) : 0,
+                categoryId: product.categoryId ? Number(product.categoryId) : null,
+                brandId: product.brandId ? Number(product.brandId) : null,
+            };
+
+            await updateProduct(id, payload);
             toast.success("Cập nhật thông tin cơ bản thành công!");
         } catch (error) {
             toast.error("Cập nhật thất bại!");

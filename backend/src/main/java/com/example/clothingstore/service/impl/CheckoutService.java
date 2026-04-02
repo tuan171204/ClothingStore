@@ -163,6 +163,9 @@ public class CheckoutService {
         }).collect(Collectors.toList());
 
         orderItemRepository.saveAll(orderItems);
+
+        savedOrder.setOrderItems(orderItems);
+
         cartService.clearCart(user.getId());
 
         log.info("✅ Checkout thành công: orderId={}, userId={}, method={}",

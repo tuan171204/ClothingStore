@@ -1,89 +1,92 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { getCoupons, createCoupon, updateCoupon, deleteCoupon } from '@/services/couponService';
-import { Plus, Edit, Trash2, Ticket, X, Search, RefreshCw, CheckCircle, XCircle, Eye, Info, Calendar } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { getCouponsPaged, createCoupon, updateCoupon, deleteCoupon } from '@/services/couponService';
+import {
+    Plus, Edit, Trash2, Ticket, X, Search, RefreshCw, CheckCircle, XCircle,
+    Eye, Calendar, Filter, ChevronDown
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
+import 'react-datepicker/dist/react-datepicker.css';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import Pagination from '@/components/admin/Pagination';
+
+const PAGE_SIZE = 10;
+
+const formatVnd = (n) => n != null ? new Intl.NumberFormat('vi-VN').format(n) + 'đ' : '—';
 
 export default function CouponsPage() {
-    const [coupons, setCoupons] = useState([]);
+    const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 });
+    const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [keyword, setKeyword] = useState('');
 
-    // Modal state
+    // Filters
+    const [showFilters, setShowFilters] = useState(false);
+    const [applyTypeFilter, setApplyTypeFilter] = useState('');
+    const [isActiveFilter, setIsActiveFilter] = useState('');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
+
+    // Detail modal
+    const [detailCoupon, setDetailCoupon] = useState(null);
+
+    // Create/Edit modal
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isDetailOpen, setIsDetailOpen] = useState(false); // Modal chi tiết
-    const [selectedCoupon, setSelectedCoupon] = useState(null); // Coupon đang xem chi tiết
     const [editingCoupon, setEditingCoupon] = useState(null);
-    const [formData, setFormData] = useState({
-        code: '',
-        description: '',
-        discountType: 'PERCENTAGE',
-        discountValue: '',
-        maxDiscountAmount: '',
-        minOrderValue: '',
-        applyType: 'ORDER', // Đã có
-        usageLimit: '',     // MỚI: Thêm trường này
-        startDate: '',
-        endDate: '',
-        isActive: true
-    });
+    const [formData, setFormData] = useState(defaultForm());
     const [saving, setSaving] = useState(false);
 
-    const fetchCoupons = async () => {
+    function defaultForm() {
+        return {
+            code: '', description: '', discountType: 'PERCENTAGE', discountValue: '',
+            maxDiscountAmount: '', minOrderValue: '', applyType: 'ORDER',
+            usageLimit: '', startDate: null, endDate: null, isActive: true
+        };
+    }
+
+    const fetchCoupons = useCallback(async (pg = page) => {
         setLoading(true);
         try {
-            const data = await getCoupons();
-            setCoupons(data || []);
-        } catch (error) {
-            toast.error('Không thể tải danh sách mã giảm giá!');
-            setCoupons([]);
-        } finally {
-            setLoading(false);
-        }
+            const res = await getCouponsPaged({
+                applyType: applyTypeFilter || undefined,
+                isActive: isActiveFilter !== '' ? isActiveFilter : undefined,
+                startDate: startDateFilter || undefined,
+                endDate: endDateFilter || undefined,
+                page: pg, size: PAGE_SIZE,
+            });
+            // Support both wrapper and direct paged response
+            const paged = res?.result || res;
+            if (paged && 'content' in paged) setData(paged);
+            else if (Array.isArray(paged)) setData({ content: paged, totalElements: paged.length, totalPages: 1 });
+            else setData({ content: [], totalElements: 0, totalPages: 0 });
+        } catch { toast.error('Lỗi tải mã giảm giá!'); }
+        finally { setLoading(false); }
+    }, [applyTypeFilter, isActiveFilter, startDateFilter, endDateFilter, page]);
+
+    useEffect(() => { fetchCoupons(page); }, [page]);
+
+    const applyFilters = () => { setPage(0); fetchCoupons(0); };
+    const resetFilters = () => {
+        setApplyTypeFilter(''); setIsActiveFilter('');
+        setStartDateFilter(''); setEndDateFilter('');
+        setPage(0); setTimeout(() => fetchCoupons(0), 0);
     };
 
-    useEffect(() => { fetchCoupons(); }, []);
-
-    const formatDateTimeLocal = (dateStr) => {
-        if (!dateStr) return '';
-        const date = new Date(dateStr);
-        return date.toISOString().slice(0, 16);
-    };
-
-    const filtered = useMemo(() => {
-        const list = Array.isArray(coupons) ? coupons : [];
-        if (!keyword.trim()) return list;
-        const kw = keyword.trim().toLowerCase();
-        return list.filter(c => c.code?.toLowerCase().includes(kw));
-    }, [coupons, keyword]);
-
-    // Mở modal xem chi tiết
-    const openDetail = (coupon) => {
-        setSelectedCoupon(coupon);
-        setIsDetailOpen(true);
-    };
+    const hasActiveFilters = applyTypeFilter || isActiveFilter !== '' || startDateFilter || endDateFilter;
 
     const openModal = (coupon = null) => {
+        setEditingCoupon(coupon);
         if (coupon) {
-            setEditingCoupon(coupon);
             setFormData({
                 ...coupon,
                 isActive: coupon.active,
-                startDate: formatDateTimeLocal(coupon.startDate),
-                endDate: formatDateTimeLocal(coupon.endDate),
+                startDate: coupon.startDate ? new Date(coupon.startDate) : null,
+                endDate: coupon.endDate ? new Date(coupon.endDate) : null,
             });
         } else {
-            setEditingCoupon(null);
-            setFormData({
-                code: '', description: '', discountType: 'PERCENTAGE',
-                discountValue: '', maxDiscountAmount: '', minOrderValue: '',
-                applyType: 'ORDER', startDate: '', endDate: '', isActive: true
-            });
+            setFormData(defaultForm());
         }
         setIsModalOpen(true);
     };
@@ -98,38 +101,35 @@ export default function CouponsPage() {
                 maxDiscountAmount: formData.maxDiscountAmount ? Number(formData.maxDiscountAmount) : null,
                 minOrderValue: formData.minOrderValue ? Number(formData.minOrderValue) : null,
                 usageLimit: formData.usageLimit ? Number(formData.usageLimit) : null,
-
-                // Format chuẩn xác 100% bằng date-fns
                 startDate: formData.startDate ? format(new Date(formData.startDate), "yyyy-MM-dd'T'HH:mm:ss") : null,
                 endDate: formData.endDate ? format(new Date(formData.endDate), "yyyy-MM-dd'T'HH:mm:ss") : null,
             };
-
             if (editingCoupon) {
                 await updateCoupon(editingCoupon.id, payload);
                 toast.success('Cập nhật mã thành công!');
             } else {
                 await createCoupon(payload);
-                toast.success('Thêm mã thành công!');
+                toast.success('Tạo mã giảm giá thành công!');
             }
             setIsModalOpen(false);
-            fetchCoupons();
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Có lỗi xảy ra!');
-        } finally {
-            setSaving(false);
-        }
+            fetchCoupons(page);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Có lỗi xảy ra!');
+        } finally { setSaving(false); }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Bạn có chắc chắn muốn xóa mã này?')) return;
+        if (!window.confirm('Xóa mã giảm giá này?')) return;
         try {
             await deleteCoupon(id);
-            toast.success('Xóa mã thành công!');
-            fetchCoupons();
-        } catch {
-            toast.error('Lỗi khi xóa mã giảm giá!');
-        }
+            toast.success('Đã xóa mã!');
+            const newPage = data.content.length === 1 && page > 0 ? page - 1 : page;
+            setPage(newPage);
+            fetchCoupons(newPage);
+        } catch { toast.error('Lỗi khi xóa!'); }
     };
+
+    const inputCls = 'w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:outline-none focus:ring-2 focus:ring-purple-400';
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -137,363 +137,314 @@ export default function CouponsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <Ticket size={24} className="text-purple-600" />
-                        Quản lý Mã giảm giá
+                        <Ticket size={22} className="text-purple-600" /> Quản lý Mã giảm giá
                     </h1>
-                    <p className="text-lg text-gray-500 mt-0.5">
-                        {coupons?.length || 0} mã hiện có · {filtered?.length || 0} hiển thị
+                    <p className="text-md text-gray-500 mt-0.5">
+                        {data.totalElements} mã · Trang {page + 1}/{data.totalPages || 1}
                     </p>
                 </div>
-                <button onClick={() => openModal()}
-                    className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-purple-700 transition-all shadow-md active:scale-95 cursor-pointer">
-                    <Plus size={17} /> Tạo mã mới
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowFilters(p => !p)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-md font-medium transition-colors cursor-pointer
+                            ${showFilters || hasActiveFilters ? 'bg-purple-50 border-purple-400 text-purple-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                        <Filter size={15} /> Bộ lọc
+                        {hasActiveFilters && <span className="bg-purple-600 text-white text-md px-1.5 py-0.5 rounded-full">!</span>}
+                    </button>
+                    <button onClick={() => openModal()}
+                        className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-purple-700 transition-colors shadow-sm cursor-pointer text-md">
+                        <Plus size={17} /> Tạo mã mới
+                    </button>
+                </div>
             </div>
 
-            {/* TOOLBAR */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                <div className="relative flex-1">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input type="text" placeholder="Tìm theo mã code..."
-                        value={keyword} onChange={e => setKeyword(e.target.value)}
-                        className="w-full pl-9 pr-9 py-2.5 text-lg border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            {/* FILTER PANEL */}
+            {showFilters && (
+                <div className="bg-white border border-purple-100 rounded-xl p-5 mb-5 shadow-sm">
+                    <h3 className="font-semibold text-gray-700 mb-4 text-md flex items-center gap-2">
+                        <Filter size={14} className="text-purple-500" /> Lọc mã giảm giá
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label className="block text-md font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Đối tượng áp dụng</label>
+                            <select className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-md outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                                value={applyTypeFilter} onChange={e => setApplyTypeFilter(e.target.value)}>
+                                <option value="">Tất cả</option>
+                                <option value="ORDER">Toàn bộ đơn</option>
+                                <option value="PRODUCT">Sản phẩm cụ thể</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-md font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Trạng thái</label>
+                            <select className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-md outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                                value={isActiveFilter} onChange={e => setIsActiveFilter(e.target.value)}>
+                                <option value="">Tất cả</option>
+                                <option value="true">Đang hoạt động</option>
+                                <option value="false"> Đã tắt</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-md font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Hiệu lực từ</label>
+                            <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-md outline-none focus:ring-2 focus:ring-purple-400"
+                                value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="block text-md font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Hiệu lực đến</label>
+                            <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-md outline-none focus:ring-2 focus:ring-purple-400"
+                                value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} min={startDateFilter || undefined} />
+                        </div>
+                    </div>
+                    <div className="flex gap-3 mt-4 pt-4 border-t">
+                        <button onClick={applyFilters} className="px-5 py-2 bg-purple-600 text-white rounded-lg text-md font-semibold hover:bg-purple-700">Áp dụng</button>
+                        <button onClick={resetFilters} className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg text-md hover:bg-gray-50">Xóa bộ lọc</button>
+                    </div>
                 </div>
-                <button onClick={fetchCoupons}
-                    className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors bg-white text-gray-600 font-medium">
-                    <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                    Làm mới
-                </button>
-            </div>
+            )}
+
+            {/* Active filter chips */}
+            {hasActiveFilters && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {applyTypeFilter && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-md font-medium">
+                            Loại: {applyTypeFilter === 'ORDER' ? 'Toàn đơn' : 'Sản phẩm'}
+                            <button onClick={() => { setApplyTypeFilter(''); applyFilters(); }}><X size={12} /></button>
+                        </span>
+                    )}
+                    {isActiveFilter !== '' && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-md font-medium">
+                            {isActiveFilter === 'true' ? '✅ Hoạt động' : '❌ Đã tắt'}
+                            <button onClick={() => { setIsActiveFilter(''); applyFilters(); }}><X size={12} /></button>
+                        </span>
+                    )}
+                    {startDateFilter && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-md font-medium">
+                            Từ: {startDateFilter} <button onClick={() => { setStartDateFilter(''); applyFilters(); }}><X size={12} /></button>
+                        </span>
+                    )}
+                    {endDateFilter && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-md font-medium">
+                            Đến: {endDateFilter} <button onClick={() => { setEndDateFilter(''); applyFilters(); }}><X size={12} /></button>
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* TABLE */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 {loading ? (
                     <div className="py-16 flex justify-center"><RefreshCw size={28} className="animate-spin text-purple-400" /></div>
-                ) : filtered.length === 0 ? (
+                ) : data.content.length === 0 ? (
                     <div className="py-20 text-center text-gray-400">
                         <Ticket size={48} className="mx-auto mb-3 opacity-20" />
                         <p>Chưa có mã giảm giá nào.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr className="text-sm font-bold text-gray-500 uppercase tracking-widest">
-                                    <th className="px-6 py-4 text-left">Code / Loại</th>
-                                    <th className="px-6 py-4 text-left">Giá trị</th>
-                                    <th className="px-6 py-4 text-left">Áp dụng</th>
-                                    <th className="px-6 py-4 text-center">Trạng thái</th>
-                                    <th className="px-6 py-4 text-right">Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filtered.map(coupon => (
-                                    <tr key={coupon.id} className="hover:bg-gray-50/60 transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="font-bold text-purple-700">{coupon.code}</div>
-                                            <div className="text-[10px] uppercase font-bold text-gray-400">{coupon.discountType === 'PERCENTAGE' ? 'Phần trăm' : 'Cố định'}</div>
-                                        </td>
-                                        <td className="px-6 py-4 font-semibold text-gray-800">
-                                            {coupon.discountType === 'PERCENTAGE' ? `${coupon.discountValue}%` : `${coupon.discountValue?.toLocaleString()}đ`}
-                                        </td>
-                                        <td className="px-6 py-4 text-md text-gray-600">{coupon.applyType}</td>
-                                        <td className="px-6 py-4">
-                                            {coupon.active ? <div className="flex items-center justify-center text-green-500 gap-1 text-sm font-bold"><CheckCircle size={14} /> Hoạt động</div> : <div className="flex items-center justify-center text-red-400 gap-1 text-sm font-bold"><XCircle size={14} /> Tạm khóa</div>}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button title="Xem chi tiết" onClick={() => openDetail(coupon)} className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"><Eye size={16} /></button>
-                                                <button title="Sửa" onClick={() => openModal(coupon)} className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"><Edit size={16} /></button>
-                                                <button title="Xóa" onClick={() => handleDelete(coupon.id)} className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"><Trash2 size={16} /></button>
-                                            </div>
-                                        </td>
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-md">
+                                <thead className="bg-gray-50 border-b text-md font-bold text-gray-500 uppercase tracking-wide">
+                                    <tr>
+                                        <th className="px-5 py-3 text-left">Code / Loại</th>
+                                        <th className="px-5 py-3 text-left">Giá trị giảm</th>
+                                        <th className="px-5 py-3 text-left">Đối tượng</th>
+                                        <th className="px-5 py-3 text-left">Thời hạn</th>
+                                        <th className="px-5 py-3 text-center">Sử dụng</th>
+                                        <th className="px-5 py-3 text-center">Trạng thái</th>
+                                        <th className="px-5 py-3 text-right">Hành động</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {data.content.map(coupon => (
+                                        <tr key={coupon.id} className="hover:bg-gray-50/60 transition-colors">
+                                            <td className="px-5 py-4">
+                                                <div className="font-bold text-purple-700 font-mono">{coupon.code}</div>
+                                                <div className="text-[10px] uppercase font-bold text-gray-400 mt-0.5">
+                                                    {coupon.discountType === 'PERCENTAGE' ? 'Phần trăm' : 'Cố định'}
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 font-semibold text-gray-800">
+                                                {coupon.discountType === 'PERCENTAGE'
+                                                    ? `${coupon.discountValue}%`
+                                                    : formatVnd(coupon.discountValue)}
+                                                {coupon.maxDiscountAmount && (
+                                                    <div className="text-md text-pink-500 mt-0.5">Tối đa: {formatVnd(coupon.maxDiscountAmount)}</div>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className={`px-2 py-0.5 rounded text-md font-semibold
+                                                    ${coupon.applyType === 'ORDER' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                    {coupon.applyType === 'ORDER' ? 'Toàn đơn' : 'Sản phẩm'}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 text-md text-gray-500">
+                                                {coupon.startDate && <div>Từ: {new Date(coupon.startDate).toLocaleDateString('vi-VN')}</div>}
+                                                {coupon.endDate && <div>Đến: {new Date(coupon.endDate).toLocaleDateString('vi-VN')}</div>}
+                                                {!coupon.startDate && !coupon.endDate && <span className="text-gray-300">—</span>}
+                                            </td>
+                                            <td className="px-5 py-4 text-center text-md">
+                                                <span className="font-semibold text-gray-700">{coupon.usedCount || 0}</span>
+                                                {coupon.usageLimit && <span className="text-gray-400">/{coupon.usageLimit}</span>}
+                                            </td>
+                                            <td className="px-5 py-4 text-center">
+                                                {coupon.active
+                                                    ? <span className="inline-flex items-center gap-1 text-green-600 font-semibold text-md"><CheckCircle size={13} /> Hoạt động</span>
+                                                    : <span className="inline-flex items-center gap-1 text-red-400 font-semibold text-md"><XCircle size={13} /> Tắt</span>}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button onClick={() => setDetailCoupon(coupon)}
+                                                        className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer" title="Chi tiết"><Eye size={14} /></button>
+                                                    <button onClick={() => openModal(coupon)}
+                                                        className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer" title="Sửa"><Edit size={14} /></button>
+                                                    <button onClick={() => handleDelete(coupon.id)}
+                                                        className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer" title="Xóa"><Trash2 size={14} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination
+                            page={page}
+                            totalPages={data.totalPages}
+                            totalElements={data.totalElements}
+                            size={PAGE_SIZE}
+                            onPageChange={setPage}
+                            loading={loading}
+                        />
+                    </>
                 )}
             </div>
 
-            {/* ── MODAL CHI TIẾT (FULL VIEW) ── */}
-            {isDetailOpen && selectedCoupon && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-md p-4 animate-in fade-in duration-300">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
-
-                        {/* Header: Banner Mã Giảm Giá */}
-                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 px-8 py-10 text-white relative">
-                            <button onClick={() => setIsDetailOpen(false)}
-                                className="absolute top-5 right-5 p-2 hover:bg-white/20 rounded-full transition-all text-white">
-                                <X size={24} />
+            {/* DETAIL MODAL */}
+            {detailCoupon && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 px-6 py-8 text-white text-center relative">
+                            <button onClick={() => setDetailCoupon(null)} className="absolute top-4 right-4 p-1.5 hover:bg-white/20 rounded-full">
+                                <X size={20} />
                             </button>
-                            <div className="flex flex-col items-center text-center">
-                                <div className="bg-white/20 p-3 rounded-2xl mb-4 backdrop-blur-sm">
-                                    <Ticket size={40} className="text-white" />
-                                </div>
-                                <h2 className="text-4xl font-black tracking-widest uppercase mb-2">{selectedCoupon.code}</h2>
-                                <div className="px-4 py-1 bg-white/20 rounded-full text-sm font-bold tracking-wider uppercase backdrop-blur-md">
-                                    {selectedCoupon.discountType === 'PERCENTAGE' ? 'Chiết khấu theo phần trăm' : 'Giảm tiền mặt trực tiếp'}
-                                </div>
-                                <p className="mt-4 text-purple-100 italic text-md max-w-md">
-                                    "{selectedCoupon.description || 'Không có mô tả chi tiết cho chương trình khuyến mãi này.'}"
-                                </p>
-                            </div>
+                            <div className="inline-flex p-3 bg-white/20 rounded-2xl mb-3"><Ticket size={32} /></div>
+                            <h2 className="text-3xl font-black tracking-widest">{detailCoupon.code}</h2>
+                            <p className="text-purple-200 text-md mt-1 italic">{detailCoupon.description || 'Không có mô tả'}</p>
                         </div>
-
-                        {/* Body: Thông tin chi tiết chia theo cụm */}
-                        <div className="p-8 overflow-y-auto space-y-8">
-
-                            {/* Luồng 1: Hiệu suất sử dụng (Usage Analytics) */}
-                            <div>
-                                <h3 className="text-md font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <RefreshCw size={14} /> Hiệu suất sử dụng
-                                </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Đã dùng</p>
-                                        <p className="text-2xl font-black text-purple-600">{selectedCoupon.usedCount || 0}</p>
-                                        <p className="text-[10px] text-gray-400 mt-1">Lượt thanh toán</p>
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { label: 'Giá trị giảm', value: detailCoupon.discountType === 'PERCENTAGE' ? `${detailCoupon.discountValue}%` : formatVnd(detailCoupon.discountValue) },
+                                    { label: 'Giảm tối đa', value: detailCoupon.maxDiscountAmount ? formatVnd(detailCoupon.maxDiscountAmount) : '∞' },
+                                    { label: 'Đơn tối thiểu', value: formatVnd(detailCoupon.minOrderValue) || '0đ' },
+                                    { label: 'Đã sử dụng', value: `${detailCoupon.usedCount || 0} / ${detailCoupon.usageLimit || '∞'}` },
+                                ].map(({ label, value }) => (
+                                    <div key={label} className="bg-gray-50 rounded-xl p-3 border">
+                                        <p className="text-md text-gray-500 mb-1">{label}</p>
+                                        <p className="font-bold text-gray-800">{value}</p>
                                     </div>
-                                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Giới hạn tối đa</p>
-                                        <p className="text-2xl font-black text-gray-800">{selectedCoupon.usageLimit || '∞'}</p>
-                                        <p className="text-[10px] text-gray-400 mt-1">Tổng lượt phát hành</p>
-                                    </div>
-                                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Còn lại</p>
-                                        <p className="text-2xl font-black text-green-600">
-                                            {selectedCoupon.usageLimit ? (selectedCoupon.usageLimit - (selectedCoupon.usedCount || 0)) : '∞'}
-                                        </p>
-                                        <p className="text-[10px] text-gray-400 mt-1">Lượt có thể dùng</p>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
-
-                            {/* Luồng 2: Giá trị & Điều kiện (Values & Constraints) */}
-                            <div>
-                                <h3 className="text-md font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <Info size={14} /> Giá trị & Điều kiện đơn hàng
-                                </h3>
-                                <div className="grid grid-cols-2 gap-x-10 gap-y-4 px-2">
-                                    <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                                        <span className="text-gray-500 text-md">Mức giảm:</span>
-                                        <span className="font-bold text-gray-800">
-                                            {selectedCoupon.discountType === 'PERCENTAGE' ? `${selectedCoupon.discountValue}%` : `${selectedCoupon.discountValue?.toLocaleString()}đ`}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                                        <span className="text-gray-500 text-md">Đơn tối thiểu:</span>
-                                        <span className="font-bold text-gray-800">{selectedCoupon.minOrderValue?.toLocaleString() || 0}đ</span>
-                                    </div>
-                                    <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                                        <span className="text-gray-500 text-md">Giảm tối đa:</span>
-                                        <span className="font-bold text-pink-600">
-                                            {selectedCoupon.maxDiscountAmount ? `${selectedCoupon.maxDiscountAmount?.toLocaleString()}đ` : 'Không giới hạn'}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                                        <span className="text-gray-500 text-md">Đối tượng:</span>
-                                        <span className="font-bold text-blue-600">{selectedCoupon.applyType === 'ORDER' ? 'Toàn bộ đơn' : 'Sản phẩm chọn lọc'}</span>
+                            {(detailCoupon.startDate || detailCoupon.endDate) && (
+                                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 text-md">
+                                    <p className="font-semibold text-purple-800 mb-2 flex items-center gap-1"><Calendar size={14} /> Thời gian hiệu lực</p>
+                                    <div className="flex justify-between text-purple-700">
+                                        <span>{detailCoupon.startDate ? new Date(detailCoupon.startDate).toLocaleString('vi-VN') : '—'}</span>
+                                        <span>→</span>
+                                        <span>{detailCoupon.endDate ? new Date(detailCoupon.endDate).toLocaleString('vi-VN') : '—'}</span>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Luồng 3: Thời gian & Trạng thái (Timeline) */}
-                            <div>
-                                <h3 className="text-md font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <Calendar size={14} /> Thời gian hiệu lực
-                                </h3>
-                                <div className="bg-purple-50 rounded-2xl p-5 flex items-center justify-around border border-purple-100">
-                                    <div className="text-center">
-                                        <p className="text-[10px] font-black text-purple-400 uppercase">Ngày bắt đầu</p>
-                                        <p className="text-lg font-bold text-purple-900">{new Date(selectedCoupon.startDate).toLocaleString('vi-VN')}</p>
-                                    </div>
-                                    <div className="w-10 h-[2px] bg-purple-200"></div>
-                                    <div className="text-center">
-                                        <p className="text-[10px] font-black text-purple-400 uppercase">Ngày hết hạn</p>
-                                        <p className="text-lg font-bold text-purple-900">{new Date(selectedCoupon.endDate).toLocaleString('vi-VN')}</p>
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-center justify-center gap-2">
-                                    <span className="text-md text-gray-500">Trạng thái hiện tại:</span>
-                                    {selectedCoupon.active ? (
-                                        <span className="flex items-center gap-1 text-green-600 font-bold text-md bg-green-50 px-3 py-1 rounded-full"><CheckCircle size={14} /> Đang hoạt động</span>
-                                    ) : (
-                                        <span className="flex items-center gap-1 text-red-500 font-bold text-md bg-red-50 px-3 py-1 rounded-full"><XCircle size={14} /> Đang tạm khóa</span>
-                                    )}
-                                </div>
-                            </div>
+                            )}
                         </div>
-
-                        {/* Footer: Nút đóng */}
-                        <div className="p-6 bg-gray-50 border-t flex justify-end">
-                            <button onClick={() => setIsDetailOpen(false)}
-                                className="px-8 py-3 bg-white border border-gray-200 rounded-2xl font-black text-gray-600 hover:bg-gray-100 transition-all active:scale-95 shadow-sm">
-                                ĐÓNG CỬA SỔ
-                            </button>
-                        </div>
+                        <div className="px-6 pb-6"><button onClick={() => setDetailCoupon(null)}
+                            className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 text-md transition-colors">Đóng</button></div>
                     </div>
                 </div>
             )}
 
-            {/* ── MODAL TẠO / CẬP NHẬT ── */}
+            {/* CREATE/EDIT MODAL */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100">
-                        {/* Header Modal */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50/50">
-                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                {editingCoupon ? <Edit size={20} className="text-amber-500" /> : <Plus size={20} className="text-purple-600" />}
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
+                            <h2 className="text-xl font-bold text-gray-800">
                                 {editingCoupon ? 'Cập nhật mã giảm giá' : 'Tạo mã giảm giá mới'}
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-gray-200 rounded-full cursor-pointer transition-colors text-gray-500">
-                                <X size={20} />
-                            </button>
+                            <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-full cursor-pointer"><X size={20} /></button>
                         </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[80vh]">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                                {/* SECTION 1: THÔNG TIN MÃ */}
+                        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Mã Code (Viết liền, không dấu)</label>
-                                    <input type="text" required
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-400 outline-none transition-all font-mono text-purple-700 font-bold"
-                                        value={formData.code}
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Mã Code *</label>
+                                    <input type="text" required className={inputCls} value={formData.code}
                                         onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase().replace(/\s/g, '') })}
-                                        placeholder="VD: KHUYENMAI2026" />
+                                        placeholder="VD: SUMMER2026" />
                                 </div>
-
                                 <div className="md:col-span-2">
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Mô tả chương trình</label>
-                                    <textarea className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-purple-400 outline-none"
-                                        value={formData.description}
-                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                        placeholder="VD: Giảm giá đặc biệt cho khách hàng mới..." rows={2} />
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Mô tả</label>
+                                    <textarea rows={2} className={inputCls + ' resize-none'} value={formData.description}
+                                        onChange={e => setFormData({ ...formData, description: e.target.value })} />
                                 </div>
-
-                                {/* SECTION 2: LOGIC GIẢM GIÁ */}
                                 <div>
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Loại giảm giá</label>
-                                    <select className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-white"
-                                        value={formData.discountType}
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Loại giảm giá</label>
+                                    <select className={inputCls + ' bg-white'} value={formData.discountType}
                                         onChange={e => setFormData({ ...formData, discountType: e.target.value })}>
                                         <option value="PERCENTAGE">Phần trăm (%)</option>
                                         <option value="FIXED_AMOUNT">Số tiền cố định (đ)</option>
                                     </select>
                                 </div>
-
                                 <div>
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Giá trị giảm</label>
-                                    <div className="relative">
-                                        <input type="number" required className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
-                                            value={formData.discountValue}
-                                            onChange={e => setFormData({ ...formData, discountValue: e.target.value })} />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
-                                            {formData.discountType === 'PERCENTAGE' ? '%' : 'đ'}
-                                        </span>
-                                    </div>
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Giá trị *</label>
+                                    <input type="number" required className={inputCls} value={formData.discountValue}
+                                        onChange={e => setFormData({ ...formData, discountValue: e.target.value })}
+                                        placeholder={formData.discountType === 'PERCENTAGE' ? 'VD: 20' : 'VD: 50000'} />
                                 </div>
-
-                                {/* SECTION 3: ĐIỀU KIỆN ÁP DỤNG */}
                                 <div>
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Áp dụng cho</label>
-                                    <select className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-white"
-                                        value={formData.applyType}
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Giảm tối đa (đ)</label>
+                                    <input type="number" className={inputCls} disabled={formData.discountType === 'FIXED_AMOUNT'}
+                                        value={formData.maxDiscountAmount}
+                                        onChange={e => setFormData({ ...formData, maxDiscountAmount: e.target.value })} placeholder="Không giới hạn" />
+                                </div>
+                                <div>
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Đơn tối thiểu (đ)</label>
+                                    <input type="number" className={inputCls} value={formData.minOrderValue}
+                                        onChange={e => setFormData({ ...formData, minOrderValue: e.target.value })} placeholder="0" />
+                                </div>
+                                <div>
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Áp dụng cho</label>
+                                    <select className={inputCls + ' bg-white'} value={formData.applyType}
                                         onChange={e => setFormData({ ...formData, applyType: e.target.value })}>
                                         <option value="ORDER">Toàn bộ đơn hàng</option>
-                                        <option value="SPECIFIC_PRODUCTS">Sản phẩm cụ thể</option>
+                                        <option value="PRODUCT">Sản phẩm cụ thể</option>
                                     </select>
                                 </div>
-
                                 <div>
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Tổng lượt sử dụng</label>
-                                    <input type="number" required className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
-                                        value={formData.usageLimit}
-                                        onChange={e => setFormData({ ...formData, usageLimit: e.target.value })}
-                                        placeholder="VD: 100" />
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Giới hạn sử dụng</label>
+                                    <input type="number" className={inputCls} value={formData.usageLimit}
+                                        onChange={e => setFormData({ ...formData, usageLimit: e.target.value })} placeholder="Không giới hạn" />
                                 </div>
-
                                 <div>
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Đơn tối thiểu (đ)</label>
-                                    <input type="number" className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
-                                        value={formData.minOrderValue}
-                                        onChange={e => setFormData({ ...formData, minOrderValue: e.target.value })}
-                                        placeholder="0" />
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Ngày bắt đầu</label>
+                                    <DatePicker selected={formData.startDate} onChange={d => setFormData({ ...formData, startDate: d })}
+                                        showTimeSelect timeFormat="HH:mm" timeIntervals={15} dateFormat="dd/MM/yyyy HH:mm" locale={vi}
+                                        placeholderText="Chọn ngày..." className={inputCls} />
                                 </div>
-
                                 <div>
-                                    <label className="block text-md font-bold text-gray-700 mb-1.5">Giảm tối đa (đ)</label>
-                                    <input type="number" className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
-                                        disabled={formData.discountType === 'FIXED_AMOUNT'}
-                                        value={formData.maxDiscountAmount}
-                                        onChange={e => setFormData({ ...formData, maxDiscountAmount: e.target.value })}
-                                        placeholder={formData.discountType === 'FIXED_AMOUNT' ? 'Không cần thiết' : 'VD: 50000'} />
+                                    <label className="block text-md font-bold text-gray-600 uppercase tracking-wide mb-1.5">Ngày kết thúc</label>
+                                    <DatePicker selected={formData.endDate} onChange={d => setFormData({ ...formData, endDate: d })}
+                                        showTimeSelect timeFormat="HH:mm" timeIntervals={15} dateFormat="dd/MM/yyyy HH:mm" locale={vi}
+                                        placeholderText="Chọn ngày..." minDate={formData.startDate} className={inputCls} />
                                 </div>
-
-                                {/* SECTION 4: THỜI GIAN */}
-                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div>
-                                        <label className="block text-md font-bold text-gray-700 mb-1.5 flex items-center gap-1">
-                                            <Calendar size={14} /> Ngày bắt đầu
-                                        </label>
-                                        <DatePicker
-                                            selected={formData.startDate ? new Date(formData.startDate) : null}
-                                            onChange={(date) => setFormData({ ...formData, startDate: date })}
-                                            showTimeSelect
-                                            timeFormat="HH:mm"
-                                            timeIntervals={15}
-                                            timeCaption="Giờ"
-                                            dateFormat="dd/MM/yyyy HH:mm"
-                                            locale={vi}
-                                            placeholderText="Chọn ngày và giờ"
-                                            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:ring-2 focus:ring-purple-400 outline-none"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-md font-bold text-gray-700 mb-1.5 flex items-center gap-1">
-                                            <Calendar size={14} /> Ngày kết thúc
-                                        </label>
-                                        <DatePicker
-                                            selected={formData.endDate ? new Date(formData.endDate) : null}
-                                            onChange={(date) => setFormData({ ...formData, endDate: date })}
-                                            showTimeSelect
-                                            timeFormat="HH:mm"
-                                            timeIntervals={15}
-                                            timeCaption="Giờ"
-                                            dateFormat="dd/MM/yyyy HH:mm"
-                                            locale={vi}
-                                            placeholderText="Chọn ngày và giờ"
-                                            minDate={formData.startDate ? new Date(formData.startDate) : null} // Không cho chọn ngày kết thúc trước ngày bắt đầu
-                                            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:ring-2 focus:ring-purple-400 outline-none"
-                                        />
-                                    </div>
+                                <div className="md:col-span-2 flex items-center gap-3 bg-purple-50 p-3.5 rounded-xl border border-purple-100">
+                                    <input type="checkbox" id="isActive" className="w-4 h-4 accent-purple-600 cursor-pointer"
+                                        checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} />
+                                    <label htmlFor="isActive" className="text-md font-bold text-purple-900 cursor-pointer">Kích hoạt ngay sau khi tạo</label>
                                 </div>
-
-                                {/* TRẠNG THÁI */}
-                                <div className="md:col-span-2 flex items-center gap-3 bg-purple-50 p-4 rounded-xl border border-purple-100 mt-2">
-                                    <input type="checkbox" id="isActive"
-                                        className="w-5 h-5 accent-purple-600 cursor-pointer"
-                                        checked={formData.isActive}
-                                        onChange={e => setFormData({ ...formData, isActive: e.target.checked })} />
-                                    <label htmlFor="isActive" className="text-md font-bold text-purple-900 cursor-pointer select-none">
-                                        KÍCH HOẠT MÃ GIẢM GIÁ NÀY NGAY LẬP TỨC
-                                    </label>
-                                </div>
-
-                                {/* ACTIONS */}
-                                <div className="md:col-span-2 flex justify-end gap-3 pt-6 border-t mt-4">
-                                    <button type="button" onClick={() => setIsModalOpen(false)}
-                                        className="px-6 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold transition-all">
-                                        Hủy bỏ
-                                    </button>
-                                    <button type="submit" disabled={saving}
-                                        className="px-8 py-2.5 text-white bg-purple-600 hover:bg-purple-700 rounded-xl font-bold shadow-lg shadow-purple-100 disabled:opacity-50 transition-all flex items-center gap-2 active:scale-95">
-                                        {saving && <RefreshCw className="animate-spin" size={18} />}
-                                        {editingCoupon ? 'Lưu thay đổi' : 'Tạo mã ngay'}
-                                    </button>
-                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-6 pt-5 border-t">
+                                <button type="button" onClick={() => setIsModalOpen(false)}
+                                    className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium text-md cursor-pointer">Hủy</button>
+                                <button type="submit" disabled={saving}
+                                    className="px-6 py-2.5 text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 rounded-xl font-semibold text-md cursor-pointer shadow-sm">
+                                    {saving ? 'Đang lưu...' : editingCoupon ? 'Lưu thay đổi' : 'Tạo mã ngay'}
+                                </button>
                             </div>
                         </form>
                     </div>

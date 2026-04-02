@@ -1,5 +1,6 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.dtos.category.request.CategoryRequest;
 import com.example.clothingstore.dtos.category.response.CategoryResponse;
 import com.example.clothingstore.service.CategoryService;
@@ -8,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("${api.prefix}/categories")
@@ -17,29 +17,21 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     /**
-     * GET /categories?keyword=ao&parentOnly=true
-     * parentOnly=true → chỉ trả danh mục gốc (parent_id IS NULL)
+     * GET /categories?keyword=ao&parentOnly=true&paginate=true&page=0&size=10
      */
     @GetMapping
-    public ResponseEntity<List<CategoryResponse>> getAllCategories(
+    public ResponseEntity<?> getAllCategories(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false, defaultValue = "false") boolean parentOnly
+            @RequestParam(required = false, defaultValue = "false") boolean parentOnly,
+            @RequestParam(required = false, defaultValue = "false") boolean paginate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        List<CategoryResponse> categories = categoryService.getAllCategories();
-
-        if (parentOnly) {
-            categories = categories.stream()
-                    .filter(c -> c.getParentId() == null)
-                    .collect(Collectors.toList());
+        if (paginate) {
+            PagedResponse<CategoryResponse> result = categoryService.getCategoriesPaged(keyword, parentOnly, page, size);
+            return ResponseEntity.ok(result);
         }
-
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            String kw = keyword.trim().toLowerCase();
-            categories = categories.stream()
-                    .filter(c -> c.getName().toLowerCase().contains(kw))
-                    .collect(Collectors.toList());
-        }
-
+        List<CategoryResponse> categories = categoryService.getAllCategories(keyword, parentOnly);
         return ResponseEntity.ok(categories);
     }
 

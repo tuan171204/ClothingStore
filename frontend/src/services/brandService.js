@@ -1,12 +1,27 @@
 import axios from '@/lib/axios';
 
-export const getBrands = async () => {
+/** Flat list — used for dropdowns */
+export const getBrands = async (keyword = '') => {
     try {
-        const response = await axios.get('/brands');
+        const params = keyword ? { keyword } : {};
+        const response = await axios.get('/brands', { params });
         return response.data;
     } catch (error) {
-        console.error("Lỗi lấy thương hiệu:", error);
+        console.error('Lỗi lấy thương hiệu:', error);
         return [];
+    }
+};
+
+/** Paginated list — used for admin table */
+export const getBrandsPaged = async ({ keyword = '', page = 0, size = 10 } = {}) => {
+    try {
+        const params = { paginate: true, page, size };
+        if (keyword?.trim()) params.keyword = keyword.trim();
+        const response = await axios.get('/brands', { params });
+        return response.data; // PagedResponse<BrandResponse>
+    } catch (error) {
+        console.error('Lỗi lấy thương hiệu (paged):', error);
+        return { content: [], page: 0, size, totalElements: 0, totalPages: 0 };
     }
 };
 

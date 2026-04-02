@@ -1,35 +1,34 @@
 package com.example.clothingstore.service;
 
+import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.dtos.gooodsReceipt.request.CreateGoodsReceiptRequest;
 import com.example.clothingstore.dtos.gooodsReceipt.request.UpdateGoodsReceiptRequest;
 import com.example.clothingstore.dtos.gooodsReceipt.response.GoodsReceiptResponse;
+import com.example.clothingstore.entity.Enum.GrnStatus;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface GoodsReceiptService {
 
-    /** INV-002: Tạo phiếu nhập kho với trạng thái PENDING. */
     GoodsReceiptResponse createGoodsReceipt(CreateGoodsReceiptRequest request);
 
-    /**
-     * Sửa phiếu nhập (chỉ cho phép khi PENDING).
-     * Xóa toàn bộ items cũ và tạo lại theo request mới.
-     */
     GoodsReceiptResponse updateGoodsReceipt(Long grnId, UpdateGoodsReceiptRequest request);
 
-    /**
-     * INV-002 + INV-003: Xác nhận phiếu nhập.
-     * - Tính giá nhập bình quân theo công thức weighted average.
-     * - Tự động cập nhật giá bán nếu SKU có profitMargin.
-     * - Cộng quantity_passed vào physical + available.
-     * - Cộng quantity_failed vào defect bucket.
-     * - Ghi StockMovement cho từng SKU.
-     */
     GoodsReceiptResponse confirmGoodsReceipt(Long grnId);
 
-    /** Lấy chi tiết 1 phiếu nhập kèm tất cả items. */
     GoodsReceiptResponse getGoodsReceiptById(Long id);
 
-    /** Lấy danh sách tất cả phiếu nhập, mới nhất lên đầu. */
+    /** @deprecated Use getAllGoodsReceiptsPaged */
+    @Deprecated
     List<GoodsReceiptResponse> getAllGoodsReceipts();
+
+    /**
+     * Paginated list with optional filters
+     * @param status    filter by GRN status (null = all)
+     * @param fromDate  filter created >= fromDate (null = no lower bound)
+     * @param toDate    filter created <= toDate   (null = no upper bound)
+     */
+    PagedResponse<GoodsReceiptResponse> getAllGoodsReceiptsPaged(
+            GrnStatus status, LocalDate fromDate, LocalDate toDate, int page, int size);
 }

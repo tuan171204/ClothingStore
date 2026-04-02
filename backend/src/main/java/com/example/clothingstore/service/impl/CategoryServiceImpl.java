@@ -1,5 +1,6 @@
 package com.example.clothingstore.service.impl;
 
+import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.dtos.category.request.CategoryRequest;
 import com.example.clothingstore.dtos.category.response.CategoryResponse;
 import com.example.clothingstore.entity.Category;
@@ -10,6 +11,10 @@ import com.example.clothingstore.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,6 +30,67 @@ public class CategoryServiceImpl implements CategoryService {
     public List<CategoryResponse> getAllCategories() {
         List<Category> categories = categoryRepository.findAll();
         return categories.stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CategoryResponse> getAllCategories(String keyword, boolean parentOnly) {
+        List<Category> categories;
+
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+
+        if (hasKeyword && parentOnly) {
+            // Lọc kết hợp: Vừa chứa từ khóa, vừa là danh mục cha
+            categories = categoryRepository.findByNameContainingIgnoreCaseAndParentIsNull(keyword.trim());
+        } else if (hasKeyword) {
+            // Chỉ lọc theo từ khóa
+            categories = categoryRepository.findByNameContainingIgnoreCase(keyword.trim());
+        } else if (parentOnly) {
+            // Chỉ lấy danh mục cha
+            categories = categoryRepository.findByParentIsNull();
+        } else {
+            // Lấy tất cả
+            categories = categoryRepository.findAll();
+        }
+
+        return categories.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public PagedResponse<CategoryResponse> getCategoriesPaged(String keyword, boolean parentOnly, int page, int size) {
+        // Tạo đối tượng Pageable mặc định sắp xếp giảm dần theo ID để category mới tạo lên đầu
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Category> categoryPage;
+
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+
+        if (hasKeyword && parentOnly) {
+            // Đẩy SQL query xuống DB để tính toán phân trang chính xác bằng Limit/Offset
+            categoryPage = categoryRepository.findByNameContainingIgnoreCaseAndParentIsNull(keyword.trim(), pageable);
+        } else if (hasKeyword) {
+            categoryPage = categoryRepository.findByNameContainingIgnoreCase(keyword.trim(), pageable);
+        } else if (parentOnly) {
+            categoryPage = categoryRepository.findByParentIsNull(pageable);
+        } else {
+            categoryPage = categoryRepository.findAll(pageable);
+        }
+
+        // Map từ Entity Page sang DTO List
+        List<CategoryResponse> content = categoryPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        // Sử dụng Builder Pattern để build PagedResponse theo chuẩn đã thiết kế
+        return PagedResponse.<CategoryResponse>builder()
+                .content(content)
+                .page(categoryPage.getNumber())
+                .size(categoryPage.getSize())
+                .totalElements(categoryPage.getTotalElements())
+                .totalPages(categoryPage.getTotalPages())
+                .last(categoryPage.isLast())
+                .first(categoryPage.isFirst())
+                .build();
     }
 
     @Override

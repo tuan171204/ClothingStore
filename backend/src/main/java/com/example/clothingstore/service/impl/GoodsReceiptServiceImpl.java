@@ -1,5 +1,6 @@
 package com.example.clothingstore.service.impl;
 
+import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.dtos.gooodsReceipt.request.CreateGoodsReceiptRequest;
 import com.example.clothingstore.dtos.gooodsReceipt.request.UpdateGoodsReceiptRequest;
 import com.example.clothingstore.dtos.gooodsReceipt.response.GoodsReceiptItemResponse;
@@ -14,12 +15,17 @@ import com.example.clothingstore.service.InventoryService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,6 +41,41 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     StockMovementRepository stockMovementRepository;
     UserRepository userRepository;
     InventoryService inventoryService;
+
+    @Override
+    public PagedResponse<GoodsReceiptResponse> getAllGoodsReceiptsPaged(
+            GrnStatus status, LocalDate fromDate, LocalDate toDate, int page, int size) {
+
+        // 1. Ép kiểu thời gian để SQL quét trọn vẹn ngày
+        // Nếu chọn fromDate là 10/10, phải bắt đầu từ 00:00:00 của ngày 10/10
+        LocalDateTime fromDateTime = (fromDate != null) ? fromDate.atStartOfDay() : null;
+
+        // Nếu chọn toDate là 12/10, phải kết thúc ở 23:59:59.999999999 của ngày 12/10
+        LocalDateTime toDateTime = (toDate != null) ? toDate.atTime(23, 59, 59, 999999999) : null;
+
+        // 2. Tạo đối tượng phân trang (Không cần Sort ở đây vì Query trong Repository đã ORDER BY rồi)
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 3. Thực thi query xuống Database
+        Page<GoodsReceipt> grnPage = goodsReceiptRepository.findAllWithFilters(
+                status, fromDateTime, toDateTime, pageable);
+
+        // 4. Map danh sách Entity sang Response DTO bằng hàm có sẵn
+        List<GoodsReceiptResponse> content = grnPage.getContent().stream()
+                .map(this::toGrnResponse)
+                .collect(Collectors.toList());
+
+        // 5. Đóng gói vào PagedResponse chuẩn mực
+        return PagedResponse.<GoodsReceiptResponse>builder()
+                .content(content)
+                .page(grnPage.getNumber())
+                .size(grnPage.getSize())
+                .totalElements(grnPage.getTotalElements())
+                .totalPages(grnPage.getTotalPages())
+                .last(grnPage.isLast())
+                .first(grnPage.isFirst())
+                .build();
+    }
 
     // ============================================================
     // INV-002: Tạo phiếu nhập kho

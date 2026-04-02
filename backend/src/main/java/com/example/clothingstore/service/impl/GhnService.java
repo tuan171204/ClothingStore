@@ -180,6 +180,9 @@ public class GhnService {
                 .toWardCode(order.getToWardCode())     // Lấy từ Frontend gửi lên hoặc lưu trong Order
                 .codAmount(codAmount)
                 .weight(200 * order.getOrderItems().size())
+                .length(20)
+                .width(20)
+                .height(10)
                 .serviceTypeId(2) // 2: Chuẩn (Đi bộ) - Hoặc lấy dynamic nếu lưu
                 .items(ghnItems)
                 .build();

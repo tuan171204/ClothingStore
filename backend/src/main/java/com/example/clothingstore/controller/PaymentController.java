@@ -48,7 +48,7 @@ public class PaymentController {
                 // 2. Nếu OK -> Cập nhật trạng thái đơn hàng
                 try {
                     Long orderId = Long.parseLong(txnRef);
-                    orderService.updateOrderStatus(orderId, OrderStatus.CONFIRMED); // CONFIRMED = Đã thanh toán
+
                     orderService.autoConfirmAndShip(orderId);
                 } catch (NumberFormatException e) {
                     System.err.println("Lỗi parse OrderID: " + e.getMessage());

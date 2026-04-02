@@ -1,12 +1,23 @@
 import axios from '@/lib/axios';
 
-export const getAllGoodsReceipts = async () => {
+/** Paginated + filtered list */
+export const getAllGoodsReceipts = async ({
+    status = '',
+    fromDate = '',
+    toDate = '',
+    page = 0,
+    size = 10
+} = {}) => {
     try {
-        const response = await axios.get('/goods-receipts');
+        const params = { page, size };
+        if (status) params.status = status;
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
+        const response = await axios.get('/goods-receipts', { params });
         return response.data;
     } catch (error) {
-        console.error("Lỗi lấy danh sách phiếu nhập kho:", error);
-        return { result: [] };
+        console.error('Lỗi lấy danh sách phiếu nhập kho:', error);
+        return { result: { content: [], page: 0, size, totalElements: 0, totalPages: 0 } };
     }
 };
 
@@ -21,31 +32,16 @@ export const getGoodsReceiptById = async (id) => {
 };
 
 export const createGoodsReceipt = async (receiptData) => {
-    try {
-        const response = await axios.post('/goods-receipts', receiptData);
-        return response.data;
-    } catch (error) {
-        console.error("Lỗi tạo phiếu nhập kho:", error);
-        throw error;
-    }
+    const response = await axios.post('/goods-receipts', receiptData);
+    return response.data;
 };
 
 export const updateGoodsReceipt = async (id, receiptData) => {
-    try {
-        const response = await axios.put(`/goods-receipts/${id}`, receiptData);
-        return response.data;
-    } catch (error) {
-        console.error("Lỗi cập nhật phiếu nhập kho:", error);
-        throw error;
-    }
+    const response = await axios.put(`/goods-receipts/${id}`, receiptData);
+    return response.data;
 };
 
 export const confirmGoodsReceipt = async (id) => {
-    try {
-        const response = await axios.post(`/goods-receipts/${id}/confirm`);
-        return response.data;
-    } catch (error) {
-        console.error(`Lỗi xác nhận phiếu nhập ${id}:`, error);
-        throw error;
-    }
+    const response = await axios.post(`/goods-receipts/${id}/confirm`);
+    return response.data;
 };

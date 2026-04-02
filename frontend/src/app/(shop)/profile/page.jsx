@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { User, MapPin, Package, Camera, Save, LogOut, Loader2 } from 'lucide-react';
+import { User, MapPin, Package, Camera, Save, LogOut, Loader2, Truck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getOrdersByUser } from '@/services/orderService';
 import { addressService } from '@/services/addressService';
@@ -364,6 +364,25 @@ export default function ProfilePage() {
                                                         <div className="font-black text-xl text-gray-900">{formatCurrency(order.totalAmount)}</div>
                                                     </div>
                                                 </div>
+                                                {/* Hiển thị tiến trình giao hàng của GHN nếu đơn hàng đang vận chuyển hoặc đã có mã */}
+                                                {(order.trackingCode || order.trackingMessage) && (
+                                                    <div className="mt-4 p-4 bg-blue-50/50 border border-blue-100 rounded-md flex items-start gap-3">
+                                                        <div className="p-2 bg-blue-100 text-blue-600 rounded-full shrink-0">
+                                                            <Truck size={18} strokeWidth={2.5} />
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-sm font-bold text-blue-900 mb-0.5 flex items-center gap-2">
+                                                                Mã vận đơn:
+                                                                <span className="font-mono tracking-widest text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
+                                                                    {order.trackingCode || 'Đang cập nhật'}
+                                                                </span>
+                                                            </div>
+                                                            {order.trackingMessage && (
+                                                                <p className="text-sm text-blue-800 mt-1">{order.trackingMessage}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 <div className="mt-5 pt-4 border-t border-gray-100">
                                                     <div className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">Sản phẩm trong đơn</div>

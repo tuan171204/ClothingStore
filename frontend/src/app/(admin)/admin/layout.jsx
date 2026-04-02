@@ -26,8 +26,8 @@ function Sidebar() {
         { href: '/admin/ghn-simulator', icon: Truck, label: 'GHN Webhook Test' },
         { href: '/admin/categories', icon: FolderTree, label: 'Danh mục' },
         { href: '/admin/brands', icon: Tag, label: 'Thương hiệu' },
-        { href: '/admin/goods-receipts', icon: Inbox, label: 'Nhập kho' },
-        { href: '/admin/inventory', icon: Archive, label: 'Tồn kho' },
+        { href: '/admin/goods-receipts', icon: Inbox, label: 'Nhập hàng' },
+        { href: '/admin/inventory', icon: Archive, label: 'Tồn hàng' },
         { href: '/admin/reviews', icon: Star, label: 'Duyệt đánh giá' },
         { href: '/admin/coupons', icon: Ticket, label: 'Quản lý Mã giảm giá' },
     ];
