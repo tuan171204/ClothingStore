@@ -14,6 +14,10 @@ public class GhnConfig {
 
     private final String ghnAddressUrl = "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data";
 
+    private final String ghnCancelUrl = "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/switch-status/cancel";
+
+    private final String ghnReturnUrl = "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/switch-status/return";
+
     private final String ghnProvinceUrl = ghnAddressUrl + "/province";
 
     private final String ghnDistrictUrl = ghnAddressUrl + "/district";

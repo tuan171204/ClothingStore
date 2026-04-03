@@ -2,7 +2,9 @@ package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.dtos.cart.response.CartResponse;
 import com.example.clothingstore.dtos.dto.OrderDTO;
+import com.example.clothingstore.dtos.order.request.CancelOrderRequest;
 import com.example.clothingstore.dtos.order.request.OrderFilterRequest;
+import com.example.clothingstore.dtos.order.request.ReturnOrderRequest;
 import com.example.clothingstore.dtos.order.response.OrderResponse;
 import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.entity.Order;
@@ -10,6 +12,8 @@ import com.example.clothingstore.entity.OrderItem;
 import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.entity.Sku;
 import com.example.clothingstore.entity.User;
+import com.example.clothingstore.exception.AppException;
+import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.mapper.OrderMapper;
 import com.example.clothingstore.mapper.OrderResponseMapper;
 import com.example.clothingstore.repository.OrderItemRepository;
@@ -20,6 +24,8 @@ import com.example.clothingstore.repository.specification.OrderSpecification;
 import com.example.clothingstore.service.CartService;
 import com.example.clothingstore.service.InventoryService;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,8 +38,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -51,6 +59,13 @@ public class OrderService {
     private final OrderProducer       orderProducer;
     private final InventoryService    inventoryService;
     private final CartService         cartService;
+    private final ObjectMapper objectMapper;
+
+    private static final Set<OrderStatus> CANCELLABLE_BY_CUSTOMER = Set.of(
+            OrderStatus.PENDING, OrderStatus.CONFIRMED
+    );
+
+    private static final int RETURN_WINDOW_DAYS = 30;
 
     // =========================================================
     // LẤY ĐƠN HÀNG (FILTER + PHÂN TRANG)
@@ -267,5 +282,244 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
         orderProducer.sendOrderConfirmation(savedOrder.getId());
         return savedOrder;
+    }
+
+    // =========================================================
+    // HỦY ĐƠN HÀNG — KHÁCH HÀNG TỰ HỦY
+    // =========================================================
+
+    /**
+     * Khách hàng hủy đơn hàng của chính mình.
+     *
+     * Điều kiện cho phép:
+     *  - Đơn thuộc về userId đang login.
+     *  - Trạng thái phải là PENDING hoặc CONFIRMED.
+     *  - Nếu đã SHIPPING → ném exception (FE phải chặn từ trước, BE vẫn validate).
+     *
+     * Luồng xử lý:
+     *  1. Validate quyền + trạng thái.
+     *  2. Nếu đã có trackingCode → gọi GHN Cancel API (best-effort, không throw).
+     *  3. Cập nhật OrderStatus = CANCELLED, lưu cancelReason, cancelledAt.
+     *  4. Hoàn trả tồn kho (releaseStock).
+     *  5. Gửi email thông báo hủy đơn (qua RabbitMQ).
+     *
+     * @param orderId ID đơn hàng cần hủy
+     * @param request chứa lý do hủy từ khách
+     * @return OrderResponse sau khi cập nhật
+     */
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId, CancelOrderRequest request) {
+        // Lấy thông tin người dùng đang login
+        String currentUserId = resolveCurrentUserId();
+
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        // 1. Kiểm tra quyền sở hữu đơn hàng
+        if (order.getUserId() != null && !order.getUserId().equals(currentUserId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        // 2. Kiểm tra trạng thái cho phép hủy
+        boolean canCancel = false;
+        if (order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.CONFIRMED) {
+            canCancel = true;
+        } else if (order.getStatus() == OrderStatus.SHIPPING) {
+            String tStatus = order.getTrackingStatus();
+            // Chỉ cho hủy nếu GHN chưa kịp lấy hàng (ready_to_pick) hoặc chưa đồng bộ (null)
+            if (tStatus == null || "ready_to_pick".equals(tStatus)) {
+                canCancel = true;
+            }
+        }
+
+        if (!canCancel) {
+            throw new AppException(ErrorCode.ORDER_CANNOT_CANCEL);
+        }
+
+        // 3. Nếu đơn đã đẩy sang GHN (có mã vận đơn), gọi API hủy của GHN
+        if (order.getTrackingCode() != null && !order.getTrackingCode().isEmpty()) {
+            try {
+                // Giả định bạn có hàm ghnService.cancelOrder(trackingCode)
+                 ghnService.cancelShippingOrder(order);
+                log.info("Đã gửi request hủy đơn {} lên GHN", order.getTrackingCode());
+            } catch (Exception e) {
+                log.error("Lỗi khi hủy đơn trên GHN: {}", e.getMessage());
+                // Vẫn tiếp tục hủy ở local database vì gói hàng vật lý vẫn còn trong kho
+            }
+        }
+
+        // 4. Cập nhật trạng thái đơn hàng
+        // NOTE: KHÔNG sửa trackingStatus — field đó do GHN Webhook quản lý
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelReason(request.getReason());
+        order.setCancelledAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        // 5. Hoàn trả tồn kho
+        releaseInventoryForOrder(order);
+
+        // 6. Gửi email thông báo hủy đơn
+        orderProducer.sendOrderCancelled(orderId);
+
+        log.info("[CancelOrder] ✅ Đơn hàng {} đã bị hủy bởi userId={}. Lý do: {}",
+                orderId, currentUserId, request.getReason());
+
+        return orderResponseMapper.toOrderResponse(order);
+    }
+
+    // =========================================================
+    // YÊU CẦU HOÀN TRẢ — KHÁCH HÀNG
+    // =========================================================
+
+    /**
+     * Khách hàng gửi yêu cầu hoàn trả/đổi hàng sau khi nhận.
+     *
+     * Điều kiện cho phép:
+     *  - Đơn thuộc về userId đang login.
+     *  - Trạng thái phải là COMPLETED (đã giao thành công).
+     *  - Trong vòng RETURN_WINDOW_DAYS ngày kể từ khi tạo đơn (business rule tùy chỉnh).
+     *
+     * Luồng xử lý:
+     *  1. Validate quyền + trạng thái.
+     *  2. Cập nhật OrderStatus = RETURN_REQUESTED.
+     *  3. Lưu returnReason, returnDescription, returnImages (JSON), returnRequestedAt.
+     *  4. KHÔNG hoàn tồn kho ngay — Admin xét duyệt và hoàn kho thủ công khi RETURNED.
+     *
+     * @param orderId ID đơn hàng cần hoàn
+     * @param request chứa reason, description, imageUrls
+     * @return OrderResponse sau khi cập nhật
+     */
+    @Transactional
+    public OrderResponse requestReturnOrder(Long orderId, ReturnOrderRequest request) {
+        String currentUserId = resolveCurrentUserId();
+
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        // 1. Kiểm tra quyền sở hữu
+        if (order.getUserId() != null && !order.getUserId().equals(currentUserId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        // 2. Chỉ cho phép hoàn trả khi đơn đã COMPLETED
+        if (order.getStatus() != OrderStatus.COMPLETED || !"delivered".equals(order.getTrackingStatus())) {
+            throw new RuntimeException(
+                    "Chỉ có thể yêu cầu hoàn trả khi đơn hàng đã được GHN giao thành công đến tay bạn.");
+        }
+
+        // 3. Kiểm tra thời hạn hoàn trả (tính từ ngày tạo đơn)
+        if (order.getCreatedAt() != null) {
+            LocalDateTime deadline = order.getCreatedAt().plusDays(RETURN_WINDOW_DAYS);
+            if (LocalDateTime.now().isAfter(deadline)) {
+                throw new RuntimeException(
+                        "Đã quá " + RETURN_WINDOW_DAYS + " ngày kể từ ngày đặt hàng, không thể yêu cầu hoàn trả.");
+            }
+        }
+
+        // 4. Serialize imageUrls → JSON để lưu vào TEXT column
+        String imagesJson = serializeImageUrls(request.getImageUrls());
+
+        // 5. Cập nhật thông tin hoàn trả
+        order.setStatus(OrderStatus.RETURN_REQUESTED);
+        order.setReturnReason(request.getReason());
+        order.setReturnDescription(request.getDescription());
+        order.setReturnImages(imagesJson);
+        order.setReturnRequestedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        log.info("[ReturnOrder] ✅ Yêu cầu hoàn trả đơn hàng {} từ userId={}. Lý do: {}",
+                orderId, currentUserId, request.getReason());
+
+        return orderResponseMapper.toOrderResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse approveReturnOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        // Chỉ cho phép duyệt nếu đơn đang ở trạng thái Yêu cầu hoàn trả
+        if (order.getStatus() != OrderStatus.RETURN_REQUESTED) {
+            throw new RuntimeException("Chỉ có thể duyệt các đơn đang ở trạng thái Yêu cầu hoàn trả.");
+        }
+
+        // Chuyển sang trạng thái Đã hoàn trả
+        order.setStatus(OrderStatus.RETURNED);
+
+        releaseInventoryForOrder(order);
+
+        Order savedOrder = orderRepository.save(order);
+        return orderResponseMapper.toOrderResponse(savedOrder);
+    }
+
+    // =========================================================
+    // PRIVATE HELPERS
+    // =========================================================
+
+    /**
+     * Giải phóng tồn kho cho tất cả OrderItem (dùng khi đơn bị hủy).
+     */
+    private void releaseInventoryForOrder(Order order) {
+        List<OrderItem> items = order.getOrderItems();
+        if (items == null || items.isEmpty()) return;
+
+        for (OrderItem item : items) {
+            try {
+                skuRepository.findById(item.getSkuId()).ifPresent(sku -> {
+                    sku.setStockQuantity(sku.getStockQuantity() + item.getQuantity());
+                    skuRepository.save(sku);
+                });
+                inventoryService.releaseStock(item.getSkuId(), item.getQuantity());
+            } catch (Exception e) {
+                log.error("[ReleaseInventory] Lỗi hoàn kho skuId={}, qty={}: {}",
+                        item.getSkuId(), item.getQuantity(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Xuất kho thực tế cho tất cả OrderItem (dùng khi đơn hoàn thành).
+     */
+    private void deductInventoryForOrder(Order order) {
+        List<OrderItem> items = order.getOrderItems();
+        if (items == null || items.isEmpty()) return;
+
+        for (OrderItem item : items) {
+            try {
+                inventoryService.deductStock(item.getSkuId(), item.getQuantity());
+            } catch (Exception e) {
+                log.error("[DeductInventory] Lỗi xuất kho skuId={}, qty={}: {}",
+                        item.getSkuId(), item.getQuantity(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Lấy userId của người dùng đang đăng nhập qua SecurityContext.
+     */
+    private String resolveCurrentUserId() {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            return userRepository.findByUsername(username)
+                    .map(User::getId)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    /**
+     * Serialize List<String> thành JSON array string.
+     */
+    private String serializeImageUrls(List<String> urls) {
+        if (urls == null || urls.isEmpty()) return "[]";
+        try {
+            return objectMapper.writeValueAsString(urls);
+        } catch (JsonProcessingException e) {
+            log.error("Lỗi serialize imageUrls: {}", e.getMessage());
+            return "[]";
+        }
     }
 }

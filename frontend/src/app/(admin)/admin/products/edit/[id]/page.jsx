@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { ArrowLeft, Save, Loader2, Plus, X, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import ImageUpload from '@/components/admin/ImageUpload';
+import ImageUpload from '@/components/common/ImageUpload';
 import { getProductById, updateProduct } from '@/services/productService';
 import { getCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';

@@ -39,6 +39,16 @@ public class OrderResponse {
      */
     private String trackingMessage;
 
+    // Cancel info
+    private String cancelReason;
+    private LocalDateTime cancelledAt;
+
+    // Return / Refund info
+    private String returnReason;
+    private String returnDescription;
+    private List<String> returnImageUrls;
+    private LocalDateTime returnRequestedAt;
+
     private List<OrderItemResponse> orderItems;
 
     @Data

@@ -5,7 +5,7 @@ import { Upload, Loader2, X } from 'lucide-react';
 import { uploadImage } from '@/services/uploadService';
 import { toast } from 'react-toastify';
 
-export default function ImageUpload({ onUpload, currentImage }) {
+export default function ImageUpload({ onUpload, currentImage, uploadFunc = uploadImage }) {
     const [uploading, setUploading] = useState(false);
     const [preview, setPreview] = useState(currentImage || '');
 
@@ -29,7 +29,7 @@ export default function ImageUpload({ onUpload, currentImage }) {
 
         try {
             setUploading(true);
-            const url = await uploadImage(file);
+            const url = await uploadFunc(file);
 
             setPreview(url); // Hiện ảnh lập tức
             onUpload(url);   // Bắn URL về cho form cha (EditProductPage)

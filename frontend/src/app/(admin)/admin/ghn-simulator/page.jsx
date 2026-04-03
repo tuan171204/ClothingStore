@@ -44,7 +44,7 @@ export default function GhnSimulatorPage() {
     const [orderCode, setOrderCode] = useState('');
     const [status, setStatus] = useState('ready_to_pick');
     const [type, setType] = useState('switch_status');
-    const [shopId, setShopId] = useState('');
+    const [shopId, setShopId] = useState('199357');
     const [loading, setLoading] = useState(false);
     const [responseLog, setResponseLog] = useState(null);
 

@@ -41,7 +41,24 @@ public enum ErrorCode {
 
     //nhom 60: Module Coupons
     COUPON_NOT_FOUND(6001, "Không tìm thấy mã giảm giá", HttpStatus.NOT_FOUND),
-    COUPON_CODE_ALREADY_EXISTS(6002, "Mã giảm giá đã tồn tại", HttpStatus.BAD_REQUEST);
+    COUPON_CODE_ALREADY_EXISTS(6002, "Mã giảm giá đã tồn tại", HttpStatus.BAD_REQUEST),
+
+    // Nhóm 70: Module Order — MÃ LỖI MỚI
+
+    /** Không tìm thấy đơn hàng theo ID */
+    ORDER_NOT_FOUND(7001, "Không tìm thấy đơn hàng", HttpStatus.NOT_FOUND),
+
+    /** Đơn hàng không thể hủy ở trạng thái hiện tại */
+    ORDER_CANNOT_CANCEL(7002, "Không thể hủy đơn hàng ở trạng thái hiện tại", HttpStatus.BAD_REQUEST),
+
+    /** Đơn hàng không đủ điều kiện để hoàn trả */
+    ORDER_CANNOT_RETURN(7003, "Đơn hàng không đủ điều kiện để hoàn trả", HttpStatus.BAD_REQUEST),
+
+    /** Đã quá thời hạn hoàn trả */
+    ORDER_RETURN_EXPIRED(7004, "Đã quá thời hạn hoàn trả", HttpStatus.BAD_REQUEST),
+
+    /** Đơn hàng đã có yêu cầu hoàn trả đang xử lý */
+    ORDER_RETURN_ALREADY_REQUESTED(7005, "Đơn hàng đã có yêu cầu hoàn trả đang xử lý", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

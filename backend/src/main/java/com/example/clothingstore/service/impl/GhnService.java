@@ -6,6 +6,7 @@ import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.entity.OrderItem;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -17,10 +18,13 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GhnService {
 
     private final GhnConfig ghnConfig;
     private final RestTemplate restTemplate;
+    private static final String GHN_CANCEL_URL =
+            "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/switch-status/cancel";
 
     // Hàm tính phí ship
     public Integer calculateShippingFee(Integer toDistrictId, String toWardCode, Integer weight) {
@@ -207,5 +211,61 @@ public class GhnService {
         } catch (Exception e) {
             throw new RuntimeException("Không thể tạo đơn hàng phía GHN: " + e.getMessage());
         }
+    }
+
+    /**
+     * Gọi GHN API để hủy vận đơn.
+     *
+     * @param order Đơn GHN cần hủy
+     * @return true nếu GHN xác nhận hủy thành công, false nếu lỗi
+     *
+     * Quy tắc nghiệp vụ GHN:
+     *  - Chỉ hủy được khi trạng thái GHN là: ready_to_pick, picking.
+     *  - Nếu status đã là "picked" hoặc sau đó → GHN sẽ trả lỗi, ta bắt và log.
+     *  - Caller (OrderService) KHÔNG throw exception khi GHN trả lỗi,
+     *    vì OrderStatus vẫn phải được cập nhật thành CANCELLED trong DB.
+     */
+    public boolean cancelShippingOrder(Order order) {
+        if (order.getTrackingCode() == null || order.getTrackingCode().isBlank()) {
+            log.debug("[GHN Cancel] trackingCode rỗng, bỏ qua gọi API GHN.");
+            return true; // Không cần hủy nếu chưa tạo vận đơn
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Token", ghnConfig.getGhnToken());
+        headers.set("ShopId", ghnConfig.getGhnShopId());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = Map.of("order_codes", List.of(order.getTrackingCode()));
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<JsonNode> response = restTemplate.exchange(
+                    ghnConfig.getGhnCancelUrl(),
+                    HttpMethod.POST,
+                    entity,
+                    JsonNode.class
+            );
+
+            JsonNode responseBody = response.getBody();
+            if (responseBody != null) {
+                int code = responseBody.path("code").asInt(-1);
+                if (code == 200) {
+                    order.setTrackingStatus("cancel");
+                    order.setTrackingMessage("Đơn hàng đã bị hủy");
+                    log.info("[GHN Cancel] ✅ Hủy vận đơn thành công: {}", order.getTrackingCode());
+                    return true;
+                } else {
+                    String message = responseBody.path("message").asText("Không rõ lỗi GHN");
+                    log.warn("[GHN Cancel] ⚠️ GHN không hủy được vận đơn {}. Code={}, Message={}",
+                            order.getTrackingCode(), code, message);
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            log.error("[GHN Cancel] ❌ Exception khi gọi GHN Cancel API cho {}: {}",
+                    order.getTrackingCode(), e.getMessage());
+        }
+        return false;
     }
 }

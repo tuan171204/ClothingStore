@@ -83,6 +83,44 @@ public class Order {
     @Column(name = "tracking_message", length = 255)
     private String trackingMessage;
 
+    /**
+     * Lý do hủy đơn — do khách điền khi bấm "Hủy đơn".
+     */
+    @Column(name = "cancel_reason", length = 500)
+    private String cancelReason;
+
+    /**
+     * Thời điểm khách/admin hủy đơn.
+     */
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    /**
+     * Lý do yêu cầu hoàn trả ngắn gọn (dropdown value từ FE).
+     * VD: "DEFECTIVE", "WRONG_ITEM", "NOT_AS_DESCRIBED", "OTHER"
+     */
+    @Column(name = "return_reason", length = 100)
+    private String returnReason;
+
+    /**
+     * Mô tả chi tiết từ khách khi yêu cầu hoàn trả.
+     */
+    @Column(name = "return_description", columnDefinition = "TEXT")
+    private String returnDescription;
+
+    /**
+     * Danh sách URL ảnh bằng chứng khách upload, lưu dạng JSON array.
+     * VD: ["https://res.cloudinary.com/...", "https://..."]
+     */
+    @Column(name = "return_images", columnDefinition = "TEXT")
+    private String returnImages;
+
+    /**
+     * Thời điểm khách gửi yêu cầu hoàn trả.
+     */
+    @Column(name = "return_requested_at")
+    private LocalDateTime returnRequestedAt;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<OrderItem> orderItems;
 

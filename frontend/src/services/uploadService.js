@@ -35,3 +35,20 @@ export const uploadUserAvatar = async (file) => {
         throw error;
     }
 };
+
+export const uploadOrderImage = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await axios.post('/orders/upload-image', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data; // Trả về chuỗi URL ảnh
+    } catch (error) {
+        console.error("Lỗi upload ảnh đơn hàng:", error);
+        throw error;
+    }
+};

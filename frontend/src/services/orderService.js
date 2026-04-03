@@ -14,7 +14,7 @@ export const getOrdersFiltered = async (params = {}) => {
         console.error('❌ Lỗi lấy đơn hàng:', error);
         throw error;
     }
-};  
+};
 
 /**
  * Admin: Thống kê tổng tiền theo filter
@@ -80,4 +80,52 @@ export const getOrdersByUser = async (userId) => {
     } catch (error) {
         return [];
     }
+};
+
+// ════════════════════════════════════════════════════════════════
+// API: HỦY ĐƠN HÀNG
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Khách hàng hủy đơn hàng của mình.
+ * Chỉ cho phép khi status = PENDING hoặc CONFIRMED.
+ *
+ * @param {number} orderId - ID đơn hàng
+ * @param {string} reason  - Lý do hủy đơn
+ * @returns {Promise<OrderResponse>}
+ */
+export const cancelOrder = async (orderId, reason) => {
+    const response = await axios.post(`${API_URL}/${orderId}/cancel`, { reason });
+    return response.data;
+};
+
+// ════════════════════════════════════════════════════════════════
+// API: YÊU CẦU HOÀN TRẢ
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Khách hàng gửi yêu cầu hoàn trả sau khi nhận hàng.
+ * Chỉ cho phép khi status = COMPLETED.
+ *
+ * @param {number} orderId      - ID đơn hàng
+ * @param {string} reason       - Lý do ngắn gọn (enum: DEFECTIVE, WRONG_ITEM, ...)
+ * @param {string} description  - Mô tả chi tiết
+ * @param {string[]} imageUrls  - Danh sách URL ảnh đã upload
+ * @returns {Promise<OrderResponse>}
+ */
+export const requestReturnOrder = async (orderId, reason, description, imageUrls) => {
+    const response = await axios.post(`${API_URL}/${orderId}/return`, {
+        reason,
+        description,
+        imageUrls,
+    });
+    return response.data;
+};
+
+/**
+ * Admin duyệt yêu cầu hoàn trả
+ */
+export const approveReturnOrder = async (orderId) => {
+    const response = await axios.post(`${API_URL}/${orderId}/approve-return`);
+    return response.data;
 };

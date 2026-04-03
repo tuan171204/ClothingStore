@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import ImageUpload from '@/components/admin/ImageUpload';
+import ImageUpload from '@/components/common/ImageUpload';
 import { Trash2, Plus, Info, X, Bold } from 'lucide-react';
 import { getCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';

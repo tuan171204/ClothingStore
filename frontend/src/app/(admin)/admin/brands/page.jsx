@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { getBrandsPaged, createBrand, updateBrand, deleteBrand } from '@/services/brandService';
 import { Plus, Edit, Trash2, Tag, X, Search, RefreshCw, ImageOff } from 'lucide-react';
 import { toast } from 'react-toastify';
-import ImageUpload from '@/components/admin/ImageUpload';
+import ImageUpload from '@/components/common/ImageUpload';
 import Pagination from '@/components/admin/Pagination';
 
 const PAGE_SIZE = 8;
