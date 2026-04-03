@@ -8,6 +8,7 @@ import com.example.clothingstore.entity.Enum.OrderStatus;
 import com.example.clothingstore.exception.StockException;
 import com.example.clothingstore.repository.*;
 import com.example.clothingstore.service.CartService;
+import com.example.clothingstore.service.rabbitmq.NotificationProducer;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Luồng mới:
+ * Luồng:
  *   Checkout thành công → Tạo Order (PENDING)
  *                       → Gọi OrderService.autoConfirmAndShip() NGAY LẬP TỨC
  *                       → PENDING → CONFIRMED → SHIPPING (nếu GHN thành công)
@@ -44,8 +45,8 @@ public class CheckoutService {
     private final SkuRepository         skuRepository;
     private final InventoryRepository   inventoryRepository;
     private final CartService           cartService;
-    private final OrderProducer         orderProducer;
     private final OrderService          orderService; // Dùng để gọi autoConfirmAndShip
+    private final NotificationProducer notificationProducer;
 
     private static final int MAX_RETRY = 3;
 
@@ -170,6 +171,16 @@ public class CheckoutService {
 
         log.info("✅ Checkout thành công: orderId={}, userId={}, method={}",
                 savedOrder.getId(), user.getId(), request.getPaymentMethod());
+
+        try {
+            notificationProducer.sendAdminNotification(
+                    "NEW_ORDER",
+                    String.valueOf(savedOrder.getId()),
+                    "Khách hàng " + savedOrder.getFullName() + " vừa đặt đơn hàng mới #" + savedOrder.getId() + " với tổng tiền " + savedOrder.getTotalAmount() + "đ."
+            );
+        } catch (Exception e) {
+            log.error("Không thể gửi thông báo RabbitMQ cho đơn hàng {}: {}", savedOrder.getId(), e.getMessage());
+        }
 
         // -------------------------------------------------------
         // AUTO-SHIP:

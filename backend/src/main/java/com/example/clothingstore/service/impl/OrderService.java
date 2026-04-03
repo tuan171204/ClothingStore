@@ -23,6 +23,7 @@ import com.example.clothingstore.repository.UserRepository;
 import com.example.clothingstore.repository.specification.OrderSpecification;
 import com.example.clothingstore.service.CartService;
 import com.example.clothingstore.service.InventoryService;
+import com.example.clothingstore.service.rabbitmq.NotificationProducer;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -60,6 +61,7 @@ public class OrderService {
     private final InventoryService    inventoryService;
     private final CartService         cartService;
     private final ObjectMapper objectMapper;
+    private final NotificationProducer notificationProducer;
 
     private static final Set<OrderStatus> CANCELLABLE_BY_CUSTOMER = Set.of(
             OrderStatus.PENDING, OrderStatus.CONFIRMED
@@ -361,6 +363,16 @@ public class OrderService {
         // 6. Gửi email thông báo hủy đơn
         orderProducer.sendOrderCancelled(orderId);
 
+        try {
+            notificationProducer.sendAdminNotification(
+                    "NEW_CANCEL_ORDER",
+                    String.valueOf(order.getId()),
+                    "Khách hàng " + order.getFullName() + " vừa hủy đơn hàng #" + order.getId() + ". Lý do: " + request.getReason()
+            );
+        } catch (Exception e) {
+            log.error("Không thể gửi thông báo RabbitMQ cho hủy đơn {}: {}", order.getId(), e.getMessage());
+        }
+
         log.info("[CancelOrder] ✅ Đơn hàng {} đã bị hủy bởi userId={}. Lý do: {}",
                 orderId, currentUserId, request.getReason());
 
@@ -426,6 +438,16 @@ public class OrderService {
         order.setReturnImages(imagesJson);
         order.setReturnRequestedAt(LocalDateTime.now());
         orderRepository.save(order);
+
+        try {
+            notificationProducer.sendAdminNotification(
+                    "NEW_RETURN_REQUEST",
+                    String.valueOf(order.getId()),
+                    "Khách hàng " + order.getFullName() + " vừa gửi yêu cầu hoàn trả cho đơn #" + order.getId() + ". Cần Admin xét duyệt."
+            );
+        } catch (Exception e) {
+            log.error("Không thể gửi thông báo RabbitMQ cho hoàn trả đơn {}: {}", order.getId(), e.getMessage());
+        }
 
         log.info("[ReturnOrder] ✅ Yêu cầu hoàn trả đơn hàng {} từ userId={}. Lý do: {}",
                 orderId, currentUserId, request.getReason());

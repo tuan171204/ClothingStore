@@ -13,26 +13,26 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String QUEUE_NAME = "order_email_queue";
-    public static final String EXCHANGE_NAME = "order_exchange";
-    public static final String ROUTING_KEY = "order_routing_key";
+    public static final String ORDER_QUEUE = "order_email_queue";
+    public static final String ORDER_EXCHANGE = "order_exchange";
+    public static final String ORDER_ROUTING_KEY = "order_routing_key";
 
     // 1. Tạo Queue
     @Bean
     public Queue queue() {
-        return new Queue(QUEUE_NAME, true); // true = Bền vững (không mất khi tắt RabbitMQ)
+        return new Queue(ORDER_QUEUE, true); // true = Bền vững (không mất khi tắt RabbitMQ)
     }
 
     // 2. Tạo Exchange
     @Bean
     public DirectExchange exchange() {
-        return new DirectExchange(EXCHANGE_NAME);
+        return new DirectExchange(ORDER_EXCHANGE);
     }
 
     // 3. Nối Queue vào Exchange
     @Bean
     public Binding binding(Queue queue, DirectExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY);
+        return BindingBuilder.bind(queue).to(exchange).with(ORDER_ROUTING_KEY);
     }
 
     // 4. Config gửi Json
@@ -48,29 +48,35 @@ public class RabbitMQConfig {
         return template;
     }
 
-//    @Bean
-//    public ApplicationRunner runner(ConnectionFactory cf) {
-//        return args -> {
-//            try {
-//                // Thử tạo kết nối thực tế
-//                cf.createConnection().close();
-//                System.out.println("=================================================");
-//                System.out.println("✅ KẾT NỐI RABBITMQ THÀNH CÔNG! (RabbitMQ is UP)");
-//                System.out.println("=================================================");
-//            } catch (Exception e) {
-//                System.err.println("=================================================");
-//                System.err.println("❌ KẾT NỐI RABBITMQ THẤT BẠI! Lỗi: " + e.getMessage());
-//                System.err.println("Kiểm tra lại: Docker đã chạy chưa? Port 5672 có mở không?");
-//                System.err.println("=================================================");
-//            }
-//        };
-//    }
-
     // Ép RabbitAdmin phải khởi tạo ngay lập tức
     @Bean
     public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
         RabbitAdmin admin = new RabbitAdmin(connectionFactory);
         admin.setAutoStartup(true);
         return admin;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // --- CẤU HÌNH NOTIFICATION ---
+    // ════════════════════════════════════════════════════════════════
+    public static final String NOTIFICATION_QUEUE = "notification_queue";
+    public static final String NOTIFICATION_EXCHANGE = "notification_exchange";
+    public static final String NOTIFICATION_ROUTING_KEY = "notification_routing_key";
+
+    @Bean
+    public Queue notificationQueue() {
+        return new Queue(NOTIFICATION_QUEUE, true);
+    }
+
+    @Bean
+    public DirectExchange notificationExchange() {
+        return new DirectExchange(NOTIFICATION_EXCHANGE);
+    }
+
+    @Bean
+    public Binding notificationBinding() {
+        return BindingBuilder.bind(notificationQueue())
+                .to(notificationExchange())
+                .with(NOTIFICATION_ROUTING_KEY);
     }
 }

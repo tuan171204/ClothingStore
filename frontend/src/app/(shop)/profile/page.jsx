@@ -203,7 +203,7 @@ export default function ProfilePage() {
 
     return (
         <div className="bg-white min-h-screen py-12 font-sans border-t border-gray-100">
-            <div className="container mx-auto px-4 max-w-6xl flex flex-col md:flex-row gap-10 mt-16 md:mt-20">
+            <div className="container mx-auto px-4 max-w-7xl flex flex-col md:flex-row gap-10 mt-16 md:mt-20">
 
                 {/* ─── SIDEBAR ──────────────────────────────────── */}
                 <div className="w-full md:w-1/4 shrink-0">

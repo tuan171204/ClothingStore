@@ -19,19 +19,19 @@ public class OrderProducer {
 
         // Gửi tin nhắn vào Exchange, kèm theo Routing Key
         rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.ROUTING_KEY,
+                RabbitMQConfig.ORDER_EXCHANGE,
+                RabbitMQConfig.ORDER_ROUTING_KEY,
                 message
         );
     }
 
     public void sendOrderDelivered(Long orderId) {
         OrderMessage message = new OrderMessage(orderId, "DELIVERED");
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ROUTING_KEY, message);
+        rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_EXCHANGE, RabbitMQConfig.ORDER_ROUTING_KEY, message);
     }
 
     public void sendOrderCancelled(Long orderId) {
         OrderMessage message = new OrderMessage(orderId, "CANCELLED");
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ROUTING_KEY, message);
+        rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_EXCHANGE, RabbitMQConfig.ORDER_ROUTING_KEY, message);
     }
 }

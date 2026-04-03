@@ -17,7 +17,7 @@ public class OrderConsumer {
     private final MailService mailService;
 
     // Lắng nghe hàng đợi "order_email_queue"
-    @RabbitListener(queues = RabbitMQConfig.QUEUE_NAME)
+    @RabbitListener(queues = RabbitMQConfig.ORDER_QUEUE)
     public void consumeMessage(OrderMessage message) {
         System.out.println("📩 [CONSUMER] Đã nhận tin nhắn từ RabbitMQ: " + message);
 

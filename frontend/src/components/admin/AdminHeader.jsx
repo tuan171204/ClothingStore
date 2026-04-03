@@ -7,6 +7,7 @@ import {
     Bell, Search, UserCircle, LayoutDashboard, Package,
     ShoppingCart, FolderTree, Tag, Inbox, Archive, Star
 } from 'lucide-react';
+import NotificationBell from '@/components/admin/NotificationBell';
 
 // Danh sách các chức năng để Search
 const searchableFeatures = [
@@ -56,7 +57,7 @@ export default function AdminHeader() {
 
             {/* Khối Search */}
             <div className="relative z-50" ref={searchRef}>
-                <div className={`flex items-center bg-gray-100 px-4 py-2.5 rounded-xl w-80 transition-all border
+                <div className={`flex items-center bg-gray-100 px-4 py-2.5 rounded-xl w-100 transition-all border
                     ${showDropdown && searchTerm ? 'border-blue-500 bg-white ring-4 ring-blue-500/10' : 'border-transparent focus-within:border-blue-500 focus-within:bg-white'}
                 `}>
                     <Search size={18} className="text-gray-400 shrink-0" />
@@ -69,7 +70,7 @@ export default function AdminHeader() {
                             setShowDropdown(true);
                         }}
                         onFocus={() => setShowDropdown(true)}
-                        className="bg-transparent border-none outline-none ml-3 w-full text-sm text-gray-700 placeholder-gray-400 font-medium"
+                        className="bg-transparent border-none outline-none ml-3 w-full text-md text-gray-700 placeholder-gray-400 font-medium"
                     />
                 </div>
 
@@ -83,7 +84,7 @@ export default function AdminHeader() {
                                     <button
                                         key={index}
                                         onClick={() => handleSelectFeature(feature.href)}
-                                        className="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-sm text-gray-600 hover:text-blue-700 font-medium transition-colors cursor-pointer group"
+                                        className="w-full text-left px-4 py-3 hover:bg-blue-50/50 flex items-center gap-3 text-md text-gray-600 hover:text-blue-700 font-medium transition-colors cursor-pointer group"
                                     >
                                         <Icon size={18} className="text-gray-400 group-hover:text-blue-600 transition-colors" />
                                         {feature.label}
@@ -91,7 +92,7 @@ export default function AdminHeader() {
                                 );
                             })
                         ) : (
-                            <div className="px-4 py-4 text-sm text-gray-500 text-center flex flex-col items-center gap-2">
+                            <div className="px-4 py-4 text-md text-gray-500 text-center flex flex-col items-center gap-2">
                                 <Search size={24} className="text-gray-300" />
                                 Không tìm thấy chức năng nào
                             </div>
@@ -102,19 +103,16 @@ export default function AdminHeader() {
 
             {/* Khối bên phải: Notification & User Info */}
             <div className="flex items-center gap-5">
-                <button className="text-gray-500 hover:text-gray-900 relative transition-colors cursor-pointer">
-                    <Bell size={22} />
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                </button>
+                <NotificationBell />
 
                 <div className="h-7 w-px bg-gray-200"></div>
 
                 <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1.5 pr-2 rounded-xl transition-colors">
                     <div className="text-right hidden sm:block">
-                        <p className="text-sm font-bold text-gray-900 leading-none mb-1">
+                        <p className="text-md font-bold text-gray-900 leading-none mb-1">
                             {adminUser?.fullName || 'Administrator'}
                         </p>
-                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider leading-none">
+                        <p className="text-[14px] text-gray-500 font-bold uppercase tracking-wider leading-none">
                             {adminUser?.role?.name || 'ADMIN'}
                         </p>
                     </div>

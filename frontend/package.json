@@ -12,6 +12,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.8",
+    "@stomp/stompjs": "^7.3.0",
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.563.0",
@@ -20,6 +21,7 @@
     "react-datepicker": "^9.1.0",
     "react-dom": "19.2.3",
     "react-toastify": "^11.0.5",
+    "sockjs-client": "^1.6.1",
     "swiper": "^12.1.2"
   },
   "devDependencies": {
