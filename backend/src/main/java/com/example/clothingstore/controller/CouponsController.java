@@ -1,5 +1,6 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dtos.coupon.request.CouponProductMappingRequest;
 import com.example.clothingstore.dtos.coupon.request.CouponRequest;
 import com.example.clothingstore.dtos.coupon.request.ApplyCouponRequest;
 import com.example.clothingstore.dtos.coupon.response.CouponResponse;
@@ -76,5 +77,16 @@ public class CouponsController {
     @GetMapping("/validate/{code}")
     public ResponseEntity<CouponResponse> validateCoupon(@PathVariable String code) {
         return ResponseEntity.ok(couponsService.validateCouponCode(code));
+    }
+
+    /**
+     * PUT /coupons/{id}/products
+     * Replaces the full set of products linked to this PRODUCT-type coupon.
+     */
+    @PutMapping("/{id}/products")
+    public ResponseEntity<CouponResponse> updateCouponProducts(
+            @PathVariable Long id,
+            @RequestBody CouponProductMappingRequest request) {
+        return ResponseEntity.ok(couponsService.updateCouponProducts(id, request.productIds()));
     }
 }

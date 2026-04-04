@@ -9,6 +9,7 @@ import com.example.clothingstore.entity.Enum.ApplyType;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 public interface CouponsService {
 
@@ -47,4 +48,6 @@ public interface CouponsService {
      * Called internally at order confirmation to increment the usedCount.
      */
     void markCouponUsed(String code);
+
+    CouponResponse updateCouponProducts(Long couponId, Set<Long> productIds);
 }

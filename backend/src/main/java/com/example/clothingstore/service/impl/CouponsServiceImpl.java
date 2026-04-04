@@ -8,9 +8,11 @@ import com.example.clothingstore.dtos.coupon.response.CouponResponse;
 import com.example.clothingstore.entity.Coupon;
 import com.example.clothingstore.entity.Enum.ApplyType;
 import com.example.clothingstore.entity.Enum.DiscountType;
+import com.example.clothingstore.entity.Product;
 import com.example.clothingstore.exception.AppException;
 import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.repository.CouponsRepository;
+import com.example.clothingstore.repository.ProductRepository;
 import com.example.clothingstore.service.CouponsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +32,7 @@ import java.util.stream.Collectors;
 public class CouponsServiceImpl implements CouponsService {
 
     private final CouponsRepository couponsRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public List<CouponResponse> getAllCoupons(ApplyType applyType, Boolean isActive,
@@ -87,6 +90,25 @@ public class CouponsServiceImpl implements CouponsService {
         coupon.setStartDate(request.getStartDate());
         coupon.setEndDate(request.getEndDate());
         coupon.setActive(request.isActive());
+        return toResponse(couponsRepository.save(coupon));
+    }
+
+    @Override
+    @Transactional
+    public CouponResponse updateCouponProducts(Long couponId, Set<Long> productIds) {
+        Coupon coupon = couponsRepository.findById(couponId)
+                .orElseThrow(() -> new AppException(ErrorCode.COUPON_NOT_FOUND));
+
+        if (coupon.getApplyType() != ApplyType.PRODUCT) {
+            throw new AppException(ErrorCode.INVALID_DATA);
+        }
+
+        // Fetch product references — only need proxies for the join table
+        Set<Product> products = productIds.stream()
+                .map(id -> productRepository.getReferenceById(id))
+                .collect(Collectors.toSet());
+
+        coupon.setProducts(products);
         return toResponse(couponsRepository.save(coupon));
     }
 
