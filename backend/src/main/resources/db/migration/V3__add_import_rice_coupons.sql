@@ -23,8 +23,10 @@ CREATE TABLE coupons (
     used_count INT DEFAULT 0,
     start_date DATETIME,
     end_date DATETIME,
-    is_active BOOLEAN DEFAULT TRUE
+    is_active BOOLEAN DEFAULT TRUE,
+    version BIGINT DEFAULT 0
 );
+
 
 CREATE TABLE coupon_product (
     coupon_id BIGINT NOT NULL,

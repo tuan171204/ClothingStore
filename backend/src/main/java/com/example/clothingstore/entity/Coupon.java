@@ -57,6 +57,9 @@ public class Coupon {
     @Column(name = "is_active")
     private boolean isActive;
 
+    @Version
+    private Long version;
+
     // Quan hệ Many-to-Many với Product
     @ManyToMany
     @JoinTable(

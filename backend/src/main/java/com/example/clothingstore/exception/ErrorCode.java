@@ -42,6 +42,7 @@ public enum ErrorCode {
     //nhom 60: Module Coupons
     COUPON_NOT_FOUND(6001, "Không tìm thấy mã giảm giá", HttpStatus.NOT_FOUND),
     COUPON_CODE_ALREADY_EXISTS(6002, "Mã giảm giá đã tồn tại", HttpStatus.BAD_REQUEST),
+    COUPON_CODE_OUT_OF_STOCK(6003, "Mã giảm giá đã hết lượt sử dụng", HttpStatus.BAD_REQUEST),
 
     // Nhóm 70: Module Order — MÃ LỖI MỚI
 

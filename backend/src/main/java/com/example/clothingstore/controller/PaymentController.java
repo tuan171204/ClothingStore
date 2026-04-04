@@ -1,7 +1,9 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dtos.order.response.OrderResponse;
 import com.example.clothingstore.dtos.payment.response.VnPayResponse;
 import com.example.clothingstore.entity.Enum.OrderStatus;
+import com.example.clothingstore.entity.Order;
 import com.example.clothingstore.service.impl.OrderService;
 import com.example.clothingstore.service.impl.VnPayService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,11 +26,20 @@ public class PaymentController {
     @GetMapping("/create-payment")
     public ResponseEntity<String> createPayment(
             HttpServletRequest request,
-            @RequestParam("amount") long amount,
+            @RequestParam("amount") long amount, // fake params
             @RequestParam("orderId") Long orderId
     ) {
         try {
-            String paymentUrl = vnPayService.createPaymentUrl(request, amount, "NCB", orderId);
+            OrderResponse orderResponse = orderService.getOrderById(orderId);
+
+            if (orderResponse.getStatus() != OrderStatus.PENDING) {
+                return ResponseEntity.badRequest().body("Đơn hàng không ở trạng thái chờ thanh toán");
+            }
+
+            // 2. Lấy số tiền CHÍNH XÁC từ Database
+            long exactAmount = orderResponse.getTotalAmount().longValue();
+
+            String paymentUrl = vnPayService.createPaymentUrl(request, exactAmount, "NCB", orderId);
             return ResponseEntity.ok(paymentUrl);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi tạo thanh toán: " + e.getMessage());

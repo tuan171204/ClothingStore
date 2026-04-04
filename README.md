@@ -247,11 +247,11 @@ Dự án được phát triển theo phương pháp Agile Scrum trong **10 Sprin
 | Sprint 1 | Core System Setup (Spring Boot, MySQL, Next.js, CI/CD, Docker) | ✅ Done |
 | Sprint 2 | Authentication & User Management (JWT, RBAC, Address) | ✅ Done |
 | Sprint 3 | Product Management (Category, Brand, SKU, Search & Filter) | ✅ Done |
-| Sprint 4 | Inventory Management (GRN, QC, Stock Tracking) | 📋 To Do |
-| Sprint 5 | Shopping Cart & Storefront (Homepage, PLP, PDP, Mobile) | 🔄 In Progress |
-| Sprint 6 | Order Management (State Machine, Order Lifecycle, Email) | 🔄 In Progress |
-| Sprint 7 | Payment Integration (VNPay, COD, Transaction Log) | 🔄 In Progress |
-| Sprint 8 | Logistics Integration (GHN, Touchless Fulfillment, Webhook) | 🔄 In Progress |
+| Sprint 4 | Inventory Management (GRN, QC, Stock Tracking) | ✅ Done |
+| Sprint 5 | Shopping Cart & Storefront (Homepage, PLP, PDP, Mobile) | ✅ Done |
+| Sprint 6 | Order Management (State Machine, Order Lifecycle, Email) | ✅ Done |
+| Sprint 7 | Payment Integration (VNPay, COD, Transaction Log) | ✅ Done |
+| Sprint 8 | Logistics Integration (GHN, Touchless Fulfillment, Webhook) | ✅ Done |
 | Sprint 9 | Admin Portal & Marketing (Dashboard, Coupon, Flash Sale) | 📋 To Do |
 | Sprint 10 | Testing, Optimization & Deployment | 📋 To Do |
 

@@ -1,13 +1,18 @@
 package com.example.clothingstore.service.impl;
 
+import com.example.clothingstore.dtos.coupon.request.ApplyCouponRequest;
+import com.example.clothingstore.dtos.coupon.response.ApplyCouponResponse;
 import com.example.clothingstore.dtos.order.request.CheckoutRequest;
 import com.example.clothingstore.dtos.order.response.CheckoutResponse;
 import com.example.clothingstore.dtos.order.response.CheckoutResponse.StockMismatch;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.entity.Enum.OrderStatus;
+import com.example.clothingstore.exception.AppException;
+import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.exception.StockException;
 import com.example.clothingstore.repository.*;
 import com.example.clothingstore.service.CartService;
+import com.example.clothingstore.service.CouponsService;
 import com.example.clothingstore.service.rabbitmq.NotificationProducer;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import jakarta.persistence.OptimisticLockException;
@@ -47,6 +52,7 @@ public class CheckoutService {
     private final CartService           cartService;
     private final OrderService          orderService; // Dùng để gọi autoConfirmAndShip
     private final NotificationProducer notificationProducer;
+    private final CouponsService couponsService;
 
     private static final int MAX_RETRY = 3;
 
@@ -133,6 +139,43 @@ public class CheckoutService {
                 .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        BigDecimal discountAmount = BigDecimal.ZERO;
+
+        // --- LOGIC COUPON  ---
+        if (request.getCouponCode() != null && !request.getCouponCode().trim().isEmpty()) {
+            // Build request để gọi applyCoupon
+            ApplyCouponRequest applyReq = new ApplyCouponRequest();
+            applyReq.setCode(request.getCouponCode());
+            applyReq.setOrderTotal(subtotal);
+
+            // Map items từ giỏ hàng sang dạng Coupon cần kiểm tra
+            List<ApplyCouponRequest.CartItemRef> cartItemRefs = request.getItems().stream().map(item -> {
+                ApplyCouponRequest.CartItemRef ref = new ApplyCouponRequest.CartItemRef();
+                Inventory inv = inventoryMap.get(item.getSkuId());
+                ref.setSkuId(item.getSkuId());
+                ref.setProductId(inv.getSku().getProduct().getId());
+                ref.setQuantity(item.getQuantity());
+                ref.setPrice(item.getPrice());
+                return ref;
+            }).collect(Collectors.toList());
+            applyReq.setCartItems(cartItemRefs);
+
+            // Gọi service tính toán
+            ApplyCouponResponse couponResp = couponsService.applyCoupon(applyReq);
+
+            if (!couponResp.isValid()) {
+                // Ném lỗi ngay lập tức để rollback Transaction, không trừ kho nữa
+                throw new AppException(ErrorCode.COUPON_CODE_OUT_OF_STOCK);
+            }
+
+            discountAmount = couponResp.getDiscountAmount();
+
+            couponsService.markCouponUsed(request.getCouponCode());
+        }
+        // --- LOGIC COUPON KẾT THÚC ---
+
+        BigDecimal finalTotal = subtotal.subtract(discountAmount).add(request.getShippingFee());
+
         Order order = Order.builder()
                 .userId(user.getId())
                 .fullName(request.getFullName())
@@ -144,8 +187,8 @@ public class CheckoutService {
                 .note(request.getNote())
                 .shippingFee(request.getShippingFee())
                 .subtotal(subtotal)
-                .totalAmount(subtotal.add(request.getShippingFee()))
-                .discountAmount(BigDecimal.ZERO)
+                .totalAmount(finalTotal)
+                .discountAmount(discountAmount)
                 .paymentMethod(request.getPaymentMethod())
                 .status(OrderStatus.PENDING)
                 .build();

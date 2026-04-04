@@ -37,3 +37,7 @@ ALTER TABLE orders
 -- 4. Index để Admin lọc đơn theo trạng thái mới nhanh hơn
 CREATE INDEX idx_orders_status ON orders (status);
 CREATE INDEX idx_orders_return_requested_at ON orders (return_requested_at);
+CREATE INDEX idx_orders_created_at ON orders (created_at);
+
+CREATE INDEX idx_order_items_sku_id ON order_items (sku_id);
+CREATE INDEX idx_orders_status_created_at ON orders (status, created_at);
