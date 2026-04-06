@@ -79,4 +79,22 @@ public class RabbitMQConfig {
                 .to(notificationExchange())
                 .with(NOTIFICATION_ROUTING_KEY);
     }
+
+    // ════════════════════════════════════════════════════════════════
+    // --- CẤU HÌNH FLASH SALES ---
+    // ════════════════════════════════════════════════════════════════
+    public static final String FS_SYNC_QUEUE = "flash_sale_sync_queue";
+    public static final String FS_SYNC_EXCHANGE = "flash_sale_sync_exchange";
+    public static final String FS_SYNC_ROUTING_KEY = "flash_sale_sync_routing_key";
+
+    @Bean
+    public Queue fsSyncQueue() { return new Queue(FS_SYNC_QUEUE, true); }
+
+    @Bean
+    public DirectExchange fsSyncExchange() { return new DirectExchange(FS_SYNC_EXCHANGE); }
+
+    @Bean
+    public Binding fsSyncBinding() {
+        return BindingBuilder.bind(fsSyncQueue()).to(fsSyncExchange()).with(FS_SYNC_ROUTING_KEY);
+    }
 }

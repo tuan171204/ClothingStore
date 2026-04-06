@@ -10,4 +10,5 @@ public interface FlashSaleService {
     FlashSaleResponse create(FlashSaleRequest request);
     FlashSaleResponse update(Long id, FlashSaleRequest request);
     void delete(Long id);
+    FlashSaleResponse getCurrentActive();
 }

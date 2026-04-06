@@ -19,6 +19,20 @@ public class FlashSaleController {
     private final FlashSaleService flashSaleService;
 
     /**
+     * GET /flash-sales/current-active
+     * Trả về chiến dịch Flash Sale đang diễn ra (Real-time stock từ Redis)
+     * API này PUBLIC cho mọi người dùng
+     */
+    @GetMapping("/current-active")
+    public ResponseEntity<FlashSaleResponse> getCurrentActive() {
+        FlashSaleResponse currentActive = flashSaleService.getCurrentActive();
+        if (currentActive == null) {
+            return ResponseEntity.noContent().build(); // Trả về 204 nếu không có Sale
+        }
+        return ResponseEntity.ok(currentActive);
+    }
+
+    /**
      * GET /flash-sales?keyword=black&page=0&size=10
      * Returns paginated list for Admin management table.
      */

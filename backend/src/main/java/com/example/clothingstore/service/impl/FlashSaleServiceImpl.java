@@ -31,6 +31,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private final FlashSaleRepository flashSaleRepository;
     private final FlashSaleItemRepository flashSaleItemRepository;
     private final SkuRepository skuRepository;
+    private final FlashSaleRedisService flashSaleRedisService;
 
     // ── READ ──────────────────────────────────────────────────────
 
@@ -72,13 +73,14 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .items(new ArrayList<>())
                 .build();
 
+        if (request.items() != null) {
+            List<FlashSaleItem> items = buildItems(request.items(), sale);
+            sale.setItems(items);
+        }
+
         FlashSale saved = flashSaleRepository.save(sale);
 
-        if (request.items() != null) {
-            List<FlashSaleItem> items = buildItems(request.items(), saved);
-            saved.setItems(items);
-            flashSaleRepository.save(saved); // cascade saves items
-        }
+        flashSaleRedisService.syncFlashSaleToRedis(saved);
 
         return toResponse(saved);
     }
@@ -97,21 +99,25 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         FlashSale sale = findOrThrow(id);
         validateDates(request.startTime(), request.endTime());
 
+        // 🔥 XÓA REDIS CŨ TRƯỚC KHI CẬP NHẬT
+        flashSaleRedisService.clearFlashSaleFromRedis(sale);
+
         sale.setName(request.name());
         sale.setStartTime(request.startTime());
         sale.setEndTime(request.endTime());
         sale.setActive(request.isActive());
 
-        // Clear and rebuild items (orphanRemoval = true handles the DELETE)
         sale.getItems().clear();
-        flashSaleRepository.save(sale); // flush clears
-
         if (request.items() != null) {
             List<FlashSaleItem> newItems = buildItems(request.items(), sale);
             sale.getItems().addAll(newItems);
         }
 
-        return toResponse(flashSaleRepository.save(sale));
+        FlashSale saved = flashSaleRepository.save(sale);
+
+        flashSaleRedisService.syncFlashSaleToRedis(saved);
+
+        return toResponse(saved);
     }
 
     // ── DELETE ────────────────────────────────────────────────────
@@ -122,7 +128,47 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (!flashSaleRepository.existsById(id)) {
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
+
+        FlashSale sale = findOrThrow(id);
+        flashSaleRedisService.clearFlashSaleFromRedis(sale);
+
         flashSaleRepository.deleteById(id); // cascade deletes items
+    }
+
+    @Override
+    public FlashSaleResponse getCurrentActive() {
+        LocalDateTime now = LocalDateTime.now();
+        // Lấy chiến dịch đang chạy đầu tiên
+        FlashSale currentSale = flashSaleRepository.findCurrentActiveSales(now)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        if (currentSale == null) {
+            return null; // Không có Flash Sale nào đang chạy
+        }
+
+        // Chuyển sang DTO và override lại tồn kho Real-time từ Redis
+        FlashSaleResponse baseResponse = toResponse(currentSale);
+
+        List<FlashSaleResponse.FlashSaleItemResponse> realTimeItems = baseResponse.items().stream()
+                .map(item -> {
+                    // Gọi Redis lấy số lượng còn lại chính xác từng mili-giây
+                    Integer realRemaining = flashSaleRedisService.getRealTimeRemainingStock(currentSale.getId(), item.skuId());
+                    int finalRemaining = realRemaining != null ? realRemaining : item.remainingQuantity();
+
+                    return new FlashSaleResponse.FlashSaleItemResponse(
+                            item.id(), item.skuId(), item.productId(), item.skuCode(), item.productName(), item.variantName(),
+                            item.thumbnailUrl(), item.originalPrice(), item.promotionalPrice(),
+                            item.totalQuantity(), item.totalQuantity() - finalRemaining, finalRemaining
+                    );
+                })
+                .collect(Collectors.toList());
+
+        return new FlashSaleResponse(
+                baseResponse.id(), baseResponse.name(), baseResponse.startTime(),
+                baseResponse.endTime(), baseResponse.isActive(), baseResponse.status(), realTimeItems
+        );
     }
 
     // ── PRIVATE HELPERS ───────────────────────────────────────────
@@ -181,6 +227,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                     return new FlashSaleResponse.FlashSaleItemResponse(
                             item.getId(),
                             sku.getId(),
+                            sku.getProduct() != null ? sku.getProduct().getId() : null,
                             sku.getCode(),
                             productName,
                             variantName,

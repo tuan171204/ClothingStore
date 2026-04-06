@@ -5,7 +5,11 @@ import ProductCard from '@/components/shop/ProductCard';
 import { getProductsWithFilter } from '@/services/productService';
 import { getCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';
-import { Filter, ChevronLeft, ChevronRight, Search, ArrowDown } from 'lucide-react';
+import { Filter, ChevronLeft, ChevronRight, Search, ArrowDown, Zap } from 'lucide-react';
+import axios from '@/lib/axios';
+import CountdownTimer from '@/components/shop/CountdownTimer';
+import FlashSaleProgressBar from '@/components/shop/FlashSaleProgressBar';
+import Link from 'next/link';
 
 export default function HomePage() {
     const [products, setProducts] = useState([]);
@@ -15,6 +19,8 @@ export default function HomePage() {
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
     const [page, setPage] = useState(0);
+
+    const [flashSale, setFlashSale] = useState(null);
 
     const [filters, setFilters] = useState({
         keyword: '',
@@ -65,6 +71,22 @@ export default function HomePage() {
 
         fetchProducts();
     }, [filters, page]);
+
+    useEffect(() => {
+        const fetchFlashSale = async () => {
+            try {
+                const res = await axios.get('/flash-sales/current-active');
+                if (res.status === 200 && res.data) {
+                    setFlashSale(res.data);
+                } else {
+                    setFlashSale(null);
+                }
+            } catch (error) {
+                console.error("No active flash sale or error", error);
+            }
+        };
+        fetchFlashSale();
+    }, []);
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
@@ -156,6 +178,89 @@ export default function HomePage() {
                     </button>
                 </div>
             </section>
+
+            {flashSale && (
+                <div className="w-full bg-linear-to-r from-red-50 to-orange-50 py-12 border-y border-red-100 overflow-hidden">
+                    <div className="container mx-auto px-4">
+                        {/* Header Flash Sale */}
+                        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Zap className="text-red-600 animate-pulse" fill="currentColor" size={32} />
+                                    <h2 className="text-3xl md:text-4xl font-black text-red-600 tracking-tight uppercase italic drop-shadow-sm">
+                                        {flashSale.name}
+                                    </h2>
+                                </div>
+                                <p className="text-red-800/80 font-semibold text-md ml-1">Nhanh tay chốt đơn, số lượng có hạn!</p>
+                            </div>
+
+                            {/* Widget Đếm ngược */}
+                            <div className="bg-white/80 backdrop-blur-md px-6 py-3 rounded-2xl shadow-sm border border-red-200 flex items-center gap-4 shrink-0">
+                                <span className="font-bold text-gray-800 uppercase text-md tracking-wider">Kết thúc trong</span>
+                                <CountdownTimer
+                                    endTime={flashSale.endTime}
+                                    onExpire={() => setFlashSale(null)} // Hết giờ tự động ẩn section
+                                />
+                            </div>
+                        </div>
+
+                        {/* Danh sách thẻ Flash Sale */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {flashSale.items.map(item => {
+                                // Tính % giảm giá
+                                const discountPct = Math.round(((item.originalPrice - item.promotionalPrice) / item.originalPrice) * 100);
+
+                                return (
+                                    <Link href={`/products/${item.productId}`} key={item.id} className="group bg-white rounded-2xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 border border-red-100 flex flex-col relative cursor-pointer">
+
+                                        {/* Badge % Giảm */}
+                                        <div className="absolute top-2 right-2 bg-red-600 text-white text-sm font-black px-2 py-1 rounded-lg z-10">
+                                            -{discountPct}%
+                                        </div>
+
+                                        {/* Thumbnail */}
+                                        <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3 relative">
+                                            <img
+                                                src={item.thumbnailUrl || 'https://placehold.co/400?text=No+Image'}
+                                                alt={item.productName}
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            />
+                                            {/* Overlay nếu hết hàng */}
+                                            {item.remainingQuantity === 0 && (
+                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px]">
+                                                    <span className="bg-white text-black px-3 py-1 rounded-full font-bold text-sm uppercase tracking-widest">Hết hàng</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1 flex flex-col">
+                                            <h3 className="font-bold text-gray-900 text-md line-clamp-2 leading-snug group-hover:text-red-600 transition-colors">
+                                                {item.productName}
+                                            </h3>
+                                            <p className="text-sm text-gray-500 mt-1 truncate">{item.variantName}</p>
+
+                                            <div className="mt-auto pt-3">
+                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                    <span className="font-black text-red-600 text-xl">
+                                                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.promotionalPrice)}
+                                                    </span>
+                                                    <span className="text-sm text-gray-400 line-through font-medium">
+                                                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.originalPrice)}
+                                                    </span>
+                                                </div>
+
+                                                {/* Gọi Component Thanh Progress Bar cháy hàng */}
+                                                <FlashSaleProgressBar total={item.totalQuantity} sold={item.soldQuantity} />
+                                            </div>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ================= KHU VỰC SẢN PHẨM ================= */}
             {/* Đặt ID ở đây để scroll từ Header hoặc Hero button */}

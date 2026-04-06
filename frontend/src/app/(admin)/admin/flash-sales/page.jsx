@@ -6,18 +6,15 @@ import {
     Clock, Package, ChevronLeft, ChevronRight, CheckCircle, AlertCircle,
     Calendar, Tag, Loader2, Save
 } from 'lucide-react';
+import {
+    getFlashSalesPaged,
+    getFlashSaleById,
+    createFlashSale,
+    updateFlashSale,
+    deleteFlashSale
+} from '@/services/flashSaleService';
 import { toast } from 'react-toastify';
-import axios from '@/lib/axios';
-
-// ─── API helpers ─────────────────────────────────────────────────
-const api = {
-    listSales: (p) => axios.get('/flash-sales', { params: p }).then(r => r.data),
-    getSale: (id) => axios.get(`/flash-sales/${id}`).then(r => r.data),
-    createSale: (d) => axios.post('/flash-sales', d).then(r => r.data),
-    updateSale: (id, d) => axios.put(`/flash-sales/${id}`, d).then(r => r.data),
-    deleteSale: (id) => axios.delete(`/flash-sales/${id}`),
-    searchSkus: (kw) => axios.get('/products/filter', { params: { keyword: kw, limit: 20, page: 0 } }).then(r => r.data),
-};
+import SkuPickerModal from '@/components/admin/SkuPickerModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 const fmt = (n) => n != null ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n) : '—';
@@ -30,107 +27,6 @@ const STATUS_STYLES = {
     ACTIVE: 'bg-green-100 text-green-800',
     ENDED: 'bg-gray-100 text-gray-600',
 };
-
-// ─── SKU Picker Modal ─────────────────────────────────────────────
-function SkuPickerModal({ onClose, onSelect, alreadySelected }) {
-    const [keyword, setKeyword] = useState('');
-    const [results, setResults] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const debounce = useRef(null);
-
-    const search = useCallback(async (kw) => {
-        if (!kw.trim()) { setResults([]); return; }
-        setLoading(true);
-        try {
-            const data = await api.searchSkus(kw);
-            // Flatten products → skus for the picker
-            const skus = [];
-            (data.products || []).forEach(p => {
-                (p.skus || []).forEach(s => {
-                    if (s.isActive !== false) {
-                        skus.push({
-                            skuId: s.id,
-                            skuCode: s.code,
-                            productName: p.name,
-                            variantName: s.skuName || s.code,
-                            price: s.price,
-                            thumbnail: s.imgUrl || p.thumbnail,
-                        });
-                    }
-                });
-            });
-            setResults(skus);
-        } catch { toast.error('Không tìm được SKU'); }
-        finally { setLoading(false); }
-    }, []);
-
-    useEffect(() => {
-        clearTimeout(debounce.current);
-        debounce.current = setTimeout(() => search(keyword), 350);
-        return () => clearTimeout(debounce.current);
-    }, [keyword, search]);
-
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50 shrink-0">
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                        <Package size={16} /> Chọn SKU
-                    </h3>
-                    <button onClick={onClose} className="p-1.5 hover:bg-gray-200 rounded-full cursor-pointer">
-                        <X size={16} />
-                    </button>
-                </div>
-                <div className="px-4 py-3 border-b shrink-0">
-                    <div className="relative">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            autoFocus
-                            value={keyword}
-                            onChange={e => setKeyword(e.target.value)}
-                            placeholder="Tìm theo tên sản phẩm..."
-                            className="w-full pl-9 pr-4 py-2 text-md border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        />
-                    </div>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-                    {loading ? (
-                        <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin text-orange-400" /></div>
-                    ) : results.length === 0 ? (
-                        <p className="text-center text-md text-gray-400 py-8">
-                            {keyword ? 'Không tìm thấy kết quả' : 'Nhập tên sản phẩm để tìm kiếm'}
-                        </p>
-                    ) : results.map(sku => {
-                        const already = alreadySelected.has(sku.skuId);
-                        return (
-                            <button
-                                key={sku.skuId}
-                                disabled={already}
-                                onClick={() => { onSelect(sku); onClose(); }}
-                                className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all
-                                    ${already
-                                        ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
-                                        : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50 cursor-pointer'
-                                    }`}
-                            >
-                                <div className="w-10 h-10 rounded-lg bg-gray-50 border overflow-hidden shrink-0 flex items-center justify-center">
-                                    {sku.thumbnail
-                                        ? <img src={sku.thumbnail} alt="" className="w-full h-full object-cover" />
-                                        : <Package size={16} className="text-gray-300" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-md font-semibold text-gray-900 truncate">{sku.productName}</p>
-                                    <p className="text-sm text-gray-500">{sku.variantName} · {fmt(sku.price)}</p>
-                                </div>
-                                {already && <span className="text-sm text-gray-400 shrink-0">Đã thêm</span>}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-    );
-}
 
 // ─── Flash Sale Form Modal ────────────────────────────────────────
 function FlashSaleFormModal({ sale, onClose, onSaved }) {
@@ -156,19 +52,21 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
 
     const alreadySelected = new Set(form.items.map(i => i.skuId));
 
-    const addSku = (sku) => {
+    const handleAddSelectedSkus = (newSkusArray) => {
+        const formattedItems = newSkusArray.map(sku => ({
+            skuId: sku.skuId,
+            skuCode: sku.skuCode,
+            productName: sku.productName,
+            variantName: sku.variantName,
+            thumbnail: sku.thumbnail,
+            originalPrice: sku.price,
+            promotionalPrice: '',
+            totalQuantity: '',
+        }));
+
         setForm(prev => ({
             ...prev,
-            items: [...prev.items, {
-                skuId: sku.skuId,
-                skuCode: sku.skuCode,
-                productName: sku.productName,
-                variantName: sku.variantName,
-                thumbnail: sku.thumbnail,
-                originalPrice: sku.price,
-                promotionalPrice: '',
-                totalQuantity: '',
-            }],
+            items: [...prev.items, ...formattedItems],
         }));
     };
 
@@ -216,10 +114,10 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
             };
 
             if (isEdit) {
-                await api.updateSale(sale.id, payload);
+                await updateFlashSale(sale.id, payload);
                 toast.success('Cập nhật Flash Sale thành công!');
             } else {
-                await api.createSale(payload);
+                await createFlashSale(payload);
                 toast.success('Tạo Flash Sale thành công!');
             }
             onSaved();
@@ -352,7 +250,7 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
 
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <div>
-                                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                                                            <label className="block text-[14px] font-bold text-gray-500 uppercase mb-1">
                                                                 Giá KM (đ) *
                                                             </label>
                                                             <input
@@ -364,13 +262,13 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                                                 className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-md focus:outline-none focus:ring-1 focus:ring-orange-400"
                                                             />
                                                             {saving !== null && (
-                                                                <p className="text-[10px] text-orange-600 font-bold mt-0.5">
+                                                                <p className="text-[14px] text-orange-600 font-bold mt-0.5">
                                                                     Giảm {saving}% so với giá gốc
                                                                 </p>
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                                                            <label className="block text-[14px] font-bold text-gray-500 uppercase mb-1">
                                                                 Số lượng *
                                                             </label>
                                                             <input
@@ -424,8 +322,8 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
 
             {showPicker && (
                 <SkuPickerModal
-                    alreadySelected={alreadySelected}
-                    onSelect={addSku}
+                    alreadySelectedIds={alreadySelected}
+                    onSave={handleAddSelectedSkus}
                     onClose={() => setShowPicker(false)}
                 />
             )}
@@ -447,7 +345,7 @@ export default function FlashSalesPage() {
     const load = useCallback(async (pg = 0) => {
         setLoading(true);
         try {
-            const res = await api.listSales({ keyword: keyword || undefined, page: pg, size: PAGE_SIZE });
+            const res = await getFlashSalesPaged({ keyword, page: pg, size: PAGE_SIZE })
             setData(res);
         } catch { toast.error('Không thể tải danh sách Flash Sale'); }
         finally { setLoading(false); }
@@ -464,7 +362,7 @@ export default function FlashSalesPage() {
     const handleDelete = async (id, name) => {
         if (!window.confirm(`Xóa Flash Sale "${name}"?`)) return;
         try {
-            await api.deleteSale(id);
+            await deleteFlashSale(id)
             toast.success('Đã xóa!');
             load(page);
         } catch { toast.error('Không thể xóa. Kiểm tra lại.'); }
@@ -472,7 +370,7 @@ export default function FlashSalesPage() {
 
     const openEdit = async (id) => {
         try {
-            const detail = await api.getSale(id);
+            const detail = await getFlashSaleById(id)
             setFormTarget(detail);
         } catch { toast.error('Không thể tải chi tiết'); }
     };
@@ -574,7 +472,7 @@ export default function FlashSalesPage() {
                                                                 : 'Đã kết thúc'}
                                                     </span>
                                                     {!sale.isActive && (
-                                                        <span className="text-[10px] text-gray-400">Đã tắt</span>
+                                                        <span className="text-[14px] text-gray-400">Đã tắt</span>
                                                     )}
                                                 </div>
                                             </td>

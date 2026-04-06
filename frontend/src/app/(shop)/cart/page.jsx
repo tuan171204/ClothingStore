@@ -170,9 +170,16 @@ export default function CartPage() {
                                         </div>
 
                                         {/* Giá */}
-                                        <div className="col-span-2 text-center text-blue-600 
-                                                        font-bold text-lg hidden md:block">
-                                            {formatCurrency(item.price)}
+                                        <div className="col-span-2 flex flex-col items-end">
+                                            <span className="font-bold text-red-600 text-lg">
+                                                {formatCurrency(item.price)}
+                                            </span>
+                                            {/* So sánh nếu giá gốc lớn hơn giá hiện tại (đang có Flash Sale) thì hiện gạch ngang */}
+                                            {item.originalPrice && item.originalPrice > item.price && (
+                                                <span className="text-sm text-gray-400 line-through">
+                                                    {formatCurrency(item.originalPrice)}
+                                                </span>
+                                            )}
                                         </div>
 
                                         {/* Số lượng */}

@@ -26,6 +26,7 @@ public class CartResponse {
         private String thumbnailUrl;
         private Integer quantity;
         private BigDecimal price;
+        private BigDecimal originalPrice;
         private BigDecimal subtotal;
         private Integer stockAvailable;
         private boolean stockWarning;    // true nếu qty > stock

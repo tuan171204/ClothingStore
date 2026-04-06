@@ -1,3 +1,24 @@
+const RETURN_REASONS_MAP = {
+    'DEFECTIVE': 'Sản phẩm bị lỗi / hư hỏng',
+    'WRONG_ITEM': 'Nhận sai sản phẩm / màu / size',
+    'NOT_AS_DESCRIBED': 'Sản phẩm không giống mô tả / ảnh',
+    'CHANGED_MIND': 'Thay đổi ý định sau khi nhận',
+    'MISSING_PARTS': 'Thiếu phụ kiện / phụ liệu đi kèm',
+    'OTHER': 'Lý do khác',
+};
+
+const formatReturnReason = (rawReason) => {
+    if (!rawReason) return '';
+    const parts = rawReason.split(' - ');
+    const code = parts[0];
+
+    if (RETURN_REASONS_MAP[code]) {
+        return `${RETURN_REASONS_MAP[code]} - ${parts.slice(1).join(' - ')}`;
+    }
+    return rawReason; // Fallback nếu không khớp mã nào
+};
+
+
 export const OrderPriceSummary = ({ order, formatCurrency }) => (
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
         {/* Left: meta info */}
@@ -20,7 +41,7 @@ export const OrderPriceSummary = ({ order, formatCurrency }) => (
             {order.returnReason && (
                 <p className="text-amber-600">
                     Lý do hoàn trả:{' '}
-                    <span className="font-medium">{order.returnReason}</span>
+                    <span className="font-medium">{formatReturnReason(order.returnReason)}</span>
                 </p>
             )}
         </div>

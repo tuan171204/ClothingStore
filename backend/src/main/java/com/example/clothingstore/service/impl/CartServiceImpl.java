@@ -35,6 +35,7 @@ public class CartServiceImpl implements CartService {
     private final SkuRepository skuRepository;
     private final InventoryRepository inventoryRepository;
     private final ObjectMapper objectMapper;
+    private final FlashSaleRedisService flashSaleRedisService;
 
     private static final String USER_CART_PREFIX   = "cart:user:";
     private static final String GUEST_CART_PREFIX  = "cart:guest:";
@@ -257,7 +258,11 @@ public class CartServiceImpl implements CartService {
             }
 
             String variantName = buildVariantName(sku);
-            BigDecimal subtotal = sku.getPrice().multiply(BigDecimal.valueOf(effectiveQty));
+
+            BigDecimal promoPrice = flashSaleRedisService.getFlashSalePromoPrice(sku.getId());
+            BigDecimal finalPrice = (promoPrice != null) ? promoPrice : sku.getPrice();
+
+            BigDecimal subtotal = finalPrice.multiply(BigDecimal.valueOf(effectiveQty));
 
             itemResponses.add(CartResponse.CartItemResponse.builder()
                     .skuId(sku.getId())
@@ -268,7 +273,8 @@ public class CartServiceImpl implements CartService {
                     .thumbnailUrl(sku.getImgUrl() != null ? sku.getImgUrl()
                             : (sku.getProduct() != null ? sku.getProduct().getThumbnail() : null))
                     .quantity(effectiveQty)
-                    .price(sku.getPrice())
+                    .price(finalPrice)
+                    .originalPrice(sku.getPrice())
                     .subtotal(subtotal)
                     .stockAvailable(available)
                     .stockWarning(warning)
@@ -404,7 +410,10 @@ public class CartServiceImpl implements CartService {
             if (effectiveQty == 0) continue; // Bỏ qua item hết hàng
 
             String variantName = buildVariantName(sku);
-            BigDecimal subtotal = sku.getPrice().multiply(BigDecimal.valueOf(effectiveQty));
+            BigDecimal promoPrice = flashSaleRedisService.getFlashSalePromoPrice(sku.getId());
+            BigDecimal finalPrice = (promoPrice != null) ? promoPrice : sku.getPrice();
+
+            BigDecimal subtotal = finalPrice.multiply(BigDecimal.valueOf(effectiveQty));
 
             itemResponses.add(CartResponse.CartItemResponse.builder()
                     .skuId(sku.getId())
@@ -415,7 +424,8 @@ public class CartServiceImpl implements CartService {
                     .thumbnailUrl(sku.getImgUrl() != null ? sku.getImgUrl()
                             : (sku.getProduct() != null ? sku.getProduct().getThumbnail() : null))
                     .quantity(effectiveQty)
-                    .price(sku.getPrice())
+                    .price(finalPrice)
+                    .originalPrice(sku.getPrice())
                     .subtotal(subtotal)
                     .stockAvailable(stockMap.getOrDefault(sku.getId(), sku.getStockQuantity()))
                     .stockWarning(warning)

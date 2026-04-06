@@ -22,6 +22,7 @@ public record FlashSaleResponse(
     public record FlashSaleItemResponse(
             Long id,
             Long skuId,
+            Long productId,
             String skuCode,
             String productName,
             String variantName,

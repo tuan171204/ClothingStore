@@ -39,26 +39,6 @@ const ReviewStatusMap = {
     REJECTED: 'Bị từ chối',
 };
 
-const RETURN_REASONS_MAP = {
-    'DEFECTIVE': 'Sản phẩm bị lỗi / hư hỏng',
-    'WRONG_ITEM': 'Nhận sai sản phẩm / màu / size',
-    'NOT_AS_DESCRIBED': 'Sản phẩm không giống mô tả / ảnh',
-    'CHANGED_MIND': 'Thay đổi ý định sau khi nhận',
-    'MISSING_PARTS': 'Thiếu phụ kiện / phụ liệu đi kèm',
-    'OTHER': 'Lý do khác',
-};
-
-const formatReturnReason = (rawReason) => {
-    if (!rawReason) return '';
-    const parts = rawReason.split(' - ');
-    const code = parts[0];
-
-    if (RETURN_REASONS_MAP[code]) {
-        return `${RETURN_REASONS_MAP[code]} - ${parts.slice(1).join(' - ')}`;
-    }
-    return rawReason; // Fallback nếu không khớp mã nào
-};
-
 const StatusBadge = ({ status }) => {
     const s = ORDER_STATUS_MAP[status] || { label: status, color: 'bg-gray-100 text-gray-600 border-gray-200' };
     return (
@@ -457,6 +437,18 @@ export default function ProfilePage() {
                                                                     <div className="text-md text-gray-700">
                                                                         <span className="font-semibold text-gray-900">{item.productName}</span>
                                                                         <span className="text-gray-500 ml-1">x{item.quantity}</span>
+                                                                    </div>
+                                                                    {/* KHU VỰC HIỂN THỊ GIÁ LÚC MUA */}
+                                                                    <div className="text-left shrink-0">
+                                                                        <p className="font-bold text-gray-900">
+                                                                            {/* Dự phòng: Lấy priceAtPurchase, nếu không có thì lấy price, nếu không có nữa thì cho bằng 0 */}
+                                                                            {formatCurrency(Number(item.priceAtPurchase || item.price || 0))}
+                                                                        </p>
+                                                                        {item.quantity > 1 && (
+                                                                            <p className="text-sm text-gray-500 mt-0.5">
+                                                                                Tổng: {formatCurrency(Number(item.priceAtPurchase || item.price || 0) * Number(item.quantity || 1))}
+                                                                            </p>
+                                                                        )}
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <span className={`px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider border rounded ${reviewUi.className}`}>

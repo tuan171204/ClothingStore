@@ -8,6 +8,10 @@ import { getCommentsByProduct, postComment, deleteComment } from '@/services/com
 import { useCart } from "@/context/CartContext";
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
+import { Zap } from 'lucide-react';
+import axios from '@/lib/axios';
+import CountdownTimer from '@/components/shop/CountdownTimer';
+import FlashSaleProgressBar from '@/components/shop/FlashSaleProgressBar';
 
 // ================================================================
 // SUB-COMPONENT: Hiển thị sao
@@ -167,6 +171,8 @@ const ProductDetail = ({ product }) => {
     const [commentInput, setCommentInput] = useState('');
     const [commentSubmitting, setCommentSubmitting] = useState(false);
 
+    const [flashSale, setFlashSale] = useState(null);
+
     // ----------------------------------------------------------------
     // Khởi tạo selection mặc định
     // ----------------------------------------------------------------
@@ -202,6 +208,29 @@ const ProductDetail = ({ product }) => {
         setCurrentSku(sku || null);
         setQuantity(1);
     }, [selections, product.skus, product.options]);
+
+    // ----------------------------------------------------------------
+    // Load FlashSales
+    // ----------------------------------------------------------------
+    useEffect(() => {
+        const fetchFlashSale = async () => {
+            try {
+                const res = await axios.get('/flash-sales/current-active');
+                if (res.status === 200 && res.data) {
+                    setFlashSale(res.data);
+                }
+            } catch (error) {
+                console.error("No active flash sale or error", error);
+            }
+        };
+        fetchFlashSale();
+    }, []);
+
+    // Kiểm tra xem SKU hiện tại (currentSku) có đang được sale không?
+    const activeFlashSaleItem = React.useMemo(() => {
+        if (!flashSale || !currentSku) return null;
+        return flashSale.items.find(item => item.skuId === currentSku.id);
+    }, [flashSale, currentSku]);
 
     // ----------------------------------------------------------------
     // Load Reviews (đã duyệt)
@@ -316,7 +345,16 @@ const ProductDetail = ({ product }) => {
         : null;
 
     const displayImage = currentSku?.imgUrl || product.thumbnail || 'https://placehold.co/600x800?text=No+Image';
-    const isOutOfStock = !currentSku || currentSku.stockQuantity === 0;
+    const currentStock = activeFlashSaleItem
+        ? activeFlashSaleItem.remainingQuantity
+        : (currentSku?.stockQuantity || 0);
+
+    const isOutOfStock = !currentSku || currentStock === 0;
+
+    // Reset lại số lượng về 1 nếu khách đổi biến thể hoặc biến thể bị hết hàng
+    useEffect(() => {
+        if (quantity > currentStock) setQuantity(Math.max(1, currentStock));
+    }, [currentStock]);
 
     return (
         <div className="flex flex-col md:flex-row gap-12 font-sans mb-20 mt-20 animate-fade-in">
@@ -350,17 +388,47 @@ const ProductDetail = ({ product }) => {
                     <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight mb-4">
                         {product.name}
                     </h1>
+                    {/* KHU VỰC HIỂN THỊ GIÁ */}
                     <div className="flex items-center gap-4">
-                        <span className="text-2xl font-bold text-gray-900">
-                            {formatCurrency(currentSku?.price || product.basePrice)}
-                        </span>
+                        {activeFlashSaleItem ? (
+                            <div className="flex items-center gap-3">
+                                <span className="text-3xl font-black text-red-600">
+                                    {formatCurrency(activeFlashSaleItem.promotionalPrice)}
+                                </span>
+                                <span className="text-xl text-gray-400 line-through font-medium">
+                                    {formatCurrency(activeFlashSaleItem.originalPrice)}
+                                </span>
+                                <span className="bg-red-600 text-white text-sm font-bold px-2 py-0.5 rounded uppercase tracking-wider shadow-sm">
+                                    -{Math.round(((activeFlashSaleItem.originalPrice - activeFlashSaleItem.promotionalPrice) / activeFlashSaleItem.originalPrice) * 100)}%
+                                </span>
+                            </div>
+                        ) : (
+                            <span className="text-2xl font-bold text-gray-900">
+                                {formatCurrency(currentSku?.price || product.basePrice)}
+                            </span>
+                        )}
+                        {/* Rating Component */}
                         {averageRating && (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 ml-2 border-l pl-4 border-gray-200">
                                 <StarDisplay rating={Math.round(averageRating)} size="sm" />
                                 <span className="text-md text-gray-500">({averageRating}/5 · {reviews.length} đánh giá)</span>
                             </div>
                         )}
                     </div>
+
+                    {/* WIDGET FLASH SALE ĐỘNG */}
+                    {activeFlashSaleItem && (
+                        <div className="mt-5 bg-linear-to-r from-red-50 to-orange-50 border border-red-100 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2 text-red-600 font-bold uppercase italic tracking-widest text-lg">
+                                    <Zap size={20} className="animate-pulse" fill="currentColor" />
+                                    Đang Flash Sale
+                                </div>
+                                <CountdownTimer endTime={flashSale.endTime} onExpire={() => setFlashSale(null)} />
+                            </div>
+                            <FlashSaleProgressBar total={activeFlashSaleItem.totalQuantity} sold={activeFlashSaleItem.soldQuantity} />
+                        </div>
+                    )}
                 </div>
 
                 <div className="w-full h-px bg-gray-200 mb-8" />
@@ -410,10 +478,10 @@ const ProductDetail = ({ product }) => {
                 {/* Tồn kho */}
                 <div className="mb-8">
                     {currentSku
-                        ? <p className={`text-md font-medium ${currentSku.stockQuantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {currentSku.stockQuantity > 0 ? `Còn ${currentSku.stockQuantity} sản phẩm` : 'Hết hàng'}
+                        ? <p className={`text-md font-medium ${currentStock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {currentStock > 0 ? `Còn ${currentStock} sản phẩm` : 'Hết hàng'}
                         </p>
-                        : <p className="text-md text-amber-600 font-medium">Vui lòng chọn đầy đủ phân loại</p>
+                        : <p className="text-md text-amber-600 font-medium">Sản phẩm đã hết hàng</p>
                     }
                 </div>
 
@@ -424,7 +492,7 @@ const ProductDetail = ({ product }) => {
                             <Minus size={18} />
                         </button>
                         <input type="number" className="w-full h-full text-center font-bold text-gray-900 outline-none bg-transparent" value={quantity} readOnly />
-                        <button onClick={() => setQuantity(Math.min(currentSku?.stockQuantity || 1, quantity + 1))} disabled={isOutOfStock} className="w-12 h-full flex justify-center items-center text-gray-500 hover:text-black hover:bg-gray-50 transition disabled:opacity-50">
+                        <button onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))} disabled={isOutOfStock} className="w-12 h-full flex justify-center items-center text-gray-500 hover:text-black hover:bg-gray-50 transition disabled:opacity-50">
                             <Plus size={18} />
                         </button>
                     </div>

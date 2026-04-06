@@ -29,4 +29,22 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, Long> {
     Page<FlashSale> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
     Page<FlashSale> findAll(Pageable pageable);
+
+    @Query("""
+            SELECT DISTINCT fs FROM FlashSale fs
+            LEFT JOIN FETCH fs.items
+            WHERE fs.isActive = true
+              AND fs.endTime > CURRENT_TIMESTAMP
+            """)
+    List<FlashSale> findCurrentlyActiveSales();
+
+    @Query("""
+            SELECT DISTINCT fs FROM FlashSale fs
+            LEFT JOIN FETCH fs.items
+            WHERE fs.isActive = true
+              AND fs.startTime <= :now
+              AND fs.endTime > :now
+            ORDER BY fs.startTime ASC
+            """)
+    List<FlashSale> findCurrentActiveSales(@Param("now") LocalDateTime now);
 }

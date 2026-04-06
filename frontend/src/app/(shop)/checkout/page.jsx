@@ -11,7 +11,7 @@ import { applyCoupon } from '@/services/couponService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
-import { MapPin, CheckCircle2, Plus, AlertTriangle, Ticket, Loader2, X, AlertCircle } from 'lucide-react';
+import { MapPin, CheckCircle2, Plus, AlertTriangle, Ticket, Loader2, X, AlertCircle, ChevronLeft, ArrowBigLeft, ArrowBigLeftDash } from 'lucide-react';
 import CouponSelectDrawer from '@/components/shop/CouponSelectDrawer';
 
 // ─── WIDGET MÃ GIẢM GIÁ ĐƯỢC TÁCH RIÊNG ─────────────────────────────────────
@@ -193,6 +193,8 @@ export default function CheckoutPage() {
     const finalTotal = Math.max(0, cartTotal + shippingFee - discountAmount);
 
     const [isCouponDrawerOpen, setIsCouponDrawerOpen] = useState(false);
+
+    const [showCodConfirm, setShowCodConfirm] = useState(false);
 
     // 1. Khởi tạo dữ liệu
     useEffect(() => {
@@ -547,7 +549,7 @@ export default function CheckoutPage() {
 
                         {/* NÚT ĐẶT HÀNG NGAY */}
                         <button
-                            onClick={handlePlaceOrder}
+                            onClick={() => paymentMethod === 'COD' ? setShowCodConfirm(true) : handlePlaceOrder()}
                             disabled={loadingFee || isFetchingAddress || stockMismatches.length > 0}
                             className="w-full flex items-center justify-center gap-2 py-4 rounded-md font-bold text-md text-white bg-linear-to-r from-blue-600 via-blue-800 to-gray-900 bg-size-[300%_auto] bg-position-[0%_center] hover:bg-position-[100%_center] transition-all duration-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer uppercase tracking-wider"
                         >
@@ -557,8 +559,38 @@ export default function CheckoutPage() {
                             }
                         </button>
                     </div>
+                    <a href="/cart"
+                        disabled={loadingFee || isFetchingAddress || stockMismatches.length > 0}
+                        className="w-full flex items-center justify-center mt-7 gap-2 py-4 rounded-md font-bold text-md text-black hover:text-white bg-linear-to-r from-gray-300 via-gray-500 to-gray-700 bg-size-[300%_auto] bg-position-[0%_center] hover:bg-position-[100%_center] transition-all duration-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer uppercase tracking-wider"
+                    >
+                        <ArrowBigLeftDash size={18} /> Quay lại
+                    </a>
                 </div>
             </div>
+            {showCodConfirm && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white p-6 rounded-lg w-full max-w-xl shadow-xl animate-fade-in-up">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Xác nhận đặt hàng</h3>
+                        <p className="text-gray-600 mb-6 leading-relaxed">
+                            Bạn đã chọn thanh toán khi nhận hàng (COD). Vui lòng chuẩn bị sẵn số tiền <span className="font-bold text-red-600">{formatCurrency(finalTotal)}</span> khi bưu tá giao hàng tới nhé.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowCodConfirm(false)}
+                                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 cursor-pointer"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={() => { setShowCodConfirm(false); handlePlaceOrder(); }}
+                                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 cursor-pointer shadow-md"
+                            >
+                                Đồng ý Đặt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

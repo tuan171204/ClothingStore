@@ -61,6 +61,7 @@ public class OrderResponse {
         private String productName;
         private int quantity;
         private BigDecimal price;
+        private BigDecimal priceAtPurchase;
         private BigDecimal subtotal;
     }
 }
