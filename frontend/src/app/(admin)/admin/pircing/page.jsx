@@ -7,6 +7,7 @@ import { getProductsWithFilter } from '@/services/productService';
 import { getCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';
 import axios from '@/lib/axios';
+import Pagination from '@/components/admin/Pagination';
 
 const formatCurrency = (v) =>
     v != null && v !== 0 ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v) : '—';
@@ -259,24 +260,14 @@ export default function PricingManagementPage() {
                 </table>
 
                 {/* Pagination */}
-                {totalPages > 0 && (
-                    <div className="flex items-center justify-between px-5 py-4 border-t bg-gray-50/50">
-                        <p className="text-md text-gray-500">
-                            {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalElements)} / {totalElements} sản phẩm
-                        </p>
-                        <div className="flex items-center gap-1">
-                            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                                className="p-2 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-40 cursor-pointer">
-                                <ChevronLeft size={16} />
-                            </button>
-                            <span className="px-4 py-2 bg-blue-600 text-white rounded-lg text-md font-medium">{page + 1}</span>
-                            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                                className="p-2 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-40 cursor-pointer">
-                                <ChevronRight size={16} />
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    totalElements={totalElements}
+                    size={pageSize}
+                    onPageChange={setPage}
+                    loading={loading}
+                />
             </div>
         </div>
     );

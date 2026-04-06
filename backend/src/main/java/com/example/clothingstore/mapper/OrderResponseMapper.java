@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,11 +33,17 @@ public class OrderResponseMapper {
                 .shippingAddress(order.getShippingAddress())
                 .note(order.getNote())
                 .createdAt(order.getCreatedAt())
-                .totalAmount(order.getTotalAmount())
+                .subtotal(order.getSubtotal())
                 .shippingFee(order.getShippingFee())
+                .totalAmount(order.getTotalAmount())
+                // Task 3: map discount fields — always non-null for safe FE rendering
+                .couponCode(order.getCouponCode())
+                .discountAmount(order.getDiscountAmount() != null
+                        ? order.getDiscountAmount()
+                        : BigDecimal.ZERO)
                 .paymentMethod(order.getPaymentMethod())
                 .status(order.getStatus())
-                // GHN tracking — read-only from webhook
+                // GHN tracking
                 .trackingCode(order.getTrackingCode())
                 .trackingStatus(order.getTrackingStatus())
                 .trackingMessage(order.getTrackingMessage())
@@ -55,15 +62,16 @@ public class OrderResponseMapper {
     }
 
     private OrderResponse.OrderItemResponse toItemResponse(OrderItem item) {
+        BigDecimal price = item.getPriceAtPurchase();
+        int qty = item.getQuantity();
         return OrderResponse.OrderItemResponse.builder()
                 .id(item.getId())
                 .skuId(item.getSkuId())
                 .productId(resolveProductId(item.getSkuId()))
                 .productName(item.getProductName())
-                .quantity(item.getQuantity())
-                .price(item.getPriceAtPurchase())
-                .subtotal(item.getPriceAtPurchase()
-                        .multiply(java.math.BigDecimal.valueOf(item.getQuantity())))
+                .quantity(qty)
+                .price(price)
+                .subtotal(price != null ? price.multiply(BigDecimal.valueOf(qty)) : BigDecimal.ZERO)
                 .build();
     }
 
@@ -74,16 +82,12 @@ public class OrderResponseMapper {
                 .orElse(null);
     }
 
-    /**
-     * Parse JSON string lưu trong DB thành List<String>.
-     * Trả về danh sách rỗng nếu null hoặc lỗi parse.
-     */
     private List<String> parseImageUrls(String json) {
         if (json == null || json.isBlank()) return Collections.emptyList();
         try {
             return objectMapper.readValue(json, new TypeReference<List<String>>() {});
         } catch (Exception e) {
-            log.warn("Không parse được returnImages JSON: {}", json);
+            log.warn("Cannot parse returnImages JSON: {}", json);
             return Collections.emptyList();
         }
     }

@@ -7,7 +7,7 @@ import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import AdminHeader from '@/components/admin/AdminHeader';
 import {
     LayoutDashboard, Package, ShoppingCart, FolderTree,
-    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck
+    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck, Zap
 } from 'lucide-react';
 
 // ==========================================
@@ -30,6 +30,7 @@ function Sidebar() {
         { href: '/admin/inventory', icon: Archive, label: 'Tồn hàng' },
         { href: '/admin/reviews', icon: Star, label: 'Duyệt đánh giá' },
         { href: '/admin/coupons', icon: Ticket, label: 'Quản lý Mã giảm giá' },
+        { href: '/admin/flash-sales', icon: Zap, label: 'Flash Sale' },
     ];
 
     return (

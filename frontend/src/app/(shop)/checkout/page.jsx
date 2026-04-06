@@ -5,14 +5,14 @@ import { useCart } from '@/context/CartContext';
 import { formatCurrency } from '@/services/productService';
 import { calculateShippingFee, getProvinces, getDistricts, getWards } from '@/services/shippingService';
 import { createPaymentUrl } from '@/services/paymentService';
-import { createOrder } from '@/services/orderService';
 import { addressService } from '@/services/addressService';
 import { checkoutService } from '@/services/checkoutService';
-import { applyCoupon } from '@/services/couponService'; // Thêm import API
+import { applyCoupon } from '@/services/couponService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { toast } from 'react-toastify'; // Thêm toast
-import { MapPin, User, Phone, CheckCircle2, Plus, AlertTriangle, Ticket, Loader2, X, AlertCircle } from 'lucide-react'; // Bổ sung icon
+import { toast } from 'react-toastify';
+import { MapPin, CheckCircle2, Plus, AlertTriangle, Ticket, Loader2, X, AlertCircle } from 'lucide-react';
+import CouponSelectDrawer from '@/components/shop/CouponSelectDrawer';
 
 // ─── WIDGET MÃ GIẢM GIÁ ĐƯỢC TÁCH RIÊNG ─────────────────────────────────────
 function CouponWidget({ cartItems, subtotal, onApply, appliedCoupon }) {
@@ -92,6 +92,72 @@ function CouponWidget({ cartItems, subtotal, onApply, appliedCoupon }) {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
+export const CouponTriggerAndDrawer = ({
+    cartItems,
+    cartTotal,
+    appliedCoupon,
+    setAppliedCoupon,
+    isCouponDrawerOpen,
+    setIsCouponDrawerOpen,
+    formatCurrency,
+}) => (
+    <>
+        {/* ── Coupon trigger button ───────────────────────────────────── */}
+        {appliedCoupon ? (
+            /* Applied coupon badge — click to open drawer to change/remove */
+            <button
+                onClick={() => setIsCouponDrawerOpen(true)}
+                className="w-full flex items-center justify-between px-4 py-3 mb-5 
+                           bg-green-50 border border-green-300 rounded-xl text-md cursor-pointer
+                           hover:border-green-400 transition-colors"
+            >
+                <div className="flex items-center gap-2 text-green-800">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2" className="text-green-600 shrink-0">
+                        <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                        <path d="M13 5v2M13 17v2M13 11v2" />
+                    </svg>
+                    <span className="font-mono font-bold tracking-wider">{appliedCoupon.code}</span>
+                    <span className="text-green-600">· Giảm {formatCurrency(appliedCoupon.discountAmount)}</span>
+                </div>
+                <span className="text-xs text-gray-500 font-medium">Đổi mã</span>
+            </button>
+        ) : (
+            /* No coupon yet — open drawer */
+            <button
+                onClick={() => setIsCouponDrawerOpen(true)}
+                className="w-full flex items-center justify-between px-4 py-3 mb-5 
+                           border border-dashed border-gray-300 rounded-xl text-md cursor-pointer
+                           hover:border-gray-500 hover:bg-gray-50 transition-all group"
+            >
+                <div className="flex items-center gap-2 text-gray-600 group-hover:text-gray-900">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2" className="shrink-0">
+                        <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                        <path d="M13 5v2M13 17v2M13 11v2" />
+                    </svg>
+                    <span>Chọn hoặc nhập mã giảm giá</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2" className="text-gray-400">
+                    <path d="m9 18 6-6-6-6" />
+                </svg>
+            </button>
+        )}
+
+        {/* ── Drawer (portals to body) ────────────────────────────────── */}
+        <CouponSelectDrawer
+            isOpen={isCouponDrawerOpen}
+            onClose={() => setIsCouponDrawerOpen(false)}
+            orderTotal={cartTotal}
+            cartItems={cartItems}
+            appliedCoupon={appliedCoupon}
+            onApply={setAppliedCoupon}
+        />
+    </>
+);
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function CheckoutPage() {
     const { cartItems, cartTotal, clearCart, validateCart } = useCart();
     const router = useRouter();
@@ -116,15 +182,17 @@ export default function CheckoutPage() {
     const [shippingFee, setShippingFee] = useState(0);
     const [loadingFee, setLoadingFee] = useState(false);
 
-    // THÊM: State lưu mã khuyến mãi
+    // State lưu mã khuyến mãi
     const [appliedCoupon, setAppliedCoupon] = useState(null);
 
     const [stockMismatches, setStockMismatches] = useState([]);
     const [checkoutError, setCheckoutError] = useState(null);
 
-    // THÊM: Tính toán tiền giảm giá
+    // Tính toán tiền giảm giá
     const discountAmount = appliedCoupon?.discountAmount || 0;
     const finalTotal = Math.max(0, cartTotal + shippingFee - discountAmount);
+
+    const [isCouponDrawerOpen, setIsCouponDrawerOpen] = useState(false);
 
     // 1. Khởi tạo dữ liệu
     useEffect(() => {
@@ -434,12 +502,14 @@ export default function CheckoutPage() {
                     <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200 sticky top-28">
                         <h3 className="text-xl font-black uppercase tracking-tight mb-5 border-b border-gray-100 pb-4 text-gray-900">Tổng quan đơn hàng</h3>
 
-                        {/* THÊM UI WIDGET MÃ GIẢM GIÁ */}
-                        <CouponWidget
+                        <CouponTriggerAndDrawer
                             cartItems={cartItems}
-                            subtotal={cartTotal}
+                            cartTotal={cartTotal}
                             appliedCoupon={appliedCoupon}
-                            onApply={setAppliedCoupon}
+                            setAppliedCoupon={setAppliedCoupon}
+                            isCouponDrawerOpen={isCouponDrawerOpen}
+                            setIsCouponDrawerOpen={setIsCouponDrawerOpen}
+                            formatCurrency={formatCurrency}
                         />
 
                         <div className="space-y-3 text-gray-600 mb-6 text-md">

@@ -1,8 +1,10 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dtos.coupon.request.AvailableCouponsRequest;
 import com.example.clothingstore.dtos.coupon.request.CouponProductMappingRequest;
 import com.example.clothingstore.dtos.coupon.request.CouponRequest;
 import com.example.clothingstore.dtos.coupon.request.ApplyCouponRequest;
+import com.example.clothingstore.dtos.coupon.response.AvailableCouponResponse;
 import com.example.clothingstore.dtos.coupon.response.CouponResponse;
 import com.example.clothingstore.dtos.coupon.response.ApplyCouponResponse;
 import com.example.clothingstore.dtos.PagedResponse;
@@ -59,6 +61,12 @@ public class CouponsController {
     public ResponseEntity<Void> deleteCoupon(@PathVariable Long id) {
         couponsService.deleteCoupon(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/available")
+    public ResponseEntity<List<AvailableCouponResponse>> getAvailableCoupons(
+            @RequestBody AvailableCouponsRequest request) {
+        return ResponseEntity.ok(couponsService.getAvailableCoupons(request));
     }
 
     /**

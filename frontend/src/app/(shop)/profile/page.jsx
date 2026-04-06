@@ -19,6 +19,8 @@ import { getReviewStatusByOrder } from '@/services/reviewService';
 import OrderReviewModal from '@/components/shop/OrderReviewModal';
 import CancelOrderModal from '@/components/shop/CancelOrderModal';
 import ReturnOrderModal from '@/components/shop/ReturnOrderModal';
+import DiscountInfo from '@/components/shop/DiscountInfo';
+import { OrderPriceSummary } from '@/components/shop/OrderPriceSummary';
 
 // ─── Mapping trạng thái đơn hàng ──────────────────────────────
 const ORDER_STATUS_MAP = {
@@ -402,22 +404,7 @@ export default function ProfilePage() {
 
                                             {/* ─── Thông tin đơn ──────────────────────── */}
                                             <div className="px-5 py-4">
-                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-4">
-                                                    <div className="text-md text-gray-500 space-y-0.5">
-                                                        <p>Ngày đặt: <span className="font-medium text-gray-900">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span></p>
-                                                        <p>Thanh toán: <span className="font-medium text-gray-900">{order.paymentMethod}</span></p>
-                                                        {order.cancelReason && (
-                                                            <p className="text-red-500">Lý do hủy: <span className="font-medium">"{order.cancelReason}"</span></p>
-                                                        )}
-                                                        {order.returnReason && (
-                                                            <p className="text-amber-600">Lý do hoàn trả: <span className="font-medium">{formatReturnReason(order.returnReason)}</span></p>
-                                                        )}
-                                                    </div>
-                                                    <div className="sm:text-right shrink-0">
-                                                        <div className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Tổng tiền</div>
-                                                        <div className="font-black text-xl text-gray-900">{formatCurrency(order.totalAmount)}</div>
-                                                    </div>
-                                                </div>
+                                                <OrderPriceSummary order={order} formatCurrency={formatCurrency} />
 
                                                 {/* Return description preview */}
                                                 {order.returnDescription && (

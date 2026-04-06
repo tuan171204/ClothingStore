@@ -46,6 +46,9 @@ public class Order {
     @Column(name = "shipping_fee")
     private BigDecimal shippingFee;
 
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
+
     @Column(name = "discount_amount")
     private BigDecimal discountAmount;
 

@@ -2,8 +2,10 @@ package com.example.clothingstore.service;
 
 import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.dtos.coupon.request.ApplyCouponRequest;
+import com.example.clothingstore.dtos.coupon.request.AvailableCouponsRequest;
 import com.example.clothingstore.dtos.coupon.request.CouponRequest;
 import com.example.clothingstore.dtos.coupon.response.ApplyCouponResponse;
+import com.example.clothingstore.dtos.coupon.response.AvailableCouponResponse;
 import com.example.clothingstore.dtos.coupon.response.CouponResponse;
 import com.example.clothingstore.entity.Enum.ApplyType;
 
@@ -31,6 +33,8 @@ public interface CouponsService {
     CouponResponse updateCoupon(Long id, CouponRequest request);
 
     void deleteCoupon(Long id);
+
+    List<AvailableCouponResponse> getAvailableCoupons(AvailableCouponsRequest request);
 
     /**
      * Validates and calculates the discount for a given coupon code.

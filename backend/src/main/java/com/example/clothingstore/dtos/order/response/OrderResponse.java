@@ -17,10 +17,11 @@ public class OrderResponse {
     private String shippingAddress;
     private String note;
     private LocalDateTime createdAt;
-
     private BigDecimal totalAmount;
+    private BigDecimal subtotal;
     private BigDecimal shippingFee;
-
+    private String couponCode;
+    private BigDecimal discountAmount;
     private String paymentMethod;
     private OrderStatus status;
 

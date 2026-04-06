@@ -2,8 +2,10 @@ package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.dtos.PagedResponse;
 import com.example.clothingstore.dtos.coupon.request.ApplyCouponRequest;
+import com.example.clothingstore.dtos.coupon.request.AvailableCouponsRequest;
 import com.example.clothingstore.dtos.coupon.request.CouponRequest;
 import com.example.clothingstore.dtos.coupon.response.ApplyCouponResponse;
+import com.example.clothingstore.dtos.coupon.response.AvailableCouponResponse;
 import com.example.clothingstore.dtos.coupon.response.CouponResponse;
 import com.example.clothingstore.entity.Coupon;
 import com.example.clothingstore.entity.Enum.ApplyType;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -118,6 +121,131 @@ public class CouponsServiceImpl implements CouponsService {
             throw new AppException(ErrorCode.COUPON_NOT_FOUND);
         }
         couponsRepository.deleteById(id);
+    }
+
+    @Override
+    public List<AvailableCouponResponse> getAvailableCoupons(AvailableCouponsRequest request) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Pull all active coupons that are within their date window
+        List<Coupon> candidates = couponsRepository.findWithFilters(
+                        null,    // any applyType
+                        true,    // isActive = true
+                        null,    // no startDate filter — we check manually below
+                        null
+                ).stream()
+                .filter(c -> {
+                    if (c.getStartDate() != null && now.isBefore(c.getStartDate())) return false;
+                    if (c.getEndDate()   != null && now.isAfter(c.getEndDate()))   return false;
+                    if (c.getUsageLimit() != null && c.getUsedCount() >= c.getUsageLimit()) return false;
+                    return true;
+                })
+                .collect(Collectors.toList());
+
+        BigDecimal orderTotal = request.orderTotal() != null ? request.orderTotal() : BigDecimal.ZERO;
+
+        return candidates.stream()
+                .map(coupon -> buildAvailableResponse(coupon, orderTotal, request.cartItems()))
+                .sorted(Comparator
+                        // applicable coupons first, then sorted by discount amount descending
+                        .comparing(AvailableCouponResponse::isApplicable, Comparator.reverseOrder())
+                        .thenComparing(AvailableCouponResponse::getDiscountAmount,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(Collectors.toList());
+    }
+
+    private AvailableCouponResponse buildAvailableResponse(
+            Coupon coupon,
+            BigDecimal orderTotal,
+            List<AvailableCouponsRequest.CartItemRef> cartItems) {
+
+        // --- Check minOrderValue ---
+        if (coupon.getMinOrderValue() != null
+                && orderTotal.compareTo(coupon.getMinOrderValue()) < 0) {
+            BigDecimal needed = coupon.getMinOrderValue().subtract(orderTotal);
+            return AvailableCouponResponse.builder()
+                    .id(coupon.getId())
+                    .code(coupon.getCode())
+                    .description(coupon.getDescription())
+                    .discountType(coupon.getDiscountType())
+                    .discountValue(coupon.getDiscountValue())
+                    .maxDiscountAmount(coupon.getMaxDiscountAmount())
+                    .minOrderValue(coupon.getMinOrderValue())
+                    .applyType(coupon.getApplyType())
+                    .usageLimit(coupon.getUsageLimit())
+                    .usedCount(coupon.getUsedCount())
+                    .endDate(coupon.getEndDate())
+                    .discountAmount(BigDecimal.ZERO)
+                    .applicable(false)
+                    .notApplicableReason("Cần mua thêm " + formatCurrency(needed) + " để dùng mã này")
+                    .build();
+        }
+
+        // --- PRODUCT-type: check at least one cart item matches ---
+        BigDecimal effectiveTotal = orderTotal;
+        if (coupon.getApplyType() == ApplyType.PRODUCT) {
+            if (cartItems == null || cartItems.isEmpty()) {
+                return notApplicable(coupon, "Không có sản phẩm phù hợp trong giỏ hàng");
+            }
+            Set<Long> couponProductIds = coupon.getProducts().stream()
+                    .map(p -> p.getId()).collect(Collectors.toSet());
+            boolean hasMatch = cartItems.stream()
+                    .anyMatch(ref -> couponProductIds.contains(ref.productId()));
+            if (!hasMatch) {
+                return notApplicable(coupon, "Mã không áp dụng cho sản phẩm trong giỏ");
+            }
+            // Recalculate base for PRODUCT coupon
+            effectiveTotal = cartItems.stream()
+                    .filter(ref -> couponProductIds.contains(ref.productId()))
+                    .map(ref -> ref.price().multiply(BigDecimal.valueOf(ref.quantity())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        // --- Calculate discount ---
+        BigDecimal discount;
+        if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
+            discount = effectiveTotal
+                    .multiply(coupon.getDiscountValue())
+                    .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+            if (coupon.getMaxDiscountAmount() != null) {
+                discount = discount.min(coupon.getMaxDiscountAmount());
+            }
+        } else {
+            discount = coupon.getDiscountValue().min(effectiveTotal);
+        }
+
+        return AvailableCouponResponse.builder()
+                .id(coupon.getId())
+                .code(coupon.getCode())
+                .description(coupon.getDescription())
+                .discountType(coupon.getDiscountType())
+                .discountValue(coupon.getDiscountValue())
+                .maxDiscountAmount(coupon.getMaxDiscountAmount())
+                .minOrderValue(coupon.getMinOrderValue())
+                .applyType(coupon.getApplyType())
+                .usageLimit(coupon.getUsageLimit())
+                .usedCount(coupon.getUsedCount())
+                .endDate(coupon.getEndDate())
+                .discountAmount(discount)
+                .applicable(true)
+                .notApplicableReason(null)
+                .build();
+    }
+
+    private AvailableCouponResponse notApplicable(Coupon coupon, String reason) {
+        return AvailableCouponResponse.builder()
+                .id(coupon.getId()).code(coupon.getCode())
+                .description(coupon.getDescription())
+                .discountType(coupon.getDiscountType())
+                .discountValue(coupon.getDiscountValue())
+                .maxDiscountAmount(coupon.getMaxDiscountAmount())
+                .minOrderValue(coupon.getMinOrderValue())
+                .applyType(coupon.getApplyType())
+                .usageLimit(coupon.getUsageLimit()).usedCount(coupon.getUsedCount())
+                .endDate(coupon.getEndDate())
+                .discountAmount(BigDecimal.ZERO)
+                .applicable(false).notApplicableReason(reason)
+                .build();
     }
 
     @Override

@@ -228,7 +228,7 @@ export default function CouponsPage() {
                                         <tr key={coupon.id} className="hover:bg-gray-50/60 transition-colors">
                                             <td className="px-5 py-4">
                                                 <div className="font-bold text-purple-700 font-mono">{coupon.code}</div>
-                                                <div className="text-[10px] uppercase font-bold text-gray-400 mt-0.5">
+                                                <div className="text-[14px] uppercase font-bold text-gray-400 mt-0.5">
                                                     {coupon.discountType === 'PERCENTAGE' ? 'Phần trăm' : 'Cố định'}
                                                 </div>
                                             </td>
@@ -275,16 +275,16 @@ export default function CouponsPage() {
                                                             className="p-2 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 cursor-pointer"
                                                             title="Gán sản phẩm"
                                                         >
-                                                            <Tag size={14} />
+                                                            <Tag size={17} />
                                                         </button>
                                                     )}
                                                     <button onClick={() => openModal(coupon)}
                                                         className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer" title="Sửa">
-                                                        <Edit size={14} />
+                                                        <Edit size={17} />
                                                     </button>
                                                     <button onClick={() => handleDelete(coupon.id)}
                                                         className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer" title="Xóa">
-                                                        <Trash2 size={14} />
+                                                        <Trash2 size={17} />
                                                     </button>
                                                 </div>
                                             </td>

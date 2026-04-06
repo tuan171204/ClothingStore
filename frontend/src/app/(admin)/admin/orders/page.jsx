@@ -15,6 +15,7 @@ import {
     shipOrder,
     approveReturnOrder
 } from '@/services/orderService';
+import { AdminOrderTotals } from '@/components/admin/AdminOrderTotals';
 
 const STATUS_OPTIONS = [
     { value: '', label: 'Tất cả trạng thái', color: 'bg-gray-100 text-gray-700' },
@@ -236,26 +237,7 @@ const OrderDetailModal = ({ order, onClose, onStatusChange, onShip, onApproveRet
                     </div>
 
                     {/* 6. Tổng tiền */}
-                    <div className="bg-gray-50 rounded-xl p-4 text-md space-y-2">
-                        <div className="flex justify-between text-gray-500">
-                            <span>Tiền hàng</span>
-                            <span>{formatCurrency(order.totalAmount - order.shippingFee)}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-500">
-                            <span>Phí vận chuyển</span>
-                            <span>{formatCurrency(order.shippingFee)}</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-gray-800 text-base border-t pt-2">
-                            <span>Tổng thanh toán</span>
-                            <span className="text-blue-600">{formatCurrency(order.totalAmount)}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-500">
-                            <span>Phương thức</span>
-                            <span className={`font-semibold ${order.paymentMethod === 'VNPAY' ? 'text-blue-600' : 'text-gray-700'}`}>
-                                {order.paymentMethod}
-                            </span>
-                        </div>
-                    </div>
+                    <AdminOrderTotals order={order} formatCurrency={formatCurrency} />
                 </div>
             </div>
         </div>
