@@ -3,8 +3,10 @@ package com.example.clothingstore.service.impl;
 import com.example.clothingstore.dtos.auth.request.*;
 import com.example.clothingstore.dtos.auth.response.AuthenticationResponse;
 import com.example.clothingstore.dtos.auth.response.IntrospectResponse;
+import com.example.clothingstore.entity.Role;
 import com.example.clothingstore.entity.User;
 import com.example.clothingstore.entity.auth.InvalidatedToken;
+import com.example.clothingstore.repository.RoleRepository;
 import com.example.clothingstore.repository.UserRepository;
 import com.example.clothingstore.repository.auth.InvalidatedTokenRepository;
 import com.example.clothingstore.service.mail.MailService;
@@ -19,10 +21,19 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.example.clothingstore.entity.Enum.AuthProvider;
+
+import java.time.LocalDate;
+import java.util.Collections;
 
 import java.text.ParseException;
 import java.time.Instant;
@@ -39,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 public class AuthenticationService {
     UserRepository userRepository;
     InvalidatedTokenRepository invalidatedTokenRepository;
+    RoleRepository roleRepository;
     PasswordEncoder passwordEncoder;
     StringRedisTemplate redisTemplate;
     MailService mailService;
@@ -54,6 +66,10 @@ public class AuthenticationService {
     @NonFinal
     @Value("${jwt.refreshable-duration}")
     protected long REFRESHABLE_DURATION;
+
+    @NonFinal
+    @Value("${app.google.client-id}")
+    protected String GOOGLE_CLIENT_ID;
 
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
         var token  = request.getToken();
@@ -74,6 +90,8 @@ public class AuthenticationService {
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         var user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not existed"));
+
+        if (user.getProvider() != AuthProvider.LOCAL) throw new RuntimeException("Vui lòng đăng nhập bằng " + user.getProvider());
 
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
@@ -228,5 +246,87 @@ public class AuthenticationService {
         userRepository.save(user);
 
         redisTemplate.delete("RESET_PW:" + request.getToken());
+    }
+
+    public AuthenticationResponse googleLogin(GoogleLoginRequest request) {
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(),
+                new GsonFactory())
+                .setAudience(Collections.singletonList(GOOGLE_CLIENT_ID))
+                .build();
+
+        try {
+            GoogleIdToken idToken = verifier.verify(request.idToken());
+            if (idToken == null) {
+                throw new RuntimeException("Invalid Google ID Token");
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+
+            // Find or Create User
+            User user = userRepository.findByEmail(email)
+                    .orElseGet(() -> createNewGoogleUser(email, payload));
+
+            // Tái sử dụng method generateToken hiện tại của bạn
+            String token = generateToken(user);
+            String roleName = user.getRole() != null ? user.getRole().getName() : "";
+
+            return AuthenticationResponse.builder()
+                    .token(token)
+                    .isAuthenticated(true)
+                    .role(roleName)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Google Auth Error: {}", e.getMessage());
+            throw new RuntimeException("Google authentication failed", e);
+        }
+    }
+
+    /*
+    PRIVATE HELPERS
+     */
+    private User createNewGoogleUser(String email, GoogleIdToken.Payload payload) {
+        try {
+            Role customerRole = roleRepository.findByName("USER")
+                    .orElseThrow(() -> new RuntimeException("Lỗi hệ thống: Không tìm thấy Role CUSTOMER"));
+
+            User newUser = User.builder()
+                    .email(email)
+                    .username(email)
+                    .fullName((String) payload.get("name"))
+                    .avatar((String) payload.get("picture"))
+                    .dob(LocalDate.now())
+                    .active(true)
+                    .provider(AuthProvider.GOOGLE)
+                    .role(customerRole)
+                    .build();
+
+            return userRepository.save(newUser);
+
+        } catch (DataIntegrityViolationException e) {
+            /*
+             * GIẢI THÍCH KỸ THUẬT VỀ RACE CONDITION:
+             * * - Tình huống: User click button "Login Google" 2 lần cực nhanh (Double click),
+             * hoặc mạng lag dẫn đến frontend gửi 2 requests đồng thời (Concurrent requests).
+             * - Vấn đề: Cả 2 Threads (T1, T2) cùng lọt vào `findByEmail(email)` tại cùng 1 mili-giây.
+             * Cả T1 và T2 đều nhận được kết quả là `Optional.empty()`.
+             * Do đó, cả T1 và T2 đều chạy vào hàm `createNewGoogleUser` và gọi lệnh `save(newUser)`.
+             * * - Cách khắc phục:
+             * Nhờ Entity User của bạn đã có `@Column(nullable = false, unique = true)` ở field `email` và `username`.
+             * T1 insert nhanh hơn 1 mili-giây -> Thành công.
+             * T2 insert ngay sau đó -> MySQL sẽ ném ra lỗi vi phạm Unique Constraint.
+             * Spring Data JPA sẽ bọc lỗi này trong `DataIntegrityViolationException`.
+             *
+             * - Xử lý tiếp theo (Recovery): Thay vì để API trả về lỗi 500 cho request của T2,
+             * ta catch lỗi này, và biết chắc chắn là T1 đã insert thành công rồi,
+             * nên ta chỉ cần quay lại `findByEmail` một lần nữa để lấy User đó ra.
+             */
+            log.warn("Race condition detected during Google User creation for email: {}", email);
+
+            return userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Lỗi hệ thống: Không thể lấy thông tin user sau Race Condition"));
+        }
     }
 }

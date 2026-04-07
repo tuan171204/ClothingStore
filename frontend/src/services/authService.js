@@ -56,10 +56,20 @@ export const authService = {
     // 6. Xác nhận đổi mật khẩu mới với Token
     resetPassword: async (token, newPassword) => {
         try {
-            const response = await axios.post('/auth/reset-password', { 
-                token, 
-                newPassword 
+            const response = await axios.post('/auth/reset-password', {
+                token,
+                newPassword
             });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || error.message;
+        }
+    },
+
+    // 7. Đăng nhập với Google
+    googleLogin: async (idToken) => {
+        try {
+            const response = await axios.post('/auth/google', { idToken });
             return response.data;
         } catch (error) {
             throw error.response?.data || error.message;

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '@/services/authService';
 import { User, Lock, Mail, Phone, Calendar, Type, AlertCircle, CheckCircle2, UserCheck } from 'lucide-react';
-
+import { useAuth } from '@/context/AuthContext';
+import { GoogleLogin } from '@react-oauth/google';
 // Import Swiper React components và styles
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, EffectFade } from 'swiper/modules';
@@ -14,6 +15,7 @@ import 'swiper/css/effect-fade';
 
 export default function RegisterPage() {
     const router = useRouter();
+    const { loginWithGoogleToken } = useAuth();
 
     // Danh sách các Slide (Ảnh hoặc Video) - Bạn có thể thay đổi link tùy ý
     const slides = [
@@ -220,21 +222,38 @@ export default function RegisterPage() {
                             )}
                         </button>
 
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="uppercase cursor-pointer w-full bg-purple-600 text-white font-semibold py-3.5 px-4 rounded-xl hover:bg-purple-900 focus:ring-4 focus:ring-gray-900/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex gap-3 justify-center items-center"
-                        >
-                            <UserCheck size={22} />
-                            {isLoading ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    <span>ĐANG XỬ LÝ...</span>
-                                </div>
-                            ) : (
-                                'Tiếp tục với Google'
-                            )}
-                        </button>
+                        {/* Dải phân cách */}
+                        <div className="flex items-center my-6 mt-8">
+                            <div className="flex-grow border-t border-gray-200"></div>
+                            <span className="px-4 text-gray-400 text-sm font-medium">Hoặc</span>
+                            <div className="flex-grow border-t border-gray-200"></div>
+                        </div>
+
+                        <div className="mt-4 flex justify-center w-full">
+                            <GoogleLogin
+                                onSuccess={async (credentialResponse) => {
+                                    try {
+                                        setIsLoading(true);
+                                        setError('');
+                                        await loginWithGoogleToken(credentialResponse.credential);
+                                        router.push('/');
+                                    } catch (err) {
+                                        setError(err.message || 'Xác thực Google thất bại!');
+                                    } finally {
+                                        setIsLoading(false);
+                                    }
+                                }}
+                                onError={() => {
+                                    setError('Lỗi kết nối đến Google Server');
+                                }}
+                                useOneTap
+                                theme="outline"
+                                shape="rectangular"
+                                size="large"
+                                width="400"
+                                text="signup_with"
+                            />
+                        </div>
                     </form>
 
                     {/* Điều hướng về Đăng nhập */}
