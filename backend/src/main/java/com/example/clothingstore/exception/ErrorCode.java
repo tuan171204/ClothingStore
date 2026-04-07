@@ -41,7 +41,8 @@ public enum ErrorCode {
 
     //nhom 60: Module Coupons
     COUPON_NOT_FOUND(6001, "Không tìm thấy mã giảm giá", HttpStatus.NOT_FOUND),
-    COUPON_CODE_ALREADY_EXISTS(6002, "Mã giảm giá đã tồn tại", HttpStatus.BAD_REQUEST);
+    COUPON_CODE_ALREADY_EXISTS(6002, "Mã giảm giá đã tồn tại", HttpStatus.BAD_REQUEST),
+    COUPON_NOT_ELIGIBLE(6003, "Không đủ điều kiện sử dụng mã giảm giá", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

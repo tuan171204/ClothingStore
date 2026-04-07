@@ -2,15 +2,20 @@ package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.dtos.coupon.request.CouponRequest;
 import com.example.clothingstore.dtos.coupon.response.CouponResponse;
-import com.example.clothingstore.entity.Coupon; // Đã bỏ 's' theo ý Thu
+import com.example.clothingstore.entity.ApplyType;
+import com.example.clothingstore.entity.Coupon; 
+import com.example.clothingstore.entity.Product;
 import com.example.clothingstore.exception.AppException;
 import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.repository.CouponsRepository;
+import com.example.clothingstore.repository.ProductRepository;
 import com.example.clothingstore.service.CouponsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -18,6 +23,7 @@ import java.util.stream.Collectors;
 public class CouponsServiceImpl implements CouponsService {
 
     private final CouponsRepository couponsRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public List<CouponResponse> getAllCoupons() {
@@ -69,6 +75,7 @@ public class CouponsServiceImpl implements CouponsService {
         coupon.setStartDate(request.getStartDate());
         coupon.setEndDate(request.getEndDate());
         coupon.setActive(request.isActive());
+        coupon.setProducts(resolveAppliedProducts(request));
 
         coupon = couponsRepository.save(coupon);
 
@@ -101,6 +108,7 @@ public class CouponsServiceImpl implements CouponsService {
         coupon.setStartDate(request.getStartDate());
         coupon.setEndDate(request.getEndDate());
         coupon.setActive(request.isActive());
+        coupon.setProducts(resolveAppliedProducts(request));
 
         coupon = couponsRepository.save(coupon);
 
@@ -116,5 +124,23 @@ public class CouponsServiceImpl implements CouponsService {
             throw new AppException(ErrorCode.COUPON_NOT_FOUND);
         }
         couponsRepository.deleteById(id);
+    }
+
+    private Set<Product> resolveAppliedProducts(CouponRequest request) {
+        if (request.getApplyType() != ApplyType.PRODUCT) {
+            return new HashSet<>();
+        }
+
+        Set<Long> ids = request.getAppliedProductIds();
+        if (ids == null || ids.isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_DATA);
+        }
+
+        List<Product> products = productRepository.findAllById(ids);
+        if (products.size() != ids.size()) {
+            throw new AppException(ErrorCode.INVALID_DATA);
+        }
+
+        return new HashSet<>(products);
     }
 }

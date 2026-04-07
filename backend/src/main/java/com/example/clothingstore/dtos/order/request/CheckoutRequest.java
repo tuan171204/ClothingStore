@@ -16,6 +16,7 @@ public class CheckoutRequest {
     private String note;
     private BigDecimal shippingFee;
     private String paymentMethod;
+    private String couponCode;
 
     // Frontend gửi snapshot giỏ hàng tại thời điểm checkout
     private List<CheckoutItem> items;

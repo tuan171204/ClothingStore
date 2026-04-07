@@ -43,4 +43,15 @@ public class CheckoutController {
                         .result(result)
                         .build());
     }
+
+            @PostMapping("/checkout/preview")
+            public ResponseEntity<ApiResponse<CheckoutResponse>> previewCheckout(
+                @RequestBody CheckoutRequest request
+            ) {
+            CheckoutResponse result = checkoutService.previewCheckout(request);
+            return ResponseEntity.ok(ApiResponse.<CheckoutResponse>builder()
+                .code(HttpStatus.OK.value())
+                .result(result)
+                .build());
+            }
 }

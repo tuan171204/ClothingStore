@@ -5,6 +5,8 @@ import com.example.clothingstore.dtos.order.response.CheckoutResponse;
 import com.example.clothingstore.dtos.order.response.CheckoutResponse.StockMismatch;
 import com.example.clothingstore.entity.*;
 import com.example.clothingstore.entity.Enum.OrderStatus;
+import com.example.clothingstore.exception.AppException;
+import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.exception.StockException;
 import com.example.clothingstore.repository.*;
 import com.example.clothingstore.service.CartService;
@@ -21,6 +23,8 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,6 +38,7 @@ public class CheckoutService {
     private final UserRepository        userRepository;
     private final SkuRepository         skuRepository;
     private final InventoryRepository   inventoryRepository;
+        private final CouponsRepository     couponsRepository;
     private final CartService           cartService;
     private final OrderProducer         orderProducer;
 
@@ -78,6 +83,44 @@ public class CheckoutService {
         }
     }
 
+    public CheckoutResponse previewCheckout(CheckoutRequest request) {
+        List<CheckoutRequest.CheckoutItem> items = request.getItems() == null
+                ? Collections.emptyList()
+                : request.getItems();
+
+        BigDecimal shippingFee = request.getShippingFee() == null ? BigDecimal.ZERO : request.getShippingFee();
+
+        BigDecimal subtotal = items.stream()
+                .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        String appliedCouponCode = null;
+
+        String normalizedCouponCode = request.getCouponCode() == null
+                ? null
+                : request.getCouponCode().trim().toUpperCase();
+
+        if (normalizedCouponCode != null && !normalizedCouponCode.isEmpty()) {
+            Coupon coupon = couponsRepository.findByCode(normalizedCouponCode)
+                    .orElseThrow(() -> new AppException(ErrorCode.COUPON_NOT_FOUND));
+
+            Map<Long, Inventory> inventoryMap = getInventoryMap(items);
+            discountAmount = calculateDiscount(coupon, items, inventoryMap, subtotal);
+            appliedCouponCode = coupon.getCode();
+        }
+
+        BigDecimal totalAmount = subtotal.add(shippingFee).subtract(discountAmount).max(BigDecimal.ZERO);
+
+        return CheckoutResponse.builder()
+                .status(CheckoutResponse.Status.SUCCESS)
+                .message("Tính toán khuyến mãi thành công")
+                .totalAmount(totalAmount)
+                .discountAmount(discountAmount)
+                .appliedCouponCode(appliedCouponCode)
+                .build();
+    }
+
     /**
      * CRITICAL SECTION — Optimistic Lock với retry.
      *
@@ -108,9 +151,7 @@ public class CheckoutService {
 
         // === BƯỚC 2.1: Load tất cả inventory trong 1 query (tránh N+1) ===
         // QUAN TRỌNG: Sort by sku_id để tránh deadlock khi có nhiều transaction
-        Map<Long, Inventory> inventoryMap = inventoryRepository
-                .findBySkuIdIn(skuIds).stream()
-                .collect(Collectors.toMap(i -> i.getSku().getId(), i -> i));
+        Map<Long, Inventory> inventoryMap = getInventoryMap(request.getItems());
 
         // === BƯỚC 2.2: Final stock validation trong transaction ===
         List<StockException.StockIssue> issues = new ArrayList<>();
@@ -150,6 +191,23 @@ public class CheckoutService {
                 .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        Coupon appliedCoupon = null;
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        String normalizedCouponCode = request.getCouponCode() == null
+                ? null
+                : request.getCouponCode().trim().toUpperCase();
+
+        if (normalizedCouponCode != null && !normalizedCouponCode.isEmpty()) {
+            appliedCoupon = couponsRepository.findByCode(normalizedCouponCode)
+                    .orElseThrow(() -> new AppException(ErrorCode.COUPON_NOT_FOUND));
+            discountAmount = calculateDiscount(appliedCoupon, request.getItems(), inventoryMap, subtotal);
+        }
+
+        BigDecimal totalAmount = subtotal
+                .add(request.getShippingFee())
+                .subtract(discountAmount)
+                .max(BigDecimal.ZERO);
+
         Order order = Order.builder()
                 .userId(user.getId())
                 .fullName(request.getFullName())
@@ -161,8 +219,8 @@ public class CheckoutService {
                 .note(request.getNote())
                 .shippingFee(request.getShippingFee())
                 .subtotal(subtotal)
-                .totalAmount(subtotal.add(request.getShippingFee()))
-                .discountAmount(BigDecimal.ZERO)
+                .totalAmount(totalAmount)
+                .discountAmount(discountAmount)
                 .paymentMethod(request.getPaymentMethod())
                 .status(OrderStatus.PENDING)
                 .build();
@@ -190,6 +248,11 @@ public class CheckoutService {
 
         orderItemRepository.saveAll(orderItems);
 
+                if (appliedCoupon != null) {
+                        appliedCoupon.setUsedCount((appliedCoupon.getUsedCount() == null ? 0 : appliedCoupon.getUsedCount()) + 1);
+                        couponsRepository.save(appliedCoupon);
+                }
+
         // === BƯỚC 2.5: Clear cart ===
         cartService.clearCart(user.getId());
 
@@ -204,9 +267,73 @@ public class CheckoutService {
                 .status(CheckoutResponse.Status.SUCCESS)
                 .orderId(savedOrder.getId())
                 .totalAmount(savedOrder.getTotalAmount())
+                                .discountAmount(savedOrder.getDiscountAmount())
+                                .appliedCouponCode(appliedCoupon != null ? appliedCoupon.getCode() : null)
                 .message("Đặt hàng thành công!")
                 .build();
     }
+
+        private BigDecimal calculateDiscount(
+                        Coupon coupon,
+                        List<CheckoutRequest.CheckoutItem> items,
+                        Map<Long, Inventory> inventoryMap,
+                        BigDecimal subtotal
+        ) {
+                LocalDateTime now = LocalDateTime.now();
+
+                if (!coupon.isActive()) {
+                        throw new AppException(ErrorCode.INVALID_DATA);
+                }
+                if (coupon.getStartDate() != null && now.isBefore(coupon.getStartDate())) {
+                        throw new AppException(ErrorCode.INVALID_DATA);
+                }
+                if (coupon.getEndDate() != null && now.isAfter(coupon.getEndDate())) {
+                        throw new AppException(ErrorCode.INVALID_DATA);
+                }
+                if (coupon.getUsageLimit() != null && (coupon.getUsedCount() == null ? 0 : coupon.getUsedCount()) >= coupon.getUsageLimit()) {
+                        throw new AppException(ErrorCode.INVALID_DATA);
+                }
+                if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
+                        throw new AppException(ErrorCode.INVALID_DATA);
+                }
+
+                BigDecimal eligibleAmount = subtotal;
+                if (coupon.getApplyType() == ApplyType.PRODUCT) {
+                        Set<Long> productIds = coupon.getProducts() == null
+                                        ? Collections.emptySet()
+                                        : coupon.getProducts().stream().map(Product::getId).collect(Collectors.toSet());
+
+                        eligibleAmount = items.stream()
+                                        .filter(item -> {
+                                                Inventory inv = inventoryMap.get(item.getSkuId());
+                                                Long productId = inv != null && inv.getSku() != null && inv.getSku().getProduct() != null
+                                                                ? inv.getSku().getProduct().getId()
+                                                                : null;
+                                                return productId != null && productIds.contains(productId);
+                                        })
+                                        .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                }
+
+                if (eligibleAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new AppException(ErrorCode.COUPON_NOT_ELIGIBLE);
+                }
+
+                BigDecimal discount;
+                if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
+                        discount = eligibleAmount
+                                        .multiply(coupon.getDiscountValue())
+                                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+                        if (coupon.getMaxDiscountAmount() != null && coupon.getMaxDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+                                discount = discount.min(coupon.getMaxDiscountAmount());
+                        }
+                } else {
+                        discount = coupon.getDiscountValue();
+                }
+
+                return discount.max(BigDecimal.ZERO).min(subtotal);
+        }
 
     /**
      * Pre-validation: đọc nhanh không lock, chỉ để fail-fast trước khi vào transaction.
@@ -247,6 +374,19 @@ public class CheckoutService {
         }
         return mismatches;
     }
+
+        private Map<Long, Inventory> getInventoryMap(List<CheckoutRequest.CheckoutItem> items) {
+                List<Long> skuIds = items == null
+                                ? Collections.emptyList()
+                                : items.stream().map(CheckoutRequest.CheckoutItem::getSkuId).collect(Collectors.toList());
+
+                if (skuIds.isEmpty()) {
+                        return Collections.emptyMap();
+                }
+
+                return inventoryRepository.findBySkuIdIn(skuIds).stream()
+                                .collect(Collectors.toMap(i -> i.getSku().getId(), i -> i));
+        }
 
     private String resolveUserId() {
         return SecurityContextHolder.getContext().getAuthentication().getName();

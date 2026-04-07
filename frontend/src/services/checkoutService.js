@@ -10,6 +10,11 @@ export const checkoutService = {
         return response.data.result;
     },
 
+    previewCheckout: async (checkoutData) => {
+        const response = await axios.post('/orders/checkout/preview', checkoutData);
+        return response.data.result;
+    },
+
     validateCart: async () => {
         const response = await axios.get('/cart/validate');
         return response.data.result;

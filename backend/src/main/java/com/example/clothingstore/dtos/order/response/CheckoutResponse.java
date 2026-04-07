@@ -16,6 +16,8 @@ public class CheckoutResponse {
     private Long orderId;
     private String message;
     private BigDecimal totalAmount;
+    private BigDecimal discountAmount;
+    private String appliedCouponCode;
 
     // Danh sách item có vấn đề (để frontend highlight)
     private List<StockMismatch> stockMismatches;

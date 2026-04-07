@@ -2,13 +2,16 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { getCoupons, createCoupon, updateCoupon, deleteCoupon } from '@/services/couponService';
+import { getProducts } from '@/services/productService';
 import { Plus, Edit, Trash2, Ticket, X, Search, RefreshCw, CheckCircle, XCircle, Eye, Info,Calendar } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function CouponsPage() {
     const [coupons, setCoupons] = useState([]);
+    const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [keyword, setKeyword] = useState('');
+    const [productKeyword, setProductKeyword] = useState('');
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +26,7 @@ const [formData, setFormData] = useState({
     maxDiscountAmount: '', 
     minOrderValue: '',
     applyType: 'ORDER', // Đã có
+    appliedProductIds: [],
     usageLimit: '',     // MỚI: Thêm trường này
     startDate: '', 
     endDate: '', 
@@ -34,7 +38,11 @@ const [formData, setFormData] = useState({
         setLoading(true);
         try {
             const data = await getCoupons();
-            setCoupons(data || []);
+            const normalized = (data || []).map(coupon => ({
+                ...coupon,
+                isActive: coupon.isActive ?? coupon.active ?? false,
+            }));
+            setCoupons(normalized);
         } catch (error) {
             toast.error('Không thể tải danh sách mã giảm giá!');
             setCoupons([]);
@@ -44,6 +52,21 @@ const [formData, setFormData] = useState({
     };
 
     useEffect(() => { fetchCoupons(); }, []);
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const response = await getProducts();
+                const list = Array.isArray(response)
+                    ? response
+                    : (Array.isArray(response?.result) ? response.result : []);
+                setProducts(list || []);
+            } catch {
+                setProducts([]);
+            }
+        };
+        fetchProducts();
+    }, []);
 
     const formatDateTimeLocal = (dateStr) => {
         if (!dateStr) return '';
@@ -69,6 +92,16 @@ const [formData, setFormData] = useState({
             setEditingCoupon(coupon);
             setFormData({
                 ...coupon,
+                code: coupon.code ?? '',
+                description: coupon.description ?? '',
+                discountType: coupon.discountType ?? 'PERCENTAGE',
+                discountValue: coupon.discountValue ?? '',
+                maxDiscountAmount: coupon.maxDiscountAmount ?? '',
+                minOrderValue: coupon.minOrderValue ?? '',
+                applyType: coupon.applyType ?? 'ORDER',
+                appliedProductIds: Array.isArray(coupon.appliedProductIds) ? coupon.appliedProductIds : [],
+                usageLimit: coupon.usageLimit ?? '',
+                isActive: coupon.isActive ?? coupon.active ?? true,
                 startDate: formatDateTimeLocal(coupon.startDate),
                 endDate: formatDateTimeLocal(coupon.endDate)
             });
@@ -77,7 +110,7 @@ const [formData, setFormData] = useState({
             setFormData({
                 code: '', description: '', discountType: 'PERCENTAGE',
                 discountValue: '', maxDiscountAmount: '', minOrderValue: '',
-                applyType: 'ORDER', startDate: '', endDate: '', isActive: true
+                applyType: 'ORDER', appliedProductIds: [], usageLimit: '', startDate: '', endDate: '', isActive: true
             });
         }
         setIsModalOpen(true);
@@ -85,13 +118,22 @@ const [formData, setFormData] = useState({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (formData.applyType === 'PRODUCT' && (!formData.appliedProductIds || formData.appliedProductIds.length === 0)) {
+            toast.warn('Vui lòng chọn ít nhất 1 sản phẩm áp dụng');
+            return;
+        }
         setSaving(true);
         try {
+            const payload = {
+                ...formData,
+                // Backend may bind boolean as "active" (Lombok boolean naming).
+                active: !!formData.isActive,
+            };
             if (editingCoupon) {
-                await updateCoupon(editingCoupon.id, formData);
+                await updateCoupon(editingCoupon.id, payload);
                 toast.success('Cập nhật mã thành công!');
             } else {
-                await createCoupon(formData);
+                await createCoupon(payload);
                 toast.success('Thêm mã thành công!');
             }
             setIsModalOpen(false);
@@ -112,6 +154,35 @@ const [formData, setFormData] = useState({
         } catch {
             toast.error('Lỗi khi xóa mã giảm giá!');
         }
+    };
+
+    const filteredProducts = useMemo(() => {
+        const list = Array.isArray(products) ? products : [];
+        const kw = productKeyword.trim().toLowerCase();
+        if (!kw) return list;
+        return list.filter(p => p.name?.toLowerCase().includes(kw));
+    }, [products, productKeyword]);
+
+    const selectedCouponProducts = useMemo(() => {
+        if (!selectedCoupon || selectedCoupon.applyType !== 'PRODUCT') return [];
+        const ids = Array.isArray(selectedCoupon.appliedProductIds) ? selectedCoupon.appliedProductIds : [];
+        if (ids.length === 0) return [];
+
+        const byId = new Map((products || []).map(p => [p.id, p.name]));
+        return ids.map(id => ({ id, name: byId.get(id) || `Sản phẩm #${id}` }));
+    }, [selectedCoupon, products]);
+
+    const toggleProduct = (productId) => {
+        setFormData(prev => {
+            const current = Array.isArray(prev.appliedProductIds) ? prev.appliedProductIds : [];
+            const exists = current.includes(productId);
+            return {
+                ...prev,
+                appliedProductIds: exists
+                    ? current.filter(id => id !== productId)
+                    : [...current, productId],
+            };
+        });
     };
 
     return (
@@ -279,6 +350,18 @@ const [formData, setFormData] = useState({
                             <span className="font-bold text-blue-600">{selectedCoupon.applyType === 'ORDER' ? 'Toàn bộ đơn' : 'Sản phẩm chọn lọc'}</span>
                         </div>
                     </div>
+                    {selectedCoupon.applyType === 'PRODUCT' && selectedCouponProducts.length > 0 && (
+                        <div className="mt-5 bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                            <p className="text-xs font-black uppercase tracking-wider text-blue-700 mb-3">Sản phẩm được áp dụng</p>
+                            <div className="flex flex-wrap gap-2">
+                                {selectedCouponProducts.map(product => (
+                                    <span key={product.id} className="px-3 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-full text-xs font-semibold">
+                                        {product.name}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Luồng 3: Thời gian & Trạng thái (Timeline) */}
@@ -383,9 +466,9 @@ const [formData, setFormData] = useState({
                         <label className="block text-sm font-bold text-gray-700 mb-1.5">Áp dụng cho</label>
                         <select className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-white" 
                             value={formData.applyType}
-                            onChange={e => setFormData({ ...formData, applyType: e.target.value })}>
+                            onChange={e => setFormData({ ...formData, applyType: e.target.value, appliedProductIds: e.target.value === 'PRODUCT' ? formData.appliedProductIds : [] })}>
                             <option value="ORDER">Toàn bộ đơn hàng</option>
-                            <option value="SPECIFIC_PRODUCTS">Sản phẩm cụ thể</option>
+                            <option value="PRODUCT">Sản phẩm cụ thể</option>
                         </select>
                     </div>
 
@@ -413,6 +496,36 @@ const [formData, setFormData] = useState({
                             onChange={e => setFormData({ ...formData, maxDiscountAmount: e.target.value })} 
                             placeholder={formData.discountType === 'FIXED_AMOUNT' ? 'Không cần thiết' : 'VD: 50000'} />
                     </div>
+
+                    {formData.applyType === 'PRODUCT' && (
+                        <div className="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-gray-50">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Chọn sản phẩm áp dụng</label>
+                            <input
+                                type="text"
+                                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 mb-3 bg-white"
+                                value={productKeyword}
+                                onChange={e => setProductKeyword(e.target.value)}
+                                placeholder="Tìm sản phẩm theo tên..."
+                            />
+                            <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+                                {filteredProducts.map(product => (
+                                    <label key={product.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white border border-transparent hover:border-gray-200 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 accent-purple-600"
+                                            checked={(formData.appliedProductIds || []).includes(product.id)}
+                                            onChange={() => toggleProduct(product.id)}
+                                        />
+                                        <span className="text-sm text-gray-700">{product.name}</span>
+                                    </label>
+                                ))}
+                                {filteredProducts.length === 0 && (
+                                    <p className="text-sm text-gray-400">Không tìm thấy sản phẩm.</p>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-3">Đã chọn: {(formData.appliedProductIds || []).length} sản phẩm</p>
+                        </div>
+                    )}
 
                     {/* SECTION 4: THỜI GIAN */}
                     <div>

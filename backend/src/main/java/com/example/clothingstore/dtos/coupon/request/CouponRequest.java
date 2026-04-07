@@ -5,6 +5,7 @@ import com.example.clothingstore.entity.DiscountType;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 @Builder
@@ -19,6 +20,7 @@ public class CouponRequest {
     private BigDecimal minOrderValue;
     private ApplyType applyType;
     private Integer usageLimit;
+    private Set<Long> appliedProductIds;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private boolean isActive;

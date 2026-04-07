@@ -10,7 +10,8 @@ import { addressService } from '@/services/addressService';
 import { checkoutService } from '@/services/checkoutService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, User, Phone, CheckCircle2, Plus } from 'lucide-react';
+import { MapPin, User, Phone, CheckCircle2, Plus, TicketPercent } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function CheckoutPage() {
     const { cartItems, cartTotal, clearCart, validateCart } = useCart();
@@ -33,13 +34,17 @@ export default function CheckoutPage() {
     // --- State Đơn hàng ---
     const [shippingMethod, setShippingMethod] = useState('GHN');
     const [paymentMethod, setPaymentMethod] = useState('COD');
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCouponCode, setAppliedCouponCode] = useState('');
+    const [couponDiscount, setCouponDiscount] = useState(0);
+    const [applyingCoupon, setApplyingCoupon] = useState(false);
     const [shippingFee, setShippingFee] = useState(0);
     const [loadingFee, setLoadingFee] = useState(false);
 
     const [stockMismatches, setStockMismatches] = useState([]);
     const [checkoutError, setCheckoutError] = useState(null);
 
-    const finalTotal = cartTotal + shippingFee;
+    const finalTotal = Math.max(0, cartTotal + shippingFee - couponDiscount);
 
     // 1. Khởi tạo dữ liệu
     useEffect(() => {
@@ -122,6 +127,40 @@ export default function CheckoutPage() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleApplyCoupon = async () => {
+        const normalizedCode = couponCode.trim().toUpperCase();
+        if (!normalizedCode) {
+            toast.warn('Vui lòng nhập mã khuyến mãi');
+            return;
+        }
+
+        setApplyingCoupon(true);
+        try {
+            const previewPayload = {
+                shippingFee,
+                couponCode: normalizedCode,
+                items: cartItems.map(item => ({
+                    skuId: item.skuId,
+                    productName: item.productName,
+                    quantity: item.quantity,
+                    price: item.price,
+                })),
+            };
+
+            const result = await checkoutService.previewCheckout(previewPayload);
+            const discount = Number(result?.discountAmount || 0);
+            setCouponDiscount(discount);
+            setAppliedCouponCode(result?.appliedCouponCode || normalizedCode);
+            toast.success(`Áp dụng mã thành công: -${formatCurrency(discount)}`);
+        } catch (error) {
+            setCouponDiscount(0);
+            setAppliedCouponCode('');
+            toast.error(error.response?.data?.message || 'Mã khuyến mãi không hợp lệ');
+        } finally {
+            setApplyingCoupon(false);
+        }
+    };
+
     const findName = (list, idKey, idVal, nameKey) => {
         const found = list.find(item => item[idKey] == idVal);
         return found ? found[nameKey] : '';
@@ -150,7 +189,8 @@ export default function CheckoutPage() {
                 toWardCode: selectedAddr.wardCode,
                 shippingFee: shippingFee,
                 paymentMethod: paymentMethod,
-                items: cartItems.map(item => ({ skuId: item.skuId, name: item.productName, quantity: item.quantity, price: item.price }))
+                couponCode: couponCode.trim() ? couponCode.trim().toUpperCase() : null,
+                items: cartItems.map(item => ({ skuId: item.skuId, productName: item.productName, quantity: item.quantity, price: item.price }))
             };
         } else {
             if (!formData.fullName || !formData.phone || !formData.specificAddress || !selectedProvince || !selectedDistrict || !selectedWard) {
@@ -167,7 +207,8 @@ export default function CheckoutPage() {
                 toWardCode: String(selectedWard),
                 shippingFee: shippingFee,
                 paymentMethod: paymentMethod,
-                items: cartItems.map(item => ({ skuId: item.skuId, name: item.productName, quantity: item.quantity, price: item.price }))
+                couponCode: couponCode.trim() ? couponCode.trim().toUpperCase() : null,
+                items: cartItems.map(item => ({ skuId: item.skuId, productName: item.productName, quantity: item.quantity, price: item.price }))
             };
         }
 
@@ -353,10 +394,46 @@ export default function CheckoutPage() {
                     <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200 sticky top-28">
                         <h3 className="text-lg font-black uppercase tracking-tight mb-5 border-b border-gray-100 pb-4 text-gray-900">Tổng quan đơn hàng</h3>
 
+                        <div className="mb-5 p-4 rounded-md border border-gray-200 bg-gray-50">
+                            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-700 mb-2">
+                                <TicketPercent size={14} className="text-blue-600" />
+                                Mã khuyến mãi
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={couponCode}
+                                    onChange={(e) => setCouponCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
+                                    placeholder="Nhập mã giảm giá"
+                                    className="flex-1 border border-gray-300 p-3 rounded-md bg-white outline-none focus:ring-1 focus:ring-gray-900 text-sm"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleApplyCoupon}
+                                    disabled={applyingCoupon || loadingFee || cartItems.length === 0}
+                                    className="px-4 py-3 rounded-md bg-blue-600 text-white font-bold text-xs uppercase tracking-wide hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {applyingCoupon ? 'Đang áp dụng...' : 'Áp dụng ngay'}
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-gray-500 mt-2">
+                                Mã sẽ được kiểm tra khi bạn bấm đặt hàng.
+                            </p>
+                            {appliedCouponCode && couponDiscount > 0 && (
+                                <p className="text-[11px] text-emerald-600 mt-1 font-semibold">
+                                    Đã áp dụng {appliedCouponCode}: -{formatCurrency(couponDiscount)}
+                                </p>
+                            )}
+                        </div>
+
                         <div className="space-y-3 text-gray-600 mb-6 text-sm">
                             <div className="flex justify-between items-center">
                                 <span>Tạm tính ({cartItems.length} sản phẩm):</span>
                                 <span className="font-bold text-gray-900">{formatCurrency(cartTotal)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span>Giảm giá:</span>
+                                <span className="font-bold text-emerald-600">-{formatCurrency(couponDiscount)}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span>Phí vận chuyển:</span>
