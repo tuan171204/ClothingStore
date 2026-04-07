@@ -3,6 +3,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { authService } from '@/services/authService';
 import { useRouter } from 'next/navigation';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const AuthContext = createContext();
 
@@ -29,7 +30,7 @@ export const AuthProvider = ({ children }) => {
         loadUser();
     }, []);
 
-    // 2. Hàm Đăng nhập (Dùng trong trang Login)
+    // 2.1 Hàm Đăng nhập (Dùng trong trang Login)
     const login = async (username, password) => {
         // Lấy token
         const data = await authService.login(username, password);
@@ -40,6 +41,21 @@ export const AuthProvider = ({ children }) => {
         const userInfo = await authService.getMyInfo();
         setUser(userInfo.result);
         return userInfo.result; // Trả về thông tin để Component ngoài biết Role là gì (Admin hay User)
+    };
+
+    // 2.2 Hàm Đăng nhập Google (Headless OAuth2)
+    const loginWithGoogleToken = async (idToken) => {
+        // Gửi idToken lên Backend (Spring Boot) để verify và lấy Custom JWT
+        const data = await authService.googleLogin(idToken);
+        const token = data.result.token;
+
+        // Lưu Custom JWT vào localStorage
+        localStorage.setItem('token', token);
+
+        // Fetch lại thông tin User (Lúc này Backend đã nhận diện được user qua token mới)
+        const userInfo = await authService.getMyInfo();
+        setUser(userInfo.result);
+        return userInfo.result;
     };
 
     // 3. Hàm Đăng xuất
@@ -55,9 +71,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, }}>
-            {children}
-        </AuthContext.Provider>
+        <GoogleOAuthProvider clientId="1059259162-4l3cno2j5cb0fqecehb2vugli6db4nrm.apps.googleusercontent.com">
+            <AuthContext.Provider value={{ user, loading, login, loginWithGoogleToken, logout, }}>
+                {children}
+            </AuthContext.Provider>
+        </GoogleOAuthProvider>
     );
 };
 

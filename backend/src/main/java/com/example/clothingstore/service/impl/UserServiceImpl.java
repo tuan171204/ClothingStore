@@ -3,6 +3,7 @@ package com.example.clothingstore.service.impl;
 import com.example.clothingstore.dtos.user.request.UserCreationRequest;
 import com.example.clothingstore.dtos.user.request.UserUpdateRequest;
 import com.example.clothingstore.dtos.user.response.UserResponse;
+import com.example.clothingstore.entity.Enum.AuthProvider;
 import com.example.clothingstore.entity.Role;
 import com.example.clothingstore.entity.User;
 import com.example.clothingstore.mapper.UserMapper;
@@ -54,6 +55,7 @@ public class UserServiceImpl implements UserService {
 
         // Gán role cho user mới
         user.setRole(defaultRole);
+        user.setProvider(AuthProvider.LOCAL);
 
         try {
             user = userRepository.save(user);

@@ -66,4 +66,12 @@ public class AuthenticationController {
                 .result("Đặt lại mật khẩu mới thành công")
                 .build();
     }
+
+    @PostMapping("/google")
+    ApiResponse<AuthenticationResponse> googleLogin(@RequestBody GoogleLoginRequest request) {
+        var result = authenticationService.googleLogin(request);
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(result)
+                .build();
+    }
 }

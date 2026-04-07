@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, User, AlertCircle, UserCheck } from 'lucide-react';
 import { addressService } from '@/services/addressService';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');
@@ -13,7 +14,7 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const { login } = useAuth();
+    const { login, loginWithGoogleToken } = useAuth();
     const router = useRouter();
 
     const handleSubmit = async (e) => {
@@ -172,30 +173,52 @@ export default function LoginPage() {
                             )}
                         </button>
                     </div>
-
-
-                    <div className="anim-slide-up delay-400">
-                        <button
-                            type="button"
-                            disabled={isLoading}
-                            className="w-full bg-purple-600 text-white font-bold tracking-wide py-4 px-4 rounded-md hover:bg-purple-900 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] focus:ring-4 focus:ring-white/50 active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex gap-3 justify-center items-center cursor-pointer uppercase"
-                        >
-                            <UserCheck size={22} />
-                            {isLoading ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="w-5 h-5 border-2 border-gray-900/30 border-t-gray-900 rounded-full animate-spin"></div>
-                                    <span>ĐANG XỬ LÝ...</span>
-                                </div>
-                            ) : (
-                                `Tiếp tục với Google`
-                            )}
-                        </button>
+                    {/* Dải phân cách */}
+                    <div className="anim-slide-up delay-400 flex items-center my-4">
+                        <div className="grow border-t border-white/10"></div>
+                        <span className="px-4 text-white/50 text-sm font-medium">Hoặc</span>
+                        <div className="grow border-t border-white/10"></div>
                     </div>
 
 
+                    {/* NÚT ĐĂNG NHẬP GOOGLE  */}
+                    <div className="anim-slide-up delay-400 mt-4 flex justify-center w-full">
+                        <GoogleLogin
+                            onSuccess={async (credentialResponse) => {
+                                try {
+                                    setIsLoading(true);
+                                    setError('');
+                                    // credentialResponse.credential chính là id_token gửi xuống backend
+                                    const user = await loginWithGoogleToken(credentialResponse.credential);
 
-
-
+                                    if (user?.role?.name === 'ADMIN' || user?.role?.name === 'STAFF') {
+                                        router.push('/admin/dashboard');
+                                    } else {
+                                        try {
+                                            const addressRes = await addressService.getMyDefaultAddress();
+                                            if (addressRes.result === null) router.push('/setup-address');
+                                            else router.push('/');
+                                        } catch (addrErr) {
+                                            router.push('/');
+                                        }
+                                    }
+                                } catch (err) {
+                                    setError(err.message || 'Xác thực Google thất bại!');
+                                } finally {
+                                    setIsLoading(false);
+                                }
+                            }}
+                            onError={() => {
+                                setError('Lỗi kết nối đến Google Server');
+                            }}
+                            useOneTap
+                            theme="filled_blue"
+                            shape="rectangular"
+                            size="large"
+                            width="350"
+                            text="signin_with"
+                        />
+                    </div>
                 </form>
 
                 {/* Phần chuyển hướng sang Đăng ký */}
