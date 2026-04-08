@@ -1,218 +1,303 @@
-# 🛍️ Nền Tảng Thương Mại Điện Tử Đa Kênh (Headless E-commerce)
+# 🛍️ ClothingStore — Nền Tảng Thương Mại Điện Tử Đa Kênh (Headless E-commerce)
 
 > **Đồ Án Chuyên Ngành — Nhóm 3C**
+> Phiên bản tài liệu: cập nhật theo tiến độ thực tế (Sprint 1–9 đang triển khai)
 
 ---
 
-## 📖 Giới Thiệu
+## 📖 Tổng Quan Dự Án
 
-Dự án xây dựng một nền tảng thương mại điện tử theo kiến trúc **Headless**, tách biệt hoàn toàn giữa tầng hiển thị (Frontend) và tầng nghiệp vụ (Backend API). Hệ thống giải quyết bài toán quản lý bán hàng đa kênh cho các doanh nghiệp vừa và nhỏ, bao gồm toàn bộ vòng đời từ quản lý sản phẩm, đặt hàng, thanh toán đến vận chuyển. Đối tượng sử dụng bao gồm khách hàng mua sắm online, nhân viên bán hàng và quản trị viên hệ thống.
+Dự án xây dựng nền tảng thương mại điện tử theo kiến trúc **Headless**, tách biệt hoàn toàn giữa tầng hiển thị (Frontend) và tầng nghiệp vụ (Backend API). Hệ thống giải quyết bài toán quản lý bán hàng đa kênh cho doanh nghiệp vừa và nhỏ, bao phủ toàn bộ vòng đời từ quản lý sản phẩm, đặt hàng, thanh toán đến vận chuyển.
+
+**Đối tượng sử dụng:** Khách hàng mua sắm online · Nhân viên kho/bán hàng (Staff) · Quản trị viên (Admin/Super Admin)
 
 ---
 
 ## ⚙️ Tech Stack
 
-| Nhóm | Công nghệ |
+| Nhóm | Công nghệ | Phiên bản |
+|---|---|---|
+| **Frontend** | Next.js (App Router), React, TailwindCSS, MUI, Axios, React Toastify, Swiper | Next.js 16 / React 19 |
+| **Backend** | Java, Spring Boot, Spring Security, Spring Data JPA, MapStruct, Lombok | Java 17 / Spring Boot 3.4 |
+| **Database** | MySQL (primary), Redis (cache & session), Flyway (migration) | MySQL 8 / Redis latest |
+| **Search** | OpenSearch (fork của Elasticsearch, tích hợp qua spring-data-opensearch) | OpenSearch 1.5 |
+| **Message Queue** | RabbitMQ | v3 |
+| **AI / Chatbot** | Spring AI + Google Gemini (embedding & chat) + Pinecone (Vector Store) | Spring AI 1.1.4 |
+| **Infrastructure** | Docker, Docker Compose, GitHub Actions (CI/CD) | — |
+| **API Docs** | Swagger / SpringDoc OpenAPI 3 | 2.8.4 |
+| **Integrations** | VNPay (payment gateway), GHN – Giao Hàng Nhanh (shipping), Cloudinary (image storage), Google OAuth2 | — |
+| **WebSocket** | Spring WebSocket + STOMP (real-time notifications) | — |
+
+---
+
+## ✅ Tính Năng Đã Hoàn Thành
+
+### 👤 Khách Hàng (Customer)
+
+| Nhóm | Chi tiết |
 |---|---|
-| **Frontend** | Next.js 16 (App Router), React 19, TailwindCSS 4, MUI (Material UI), Axios, React Toastify, Swiper |
-| **Backend** | Java 17, Spring Boot 3.5, Spring Security, Spring Data JPA, MapStruct, Lombok |
-| **Database** | MySQL 8 (primary), Redis (cache & session), Flyway (migration) |
-| **Search** | Elasticsearch 8.10 |
-| **Message Queue** | RabbitMQ 3 |
-| **Infrastructure** | Docker, Docker Compose, GitHub Actions (CI/CD) |
-| **API Docs** | Swagger / SpringDoc OpenAPI 3 |
-| **Integrations** | VNPAY (payment), GHN – Giao Hàng Nhanh (shipping), Cloudinary (image storage) |
+| **Xác thực** | Đăng ký / Đăng nhập email+password (JWT), Google OAuth2, Refresh Token, Đăng xuất (blacklist token), Quên/Đặt lại mật khẩu qua email (token Redis TTL 15 phút) |
+| **Hồ sơ** | Xem/cập nhật thông tin cá nhân, upload avatar (Cloudinary), Sổ địa chỉ giao hàng (CRUD, đặt mặc định) |
+| **Duyệt sản phẩm** | Danh sách sản phẩm, lọc theo danh mục/thương hiệu/khoảng giá, tìm kiếm full-text & fuzzy (OpenSearch), phân trang |
+| **Chi tiết sản phẩm** | Ảnh, mô tả, chọn biến thể (Màu × Size), kiểm tra tồn kho theo SKU, ma trận biến thể |
+| **Giỏ hàng** | Thêm/sửa/xóa theo SKU, giỏ hàng Redis (user & guest), merge khi đăng nhập, validate & sync tồn kho, tích hợp giá Flash Sale real-time |
+| **Checkout** | 3 bước (địa chỉ → phí ship → thanh toán), kiểm tra tồn kho Optimistic Lock, áp mã giảm giá, VNPay redirect, COD |
+| **Đơn hàng** | Lịch sử đơn, xem chi tiết, theo dõi trạng thái vận chuyển GHN real-time, **Hủy đơn** (PENDING/CONFIRMED), **Yêu cầu hoàn trả** (COMPLETED + trong 30 ngày, kèm ảnh bằng chứng) |
+| **Đánh giá** | Đánh giá sản phẩm sau khi đơn COMPLETED (verified purchase), xem đánh giá đã duyệt |
+| **Bình luận** | Hỏi đáp sản phẩm (comment + reply 1 cấp) |
+| **Chatbot AI** | Tư vấn sản phẩm qua RAG (Pinecone vector store + Google Gemini), streaming response, chat memory per conversation |
+| **Flash Sale** | Xem chiến dịch Flash Sale đang chạy, mua hàng giá KM (kiểm soát tồn kho qua Redis atomic decrement) |
+
+### 🛠️ Quản Trị (Admin / Staff)
+
+| Nhóm | Chi tiết |
+|---|---|
+| **Danh mục & Thương hiệu** | CRUD đầy đủ, upload logo thương hiệu, phân trang |
+| **Sản phẩm** | Tạo/sửa/xóa (soft delete nếu đã nhập kho), upload ảnh Cloudinary, quản lý đa biến thể (multi-variant SKU), thuộc tính động, đồng bộ vector Pinecone |
+| **SKU** | Tự động sinh mã SKU, cấu hình giá & tồn kho theo biến thể, profit margin tự động tính giá bán, xóa mềm khi hết hàng |
+| **Nhập kho (GRN)** | Tạo/sửa phiếu nhập, QC (quantity_passed / quantity_failed), xác nhận nhập kho → cập nhật tồn kho + tính giá nhập bình quân (WAC) |
+| **Tồn kho** | Xem trạng thái per SKU, cảnh báo tồn kho thấp, điều chỉnh thủ công (audit trail), lịch sử biến động (StockMovement), báo cáo stock-on-hand & định giá |
+| **Đơn hàng** | Danh sách lọc đa điều kiện (keyword/status/payment/ngày), xem chi tiết, cập nhật trạng thái, duyệt & tạo vận đơn GHN, duyệt yêu cầu hoàn trả, thống kê doanh thu |
+| **Coupon** | CRUD mã giảm giá (%, số tiền cố định), giới hạn lượt dùng, thời hạn, áp dụng toàn đơn hoặc per sản phẩm |
+| **Flash Sale** | CRUD chiến dịch Flash Sale (tên, thời gian, danh sách SKU + giá KM + số lượng), đồng bộ Redis khi lưu |
+| **Đánh giá** | Duyệt/từ chối đánh giá, duyệt hàng loạt, lọc review pending |
+| **Thông báo** | Xem thông báo Admin (đơn mới, tồn kho thấp, hoàn trả, hủy đơn), đánh dấu đã đọc |
+| **Vector Sync** | Đồng bộ dữ liệu sản phẩm lên Pinecone cho chatbot |
+
+### ⚙️ Hệ Thống
+
+| Tính năng | Mô tả |
+|---|---|
+| **RBAC 4 cấp** | `SUPER_ADMIN` · `ADMIN` · `STAFF` · `CUSTOMER` — kiểm soát từng endpoint |
+| **JWT** | Access token (HMAC SHA256) + Refresh token, blacklist qua `InvalidatedToken` table |
+| **OpenSearch** | Full-text search + fuzzy search tự động bù sai chính tả |
+| **Redis Cache** | Cache danh sách sản phẩm (TTL 60 phút), cart (Redis hash), Flash Sale stock (atomic DECR), reset password token |
+| **RabbitMQ Async** | 3 queue: `order_email_queue` (email xác nhận/delivered/cancelled), `notification_queue` (WebSocket push), `flash_sale_sync_queue` (đồng bộ sold_quantity MySQL) |
+| **Email** | Template Thymeleaf HTML cho: xác nhận đơn, giao thành công, hủy đơn |
+| **WebSocket (STOMP)** | Real-time notifications cho Admin qua `/topic/admin/notifications`, xác thực JWT trên CONNECT |
+| **GHN Webhook** | Nhận trạng thái giao hàng, cập nhật OrderStatus + trackingMessage, tự động xuất/hoàn kho |
+| **Flyway Migration** | 9 migration files (V1–V9), quản lý schema tự động |
+| **Optimistic Lock** | `@Version` trên `Inventory` cho checkout đồng thời, retry 3 lần với `@Retryable` |
+| **Cloudinary** | Upload ảnh sản phẩm, avatar, ảnh bằng chứng hoàn trả |
+| **Spring AI RAG** | Tư vấn sản phẩm: embed text → Pinecone, retrieve → Gemini generate, chat memory per session (JDBC) |
 
 ---
 
-## ✅ Tính Năng Chính
+## 🏗️ Kiến Trúc Dự Án
 
-### 👤 Chức Năng Khách Hàng (Customer)
-
-- **Xác thực tài khoản**: Đăng ký, đăng nhập bằng email/password với JWT; hỗ trợ refresh token, đăng xuất an toàn và đặt lại mật khẩu qua email (token hết hạn sau 15 phút).
-- **Quản lý hồ sơ**: Cập nhật thông tin cá nhân, quản lý sổ địa chỉ giao hàng (thêm/sửa/xóa, đặt địa chỉ mặc định).
-- **Duyệt sản phẩm**: Xem danh sách sản phẩm theo danh mục, thương hiệu; lọc theo khoảng giá; tìm kiếm full-text và fuzzy search; phân trang.
-- **Chi tiết sản phẩm**: Xem ảnh, mô tả, chọn biến thể (màu sắc, kích cỡ), kiểm tra tồn kho theo SKU.
-- **Giỏ hàng**: Thêm/sửa/xóa sản phẩm theo biến thể; giỏ hàng tồn tại cho user đã đăng nhập.
-- **Thanh toán**: Checkout 3 bước (địa chỉ → phí ship → thanh toán); hỗ trợ **VNPay** (redirect gateway) và **COD** (thanh toán khi nhận hàng).
-- **Theo dõi đơn hàng**: Xem lịch sử và trạng thái đơn hàng theo thời gian thực.
-- **Thông báo email**: Nhận email xác nhận đơn hàng tự động qua HTML template.
-
-### 🛠️ Chức Năng Quản Trị (Admin / Staff)
-
-- **Quản lý danh mục & thương hiệu**: CRUD đầy đủ, upload logo thương hiệu.
-- **Quản lý sản phẩm**: Tạo/sửa/xóa sản phẩm, upload ảnh lên Cloudinary, quản lý đa biến thể (multi-variant SKU) với hệ thống thuộc tính động (màu sắc, kích cỡ, ...).
-- **Quản lý SKU**: Tự động sinh mã SKU, cấu hình giá và tồn kho theo từng biến thể; xóa mềm (soft delete) biến thể khi tồn kho = 0.
-- **Quản lý đơn hàng**: Xem danh sách, lọc, xem chi tiết đơn hàng; duyệt đơn và tạo vận đơn GHN; quản lý trạng thái theo state machine.
-- **Upload ảnh**: Tích hợp Cloudinary, hỗ trợ upload ảnh sản phẩm trực tiếp từ Admin UI.
-
-### ⚙️ Tính Năng Hệ Thống
-
-- **Phân quyền RBAC**: 4 role: `SUPER_ADMIN`, `ADMIN`, `STAFF`, `CUSTOMER`; kiểm soát truy cập API theo từng role.
-- **Tìm kiếm Elasticsearch**: Full-text search và fuzzy search (tự động bù sai chính tả); kết hợp với JPA Specification để lọc đa điều kiện.
-- **Caching Redis**: Cache danh sách sản phẩm (TTL 60 phút); tự động invalidate khi có thay đổi dữ liệu.
-- **Async Messaging (RabbitMQ)**: Gửi email xác nhận đơn hàng bất đồng bộ qua message queue, có cơ chế retry tự động (3 lần).
-- **GHN Integration**: Tính phí vận chuyển real-time, tự động tạo vận đơn sau khi xác nhận đơn, nhận cập nhật trạng thái giao hàng qua Webhook.
-- **Database Migration**: Flyway quản lý lịch sử thay đổi schema tự động.
-- **API Documentation**: Swagger UI tích hợp, hỗ trợ xác thực Bearer JWT.
-
----
-
-## 🗂️ Kiến Trúc Dự Án
-
-### Frontend (Next.js App Router)
+### Frontend — Next.js App Router
 
 ```
 src/
 ├── app/
-│   ├── (admin)/        # Admin portal (dashboard, products, orders, brands, categories)
-│   ├── (shop)/         # Customer storefront (home, products, cart, checkout, profile)
-│   ├── login/          # Authentication pages
-│   └── payment-result/ # Payment callback page
+│   ├── (admin)/        # Admin portal: dashboard, products, orders, brands, categories, inventory, coupons, flash-sales
+│   ├── (shop)/         # Customer storefront: home, products, cart, checkout, profile, orders
+│   ├── login/          # Auth pages
+│   └── payment-result/ # VNPay callback page
 ├── components/
 │   ├── admin/          # Admin-specific UI components
-│   ├── shop/           # Storefront components (Header, Footer, ProductCard, ...)
-│   └── common/         # Shared components (Toast, ...)
-├── context/            # React Context (AuthContext, AdminAuthContext, CartContext)
-├── services/           # API service layer (axios wrappers theo từng domain)
-└── lib/                # Axios instance configuration
+│   ├── shop/           # Storefront components (Header, Footer, ProductCard, ChatBot, ...)
+│   └── common/         # Shared (Toast, ...)
+├── context/            # React Context: AuthContext, AdminAuthContext, CartContext
+├── services/           # Axios wrappers theo domain (productService, orderService, ...)
+└── lib/                # Axios instance config
 ```
 
-Frontend theo mô hình **App Router** của Next.js, phân chia rõ ràng giữa khu vực Admin `(admin)` và Storefront `(shop)`. Mỗi domain nghiệp vụ có service riêng (`productService`, `orderService`, `authService`, ...) để gọi API.
-
-### Backend (Spring Boot — Layered Architecture)
+### Backend — Spring Boot Layered Architecture
 
 ```
 src/main/java/com/example/clothingstore/
-├── config/         # Cấu hình: Security, Redis, RabbitMQ, CORS, VNPay, GHN, Cloudinary
-├── controller/     # REST API Controllers (AuthN, Product, Order, Payment, Shipping, ...)
-├── service/        # Business logic (impl/, cloudinary/, mail/, rabbitmq/)
-├── repository/     # Spring Data JPA Repositories + Elasticsearch Repository
-├── entity/         # JPA Entities (Product, Sku, Order, User, Address, ...)
-├── dto/            # Request/Response DTOs
-├── mapper/         # MapStruct mappers (Entity ↔ DTO)
-├── exception/      # Global Exception Handler, ErrorCode enum
-└── document/       # Elasticsearch Document (ProductDocument)
+├── config/             # Security, Redis, RabbitMQ, CORS, VNPay, GHN, Cloudinary, WebSocket, OpenSearch, SpringAI
+├── controller/         # REST Controllers (Auth, Product, Order, Payment, Shipping, Cart, Coupon, FlashSale, ...)
+├── service/
+│   ├── impl/           # Business logic (OrderService, CheckoutService, ProductServiceImpl, ...)
+│   ├── rabbitmq/       # Producers & Consumers (OrderProducer, NotificationProducer, FlashSaleConsumer, ...)
+│   ├── mail/           # MailService (Thymeleaf templates)
+│   ├── cloudinary/     # CloudinaryService
+│   └── chatbot/        # VectorSyncService (Pinecone sync)
+├── repository/
+│   ├── specification/  # JPA Specification (OrderSpecification, ProductSpecification)
+│   └── search/         # ProductSearchRepository (OpenSearch)
+├── entity/             # JPA Entities + Enums
+├── dtos/               # Request/Response DTOs
+├── mapper/             # MapStruct mappers
+└── exception/          # GlobalExceptionHandler, ErrorCode, AppException
 ```
-
-Backend theo kiến trúc **monolith phân lớp** (Controller → Service → Repository). Security được xử lý bởi Spring Security + custom JWT decoder, kiểm soát từng endpoint theo role.
 
 ---
 
-## 🔄 Luồng Xử Lý Nghiệp Vụ Chính
+## 🔄 Luồng Nghiệp Vụ Chính
 
 ### 💳 Thanh Toán VNPay
 
 ```
-Khách hàng                 Backend                         VNPay Gateway
-     │                        │                                  │
-     │─── POST /orders ───────►│                                  │
-     │                        │── Tạo Order (status: PENDING) ──►│
-     │◄─── Order ID ──────────│                                  │
-     │                        │                                  │
-     │─── GET /payment/create-payment?orderId=X ──────────────────►│
-     │                        │── Build VNPay URL + HMAC SHA512 ──│
-     │◄─── Payment URL ───────│                                  │
-     │                        │                                  │
-     │──────────────────────── Redirect to VNPay ───────────────►│
-     │                        │                            Xử lý thanh toán
-     │◄─────────────────────── Callback (vnp_ResponseCode) ──────│
-     │                        │                                  │
-     │─── GET /payment/vn-pay-callback ──────────────────────────►│
-     │                        │── Verify HMAC checksum ──────────│
-     │                        │── Update Order: CONFIRMED ────────│
-     │                        │── RabbitMQ: gửi email ───────────│
+[Customer] POST /orders/checkout
+    → CheckoutService: validate stock (Optimistic Lock) → tạo Order PENDING → clearCart
+    → [COD] autoConfirmAndShip() ngay lập tức
+    → [VNPAY] trả về orderId → FE gọi GET /payment/create-payment?orderId=X
+         → VnPayService build URL + HMAC SHA512 → redirect VNPay
+         → VNPay callback GET /payment/vn-pay-callback → verify checksum
+         → autoConfirmAndShip(orderId): PENDING → CONFIRMED → (GHN) → SHIPPING
+    → RabbitMQ: gửi email xác nhận
 ```
 
-**Chi tiết:**
-1. Khách hàng tạo đơn hàng → Backend lưu Order với trạng thái `PENDING`.
-2. Frontend gọi API tạo payment URL → Backend tạo request VNPay có ký HMAC SHA512.
-3. Khách hàng được redirect sang cổng VNPay để nhập thông tin thanh toán.
-4. VNPay redirect về `GET /payment/vn-pay-callback` với kết quả giao dịch.
-5. Backend verify checksum → nếu hợp lệ và `vnp_ResponseCode = 00`, cập nhật Order thành `CONFIRMED`.
-6. Bắn message vào RabbitMQ → OrderConsumer gửi email xác nhận cho khách.
+### 🚚 Vận Chuyển GHN
+
+```
+autoConfirmAndShip() hoặc Admin POST /orders/{id}/ship
+    → GhnService.createShippingOrder() → lưu trackingCode → status = SHIPPING
+    → GHN gọi Webhook POST /api/webhook/ghn
+    → GhnWebhookService: cập nhật trackingStatus + trackingMessage + OrderStatus
+    → delivered → COMPLETED → deductStock() + gửi email
+    → cancel/return → CANCELLED → releaseStock() + gửi email
+```
+
+### ⚡ Flash Sale
+
+```
+Admin tạo FlashSale → FlashSaleServiceImpl.create()
+    → Lưu MySQL (flash_sales + flash_sale_items)
+    → FlashSaleRedisService.syncFlashSaleToRedis()
+         → SET flash_sale:{id}:sku:{skuId}:stock = remaining (TTL đến endTime)
+         → SET flash_sale:{id}:sku:{skuId}:price = promotionalPrice
+         → SET flash_sale:active_sku:{skuId} = saleId
+
+Checkout:
+    → checkAndDeductFlashSale(skuId, qty): DECR Redis stock atomically
+    → Nếu stock < 0 → revert + throw OUT_OF_STOCK
+    → Sau commit DB → RabbitMQ flash_sale_sync_queue → FlashSaleConsumer cập nhật soldQuantity MySQL
+```
+
+### 🤖 AI Chatbot
+
+```
+Admin POST /admin/vector/sync → VectorSyncService
+    → Load tất cả active products + SKU variants
+    → Build semantic text (tên, danh mục, thương hiệu, mô tả, biến thể + giá)
+    → Gemini embedding → Pinecone upsert
+
+Customer POST /chat/stream (Server-Sent Events)
+    → ChatClient (Spring AI) với RetrievalAugmentationAdvisor
+    → Tìm top-3 vectors gần nhất (similarity ≥ 0.4)
+    → Gemini generate + stream tokens về FE
+    → Lưu chat history vào MySQL (spring_ai_chat_memory)
+```
 
 ---
 
-### 🚚 Luồng Vận Chuyển GHN
+## 🗄️ Database Schema — Các Entity Chính
 
-```
-Admin                      Backend                          GHN API
-  │                            │                               │
-  │── POST /orders/{id}/ship ──►│                               │
-  │                            │── Lấy thông tin Order ────────│
-  │                            │── Build GHN Request ──────────│
-  │                            │─── POST create-order ────────►│
-  │                            │◄── tracking_code (mã vận đơn) │
-  │                            │── Lưu tracking_code vào Order ─│
-  │                            │── Update status: SHIPPING ─────│
-  │◄── Order updated ──────────│                               │
-  │                            │                               │
-  │              (Async) Webhook GHN ──────────────────────────►│
-  │                            │◄── POST /api/webhook/ghn ──────│
-  │                            │── Parse status (delivered/cancel/return)
-  │                            │── Update Order status tương ứng
-```
+| Nhóm | Tables |
+|---|---|
+| **Auth** | `users`, `role`, `permissions`, `role_permissions`, `invalidated_token` |
+| **Product** | `products`, `product_options`, `product_option_values`, `skus`, `sku_values` |
+| **Catalog** | `categories`, `brands` |
+| **Inventory** | `inventory` (Optimistic Lock `version`), `goods_receipts`, `goods_receipt_items`, `stock_movements`, `stock_adjustments` |
+| **Order** | `orders` (có cancel/return fields, tracking GHN), `order_items` |
+| **Address** | `addresses`, `provinces`, `districts`, `wards` |
+| **Coupon** | `coupons`, `coupon_product` |
+| **Flash Sale** | `flash_sales`, `flash_sale_items` |
+| **Social** | `reviews`, `product_comments` |
+| **Notification** | `notifications` |
+| **AI Memory** | `spring_ai_chat_memory` |
+| **Customer** | `customers` (loyalty points, membership tier) |
 
-**Chi tiết:**
-1. Admin duyệt đơn qua `POST /orders/{id}/ship`.
-2. Backend gọi GHN API để tạo vận đơn, truyền thông tin người nhận, địa chỉ, danh sách sản phẩm, và loại dịch vụ.
-3. GHN trả về `order_code` (mã vận đơn) → Backend lưu vào field `trackingCode` và chuyển trạng thái đơn sang `SHIPPING`.
-4. Khi có cập nhật trạng thái giao hàng (giao thành công, hủy, ...), GHN gửi Webhook về `POST /api/webhook/ghn`.
-5. Backend parse payload và cập nhật trạng thái Order: `COMPLETED`, `CANCELLED`.
+**Flyway Migrations:** V1 (init schema + seed data 20 SP / 22 đơn hàng) → V2 (optimistic lock inventory) → V3 (profit margin + GRN import price + coupons) → V4 (GHN tracking fields) → V5 (cancel/return order fields) → V6 (notifications) → V7 (flash sales) → V8 (coupon_code on orders) → V9 (Google OAuth + AI chat memory)
+
+---
+
+## 🔑 API Endpoints (Tóm Tắt)
+
+| Module | Base URL | Auth |
+|---|---|---|
+| Authentication | `/api/v1/auth` | Public |
+| Users | `/api/v1/users` | Public (đăng ký) / Auth (myInfo, update) |
+| Products | `/api/v1/products` | Public (GET) / Staff+ (POST/PUT/DELETE) |
+| Categories | `/api/v1/categories` | Public |
+| Brands | `/api/v1/brands` | Public |
+| Cart | `/api/v1/cart` | Auth (user) / Public (guest) |
+| Orders | `/api/v1/orders` | Auth |
+| Checkout | `/api/v1/orders/checkout` | Auth |
+| Payment | `/api/v1/payment` | Auth |
+| Shipping | `/api/v1/shipping` | Auth |
+| Addresses | `/api/v1/addresses` | Auth |
+| Coupons | `/api/v1/coupons` | Public (apply/validate) / Admin (CRUD) |
+| Flash Sales | `/api/v1/flash-sales` | Public (current-active) / Staff+ (CRUD) |
+| Inventory | `/api/v1/inventory` | Staff+ |
+| Goods Receipts | `/api/v1/goods-receipts` | Staff+ |
+| Reviews | `/api/v1/products/{id}/reviews` | Public (GET) / Auth (POST) |
+| Comments | `/api/v1/products/{id}/comments` | Public (GET) / Auth (POST) |
+| Notifications | `/api/v1/notifications` | Staff+ |
+| Chatbot | `/api/v1/chat/stream` | Public |
+| Vector Sync | `/api/v1/admin/vector/sync` | Admin+ |
+| GHN Webhook | `/api/webhook/ghn` | Internal (no auth) |
+| WebSocket | `/ws/notifications` | JWT via STOMP header |
+
+> Swagger UI: `http://localhost:8080/swagger-ui.html`
 
 ---
 
 ## 🚀 Hướng Dẫn Khởi Chạy
 
-### Yêu Cầu Môi Trường
-
+### Yêu Cầu
 - Docker & Docker Compose
 - Java 17+
 - Node.js 18+
 
-### 1. Khởi động Infrastructure (Docker)
+### 1. Khởi động Infrastructure
 
 ```bash
 docker-compose up -d
+# Khởi động: Redis (6379), RabbitMQ (5672 / UI: 15672), OpenSearch (9200)
 ```
 
-Lệnh này khởi động: **Redis** (port 6379), **RabbitMQ** (port 5672, Management UI: 15672), **Elasticsearch** (port 9200).
+### 2. Cấu hình Backend
 
-### 2. Cấu Hình Backend
-
-Tạo file `backend/src/main/resources/application-secret.yaml` với nội dung:
+Tạo `backend/src/main/resources/application-secret.yaml`:
 
 ```yaml
 spring:
   mail:
-    host: 
-    username: 
-    password: 
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
+    username:
+    password:
 
 jwt:
-  signerKey: 
-  valid-duration: 
-  refreshable-duration: 
+  signerKey:
+  valid-duration: 3600
+  refreshable-duration: 86400
+
 cloudinary:
   cloud-name:
   api-key:
   api-secret:
+
 payment:
   vnpay:
-    tmn-code: 
-    secret-key: 
+    tmn-code:
+    secret-key:
+
 shipping:
   ghn:
-    shop-id: 
-    api-key: 
-    shop-district-id: 
+    shop-id:
+    api-key:
+    shop-district-id:
+
+app:
+  google:
+    client-id:
+
+spring.ai.google.genai:
+  api-key:
+
+spring.ai.vectorstore.pinecone:
+  api-key:
+  index-name:
+  namespace:
+
+bonsai.opensearch:
+  url:
+  username:
+  password:
 ```
 
 ### 3. Chạy Backend
@@ -220,10 +305,9 @@ shipping:
 ```bash
 cd backend
 ./mvnw spring-boot:run
+# API: http://localhost:8080
+# Swagger: http://localhost:8080/swagger-ui.html
 ```
-
-API Base URL: `http://localhost:8080`
-Swagger UI: `http://localhost:8080/swagger-ui.html`
 
 ### 4. Chạy Frontend
 
@@ -231,59 +315,59 @@ Swagger UI: `http://localhost:8080/swagger-ui.html`
 cd frontend
 npm install
 npm run dev
+# Storefront: http://localhost:3000
+# Admin Portal: http://localhost:3000/admin
 ```
 
-Storefront: `http://localhost:3000`
-Admin Portal: `http://localhost:3000/admin`
-
 ---
 
-## 📋 Kế Hoạch Phát Triển (Sprint Plan)
-
-Dự án được phát triển theo phương pháp Agile Scrum trong **10 Sprints / 20 tuần (~5 tháng)**, tổng **341 Story Points**.
+## 📋 Kế Hoạch Phát Triển (Agile Scrum — 10 Sprints / 20 tuần)
 
 | Sprint | Nội Dung | Trạng Thái |
-|--------|----------|------------|
-| Sprint 1 | Core System Setup (Spring Boot, MySQL, Next.js, CI/CD, Docker) | ✅ Done |
-| Sprint 2 | Authentication & User Management (JWT, RBAC, Address) | ✅ Done |
-| Sprint 3 | Product Management (Category, Brand, SKU, Search & Filter) | ✅ Done |
-| Sprint 4 | Inventory Management (GRN, QC, Stock Tracking) | ✅ Done |
-| Sprint 5 | Shopping Cart & Storefront (Homepage, PLP, PDP, Mobile) | ✅ Done |
-| Sprint 6 | Order Management (State Machine, Order Lifecycle, Email) | ✅ Done |
-| Sprint 7 | Payment Integration (VNPay, COD, Transaction Log) | ✅ Done |
-| Sprint 8 | Logistics Integration (GHN, Touchless Fulfillment, Webhook) | ✅ Done |
-| Sprint 9 | Admin Portal & Marketing (Dashboard, Coupon, Flash Sale) | 📋 To Do |
-| Sprint 10 | Testing, Optimization & Deployment | 📋 To Do |
+|---|---|---|
+| Sprint 1 | Core Setup: Spring Boot, MySQL, Next.js, CI/CD, Docker | ✅ Done |
+| Sprint 2 | Authentication & User Management: JWT, RBAC, Address Book | ✅ Done |
+| Sprint 3 | Product Management: Category, Brand, SKU, OpenSearch | ✅ Done |
+| Sprint 4 | Inventory Management: GRN, QC, Stock Tracking, Audit Log | ✅ Done |
+| Sprint 5 | Shopping Cart & Storefront: Homepage, PLP, PDP, Guest Cart, Mobile | ✅ Done |
+| Sprint 6 | Order Management: State Machine, Lifecycle, Email (RabbitMQ), Cancel/Return | ✅ Done |
+| Sprint 7 | Payment Integration: VNPay, COD, Coupon System | ✅ Done |
+| Sprint 8 | Logistics Integration: GHN Webhook, Fulfillment, WebSocket Notifications | ✅ Done |
+| Sprint 9 | Admin Portal, Flash Sale, AI Chatbot (RAG + Gemini), Reviews, Comments | 🔄 In Progress |
+| Sprint 10 | Testing, Performance Optimization, Deployment (Docker + CI/CD) | 📋 To Do |
+
+**Tổng Story Points:** ~341
 
 ---
 
-## 🗄️ Cơ Sở Dữ Liệu
+## 👥 Phân Công Nhóm
 
-Schema được quản lý tự động bởi **Flyway**. File migration: `src/main/resources/db/migration/V1__init_schema.sql`.
-
-**Các entity chính:**
-
-- `User`, `Role`, `Permission` — Hệ thống tài khoản và phân quyền
-- `Product`, `ProductOption`, `ProductOptionValue`, `Sku`, `SkuValue` — Hệ thống sản phẩm đa biến thể
-- `Category`, `Brand` — Phân loại sản phẩm
-- `Order`, `OrderItem` — Quản lý đơn hàng
-- `Address`, `Province`, `District`, `Ward` — Địa chỉ giao hàng (dữ liệu tỉnh/huyện/xã từ GHN)
-- `InvalidatedToken` — Blacklist JWT token đã đăng xuất
+| Thành viên | Vai trò |
+|---|---|
+| Nhóm 3C | Full-stack development |
 
 ---
 
-## 🔑 API Endpoints (Tóm Tắt)
+## 📌 Ghi Chú Kỹ Thuật Quan Trọng cho AI / Báo Cáo
 
-| Module | Base URL | Ghi Chú |
-|--------|----------|---------|
-| Authentication | `/api/v1/auth` | Public |
-| Products | `/api/v1/products` | Public (GET), Auth (POST/PUT/DELETE) |
-| Categories | `/api/v1/categories` | Public |
-| Brands | `/api/v1/brands` | Public |
-| Orders | `/api/v1/orders` | Auth required |
-| Payment | `/api/v1/payment` | Auth required |
-| Shipping | `/api/v1/shipping` | Auth required |
-| Addresses | `/api/v1/addresses` | Auth required |
-| GHN Webhook | `/api/webhook/ghn` | Internal |
+### Các điểm đặc sắc kỹ thuật:
 
-Chi tiết đầy đủ tại Swagger UI: `http://localhost:8080/swagger-ui.html`
+1. **Checkout Thread-Safe:** Dùng `Optimistic Locking` (`@Version` trên `Inventory`) + `@Retryable` (3 lần, backoff ngẫu nhiên) để xử lý đặt hàng đồng thời, tránh overselling.
+
+2. **Flash Sale Zero-Overselling:** Redis `DECR` atomic đảm bảo không bán quá số lượng, sau đó đồng bộ `soldQuantity` về MySQL qua RabbitMQ bất đồng bộ.
+
+3. **Cart Architecture:** Toàn bộ giỏ hàng lưu Redis dạng JSON, dùng Lua Script để đảm bảo read-modify-write atomic. Guest cart merge vào user cart khi đăng nhập.
+
+4. **AI RAG Pipeline:** Google Gemini tạo embedding → lưu Pinecone → khi chat, retrieve top-3 docs (similarity ≥ 0.4) → inject vào prompt → Gemini generate → stream về FE qua Server-Sent Events.
+
+5. **GHN Webhook Idempotent:** Luôn trả HTTP 200 cho GHN (tránh retry), validate ShopID, check trạng thái trước khi ghi để đảm bảo idempotency.
+
+6. **Soft Delete Strategy:** Sản phẩm/SKU đã có lịch sử nhập kho (GRN CONFIRMED) → soft delete (`isActive = false`). Chưa có lịch sử → hard delete.
+
+7. **Weighted Average Cost (WAC):** Mỗi lần xác nhận GRN, hệ thống tính lại `importPrice` bình quân và tự động tính lại `price` = `importPrice × (1 + profitMargin/100)`.
+
+8. **WebSocket Security:** JWT được xác thực qua custom `ChannelInterceptor` ở event `STOMP CONNECT`, nạp `Authentication` vào session WebSocket.
+
+9. **Search Architecture:** Kết hợp OpenSearch (fuzzy search → trả về ID list) với JPA Specification (lọc đa điều kiện + phân trang trên MySQL). Khi không có keyword, bỏ qua OpenSearch.
+
+10. **Return Flow:** Khách request hoàn trả → `RETURN_REQUESTED` (chờ Admin) → Admin approve → `RETURNED` + `releaseStock()`. Tồn kho KHÔNG tự hoàn khi khách gửi request, tránh gian lận.
