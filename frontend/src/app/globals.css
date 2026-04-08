@@ -29,11 +29,39 @@ body {
   0% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
 }
 
-button{
+button {
   cursor: pointer;
+}
+
+/* src/app/globals.css */
+
+.prose strong {
+  font-weight: 700 !important;
+  color: inherit;
+}
+
+.prose ul {
+    list-style-type: disc !important;
+    padding-left: 1.5rem !important;
+}
+
+.prose li {
+    display: list-item !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.prose hr {
+    margin: 1.5rem 0 !important;
+    border-top: 1px solid #eee !important;
+}
+
+.prose p {
+  margin-bottom: 0.75rem !important;
+  line-height: 1.8;
 }

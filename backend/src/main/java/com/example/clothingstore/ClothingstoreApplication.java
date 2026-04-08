@@ -1,5 +1,6 @@
 package com.example.clothingstore;
 
+import org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,18 +18,11 @@ import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientA
 		ElasticsearchDataAutoConfiguration.class,
 		ElasticsearchRepositoriesAutoConfiguration.class
 })
+
 public class ClothingstoreApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(ClothingstoreApplication.class, args);
 	}
-
-//	@Bean
-//	public CommandLineRunner commandLineRunner(@Value("${api.prefix}") String apiPrefix) {
-//		return args -> {
-//			System.out.println("==================================");
-//			System.out.println("GIÁ TRỊ API PREFIX HIỆN TẠI LÀ: '" + apiPrefix + "'");
-//			System.out.println("==================================");
-//		};
-//	}
 }
+

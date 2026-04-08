@@ -38,4 +38,16 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
       AND sv.isActive = true
     """)
     Optional<Product> findByIdWithActiveSkusAndValues(@Param("productId") Long productId);
+
+    @Query("""
+    SELECT DISTINCT p FROM Product p
+    LEFT JOIN FETCH p.category c
+    LEFT JOIN FETCH p.brand b
+    LEFT JOIN FETCH p.skus s
+    LEFT JOIN FETCH s.values sv
+    LEFT JOIN FETCH sv.optionValue ov
+    LEFT JOIN FETCH ov.productOption po
+    WHERE p.isActive = true
+    """)
+    List<Product> findAllForVectorSync();
 }

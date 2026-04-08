@@ -1,6 +1,7 @@
 import React from 'react';
 import Header from '@/components/shop/Header';
 import Footer from "@/components/shop/Footer"
+import ChatbotWidget from '@/components/shop/ChatBotWidget';
 
 export const metadata = {
     title: "ClothStore.vn - Thời trang phong cách",
@@ -22,6 +23,8 @@ export default function ShopLayout({ children }) {
             <div id="footer">
                 <Footer />
             </div>
+
+            <ChatbotWidget />
         </div>
     );
 }
