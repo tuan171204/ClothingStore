@@ -33,20 +33,20 @@ function Sidebar() {
     ];
 
     return (
-        <aside className="w-[260px] bg-[#0A0D14] text-gray-300 shrink-0 hidden md:flex flex-col h-screen sticky top-0 border-r border-gray-800/60 z-50">
+        <aside className="w-[300px] bg-[#0A0D14] text-gray-300 shrink-0 hidden md:flex flex-col h-screen sticky top-0 border-r border-gray-800/60 z-50">
             {/* Logo Area */}
             <div className="h-20 flex items-center px-6 border-b border-gray-800/60">
                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/20 mr-3">
                     <Store className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-[19px] font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 tracking-wide">
+                <span className="text-[20px] font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 tracking-wide">
                     Admin Portal
                 </span>
             </div>
 
             {/* Navigation Menu */}
-            <div className="flex-1 overflow-y-auto py-6 scrollbar-hide">
-                <div className="px-6 text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+            <div className="flex-1 overflow-y-auto py-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div className="px-6 text-[18px] font-bold text-gray-200 uppercase tracking-widest mb-4">
                     Quản lý hệ thống
                 </div>
                 <nav className="space-y-1.5 px-3">
@@ -70,7 +70,7 @@ function Sidebar() {
                                 )}
 
                                 <Icon size={20} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                                <span className="text-[14px] tracking-wide">{item.label}</span>
+                                <span className="text-[16px] tracking-wide">{item.label}</span>
                             </Link>
                         );
                     })}
