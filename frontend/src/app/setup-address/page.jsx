@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MapPin, ArrowRight } from 'lucide-react';
 import { getProvinces, getDistricts, getWards } from '@/services/shippingService';
 import { addressService } from '@/services/addressService';
 import { toast } from 'react-toastify';
 
-export default function SetupAddressPage() {
+function SetupAddressContent() {
     const router = useRouter();
 
     const searchParams = useSearchParams();
@@ -205,5 +205,17 @@ export default function SetupAddressPage() {
                 </form>
             </div>
         </div>
+    );
+}
+
+export default function SetupAddressPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center font-sans">
+                Đang tải thông tin...
+            </div>
+        }>
+            <SetupAddressContent />
+        </Suspense>
     );
 }
