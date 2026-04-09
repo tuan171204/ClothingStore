@@ -24,7 +24,7 @@ export default async function ProductPage({ params }) {
             <nav className="flex items-center text-sm text-gray-500 mb-8">
                 <Link href="/" className="hover:text-blue-600">Trang chủ</Link>
                 <ChevronRight size={16} className="mx-2" />
-                <Link href="/products" className="hover:text-blue-600">Sản phẩm</Link>
+                <Link href="/" prefetch={false} className="hover:text-blue-600">Sản phẩm</Link>
                 <ChevronRight size={16} className="mx-2" />
                 <span className="text-gray-900 font-medium truncate">{product.name}</span>
             </nav>
