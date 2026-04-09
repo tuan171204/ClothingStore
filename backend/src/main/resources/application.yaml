@@ -1,41 +1,63 @@
 spring:
-  config:
-    import: optional:classpath:application-secret.yaml
   application:
     name: clothingstore
+
+  # Database
   datasource:
-    url: jdbc:mysql://localhost:3306/clothingstore_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root          # <--- Sửa user
-    password: Tuan171204@     # <--- Sửa pass
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:clothingstore_db}?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:Tuan171204@}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update # Chuyển thành 'validate' khi deploy thật
     show-sql: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MySQL8Dialect
-  main:
-    allow-bean-definition-overriding: true
+        dialect: org.hibernate.dialect.MySQLDialect # Cập nhật cho Spring Boot 3.x
 
-#  data:
-#    redis:
-#      host: localhost
-#      port: 6379
+  # Redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      key-prefix: "v2_"
+      use-key-prefix: true
 
-#  elasticsearch:
-#    uris: http://localhost:9200
+  # AI & Vector Store
+  ai:
+    google:
+      genai:
+        api-key: ${AI_GOOGLE_API_KEY}
+        chat:
+          options:
+            model: ${AI_MODEL}
+            temperature: 0.1
+        embedding:
+          api-key: ${AI_GOOGLE_API_KEY}
+          text:
+            options:
+              model: "gemini-embedding-001"
+              dimensions: 768
+    vectorstore:
+      pinecone:
+        api-key: ${PINECONE_API_KEY}
+        index-name: ${PINECONE_INDEX}
+        project-id: ${PINECONE_PROJECT}
 
-#  rabbitmq:
-#    host: localhost
-#    port: 5672
-#    username: guest
-#    password: guest
+  # Message Queue
+  rabbitmq:
+    addresses: ${RABBITMQ_URL}
 
+  # Mail (Mailtrap)
   mail:
-    host: smtp.gmail.com
+    host: sandbox.smtp.mailtrap.io
     port: 587
+    username: ${MAIL_USER}
+    password: ${MAIL_PASS}
     properties:
       mail:
         smtp:
@@ -47,32 +69,46 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 1
-    repair-on-migrate: true
-
-logging:
-  level:
-    root: INFO
-    com.example.clothingstore: DEBUG #
-    org.springframework.web: ERROR
 
 api:
   prefix: /api/v1
 
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operations-sorter: alpha
-    tags-sorter: alpha
+jwt:
+  signerKey: ${JWT_SIGNER_KEY}
+  valid-duration: 3600
+  refreshable-duration: 36000
 
+app:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_NAME}
+  api-key: ${CLOUDINARY_KEY}
+  api-secret: ${CLOUDINARY_SECRET}
+
+bonsai:
+  opensearch:
+    url: ${BONSAI_OPENSEARCH_URL}
+    username: ${OPENSEARCH_USERNAME}
+    password: ${OPENSEARCH_PASSWORD}
 
 payment:
   vnpay:
+    tmn-code: ${VNP_TMN_CODE}
+    secret-key: ${VNP_HASH_SECRET}
     url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
     return-url: "http://localhost:3000/payment-result"
 
 shipping:
   ghn:
+    shop-id: ${GHN_SHOP_ID}
+    api-key: ${GHN_API_KEY}
+    shop-district-id: 1447
     fee-url: "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee"
     address-url: "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data"
+
+logging:
+  level:
+    root: INFO
+    com.example.clothingstore: DEBUG
