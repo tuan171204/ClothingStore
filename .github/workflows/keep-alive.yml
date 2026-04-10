@@ -1,0 +1,18 @@
+name: Keep Render & Aiven Alive
+
+on:
+  schedule:
+    # Cú pháp Cron: Chạy vào phút thứ 0 của mỗi 2 tiếng đồng hồ
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công trên giao diện GitHub để kiểm tra ngay lập tức
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ghi log thời gian bắt đầu
+        run: echo "Bắt đầu gửi request đánh thức server vào lúc $(date)"
+
+      - name: Gửi HTTP GET Request tới Backend
+        run: |
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" https://clothingstore-j90u.onrender.com/products
