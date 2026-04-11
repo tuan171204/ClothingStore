@@ -19,7 +19,6 @@ export default function BrandsPage() {
     const [loading, setLoading] = useState(true);
     const debounceRef = useRef(null);
 
-    // Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBrand, setEditingBrand] = useState(null);
     const [formData, setFormData] = useState({ name: '', logo: '' });
@@ -30,9 +29,8 @@ export default function BrandsPage() {
         const res = await getBrandsPaged({ keyword: queryKeyword, page: page, size: PAGE_SIZE });
         setData(res);
         setLoading(false);
-    }, [page, queryKeyword]); // Đủ dependencies
+    }, [page, queryKeyword]);
 
-    // 2. Cập nhật state sau khi chờ
     const handleKeywordChange = (val) => {
         setKeyword(val);
         clearTimeout(debounceRef.current);
@@ -42,7 +40,6 @@ export default function BrandsPage() {
         }, 350);
     };
 
-    // 3. Effect chạy khi fetchBrands thay đổi
     useEffect(() => {
         fetchBrands();
     }, [fetchBrands]);
@@ -78,7 +75,6 @@ export default function BrandsPage() {
         try {
             await deleteBrand(id);
             toast.success('Xóa thương hiệu thành công!');
-            // If last item on page, go back one page
             const newPage = data.content.length === 1 && page > 0 ? page - 1 : page;
             setPage(newPage);
             fetchBrands(newPage, keyword);
@@ -88,27 +84,27 @@ export default function BrandsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
             {/* ── HEADER ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <Tag size={22} className="text-purple-600" />
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <Tag size={20} className="text-purple-600" />
                         Quản lý Thương hiệu
                     </h1>
-                    <p className="text-md text-gray-500 mt-0.5">
+                    <p className="text-xs sm:text-md text-gray-500 mt-0.5">
                         {data.totalElements} thương hiệu · Trang {page + 1}/{data.totalPages || 1}
                     </p>
                 </div>
                 <button
                     onClick={() => openModal()}
-                    className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-purple-700 transition-colors shadow-sm cursor-pointer text-md">
-                    <Plus size={17} /> Thêm thương hiệu
+                    className="flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-purple-700 transition-colors shadow-sm cursor-pointer text-sm sm:text-md w-full sm:w-auto">
+                    <Plus size={16} /> Thêm thương hiệu
                 </button>
             </div>
 
             {/* ── TOOLBAR ── */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-4 sm:mb-5 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                 <div className="relative flex-1">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
@@ -116,7 +112,7 @@ export default function BrandsPage() {
                         placeholder="Tìm kiếm tên thương hiệu..."
                         value={keyword}
                         onChange={e => handleKeywordChange(e.target.value)}
-                        className="w-full pl-9 pr-9 py-2.5 text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                        className="w-full pl-9 pr-9 py-2.5 text-sm sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
                     />
                     {keyword && (
                         <button onClick={() => handleKeywordChange('')}
@@ -127,13 +123,13 @@ export default function BrandsPage() {
                 </div>
                 <button
                     onClick={() => fetchBrands()}
-                    className="flex items-center gap-2 px-4 py-2.5 text-md border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors bg-white text-gray-600 cursor-pointer font-medium">
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm sm:text-md border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors bg-white text-gray-600 cursor-pointer font-medium">
                     <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                     Làm mới
                 </button>
             </div>
 
-            {/* ── TABLE ── */}
+            {/* ── TABLE / CARDS ── */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 {loading ? (
                     <div className="py-16 flex justify-center">
@@ -142,51 +138,83 @@ export default function BrandsPage() {
                 ) : data.content.length === 0 ? (
                     <div className="py-16 text-center text-gray-400">
                         <Tag size={40} className="mx-auto mb-3 text-gray-200" />
-                        <p>{keyword ? `Không tìm thấy thương hiệu "${keyword}"` : 'Chưa có thương hiệu nào'}</p>
+                        <p className="text-sm">{keyword ? `Không tìm thấy thương hiệu "${keyword}"` : 'Chưa có thương hiệu nào'}</p>
                     </div>
                 ) : (
                     <>
-                        <table className="w-full text-md">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                                    <th className="px-5 py-3 text-left w-16">ID</th>
-                                    <th className="px-5 py-3 text-left w-24">Logo</th>
-                                    <th className="px-5 py-3 text-left">Tên thương hiệu</th>
-                                    <th className="px-5 py-3 text-center w-28">Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {data.content.map(brand => (
-                                    <tr key={brand.id} className="hover:bg-gray-50/60 transition-colors">
-                                        <td className="px-5 py-4 text-gray-400 font-mono text-sm">#{brand.id}</td>
-                                        <td className="px-5 py-4">
-                                            <div className="w-12 h-12 rounded-xl border bg-gray-50 overflow-hidden flex items-center justify-center shadow-sm">
-                                                {brand.logo ? (
-                                                    <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <ImageOff size={18} className="text-gray-300" />
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <span className="font-semibold text-gray-800">{brand.name}</span>
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => openModal(brand)}
-                                                    className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors cursor-pointer" title="Sửa">
-                                                    <Edit size={15} />
-                                                </button>
-                                                <button onClick={() => handleDelete(brand.id)}
-                                                    className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer" title="Xóa">
-                                                    <Trash2 size={15} />
-                                                </button>
-                                            </div>
-                                        </td>
+                        {/* Mobile: card list */}
+                        <div className="block sm:hidden divide-y divide-gray-100">
+                            {data.content.map(brand => (
+                                <div key={brand.id} className="flex items-center gap-3 p-3 hover:bg-gray-50">
+                                    <div className="w-12 h-12 rounded-xl border bg-gray-50 overflow-hidden flex items-center justify-center shadow-sm shrink-0">
+                                        {brand.logo
+                                            ? <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
+                                            : <ImageOff size={16} className="text-gray-300" />
+                                        }
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-gray-800 truncate">{brand.name}</p>
+                                        <p className="text-xs text-gray-400 font-mono">#{brand.id}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <button onClick={() => openModal(brand)}
+                                            className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors cursor-pointer">
+                                            <Edit size={14} />
+                                        </button>
+                                        <button onClick={() => handleDelete(brand.id)}
+                                            className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Desktop: table */}
+                        <div className="hidden sm:block">
+                            <table className="w-full text-md">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                                        <th className="px-5 py-3 text-left w-16">ID</th>
+                                        <th className="px-5 py-3 text-left w-24">Logo</th>
+                                        <th className="px-5 py-3 text-left">Tên thương hiệu</th>
+                                        <th className="px-5 py-3 text-center w-28">Hành động</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {data.content.map(brand => (
+                                        <tr key={brand.id} className="hover:bg-gray-50/60 transition-colors">
+                                            <td className="px-5 py-4 text-gray-400 font-mono text-sm">#{brand.id}</td>
+                                            <td className="px-5 py-4">
+                                                <div className="w-12 h-12 rounded-xl border bg-gray-50 overflow-hidden flex items-center justify-center shadow-sm">
+                                                    {brand.logo ? (
+                                                        <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <ImageOff size={18} className="text-gray-300" />
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className="font-semibold text-gray-800">{brand.name}</span>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button onClick={() => openModal(brand)}
+                                                        className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors cursor-pointer" title="Sửa">
+                                                        <Edit size={15} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(brand.id)}
+                                                        className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer" title="Xóa">
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
                         <Pagination
                             page={page}
                             totalPages={data.totalPages}
@@ -201,10 +229,10 @@ export default function BrandsPage() {
 
             {/* ── MODAL ── */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 border-b">
-                            <h2 className="text-xl font-bold text-gray-800">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+                    <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden">
+                        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
+                            <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                                 {editingBrand ? 'Cập nhật thương hiệu' : 'Thêm thương hiệu mới'}
                             </h2>
                             <button onClick={() => setIsModalOpen(false)}
@@ -212,33 +240,33 @@ export default function BrandsPage() {
                                 <X size={20} />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5">
                             <div>
-                                <label className="block text-md font-semibold text-gray-700 mb-1.5">
+                                <label className="block text-sm sm:text-md font-semibold text-gray-700 mb-1.5">
                                     Tên thương hiệu <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text" required
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm sm:text-md focus:outline-none focus:ring-2 focus:ring-purple-400"
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                     placeholder="VD: Coolmate, Owen..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-md font-semibold text-gray-700 mb-1.5">Logo thương hiệu</label>
+                                <label className="block text-sm sm:text-md font-semibold text-gray-700 mb-1.5">Logo thương hiệu</label>
                                 <ImageUpload
                                     value={formData.logo}
                                     onUpload={url => setFormData({ ...formData, logo: url })}
                                 />
                             </div>
-                            <div className="flex justify-end gap-3 pt-2">
+                            <div className="flex justify-end gap-3 pt-2 pb-2 sm:pb-0">
                                 <button type="button" onClick={() => setIsModalOpen(false)}
-                                    className="px-5 py-2.5 text-md text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors cursor-pointer">
+                                    className="px-5 py-2.5 text-sm sm:text-md text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors cursor-pointer">
                                     Hủy
                                 </button>
                                 <button type="submit" disabled={saving}
-                                    className="px-5 py-2.5 text-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 rounded-xl font-semibold transition-colors cursor-pointer shadow-sm">
+                                    className="px-5 py-2.5 text-sm sm:text-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 rounded-xl font-semibold transition-colors cursor-pointer shadow-sm">
                                     {saving ? 'Đang lưu...' : 'Lưu lại'}
                                 </button>
                             </div>

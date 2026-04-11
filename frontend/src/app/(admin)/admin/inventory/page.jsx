@@ -24,7 +24,6 @@ const formatDate = (dateStr) => {
     return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(dateStr));
 };
 
-// ─── Product search dropdown ────────────────────────────────────────────────
 function ProductSearchDropdown({ onSelect, placeholder = 'Tìm sản phẩm theo tên hoặc mã SKU...' }) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
@@ -57,7 +56,6 @@ function ProductSearchDropdown({ onSelect, placeholder = 'Tìm sản phẩm theo
         onSelect(product);
     };
 
-    // Close on outside click
     useEffect(() => {
         const handler = (e) => {
             if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
@@ -106,7 +104,6 @@ function ProductSearchDropdown({ onSelect, placeholder = 'Tìm sản phẩm theo
     );
 }
 
-// ─── SKU inventory table for a selected product ────────────────────────────
 function ProductSkuInventory({ product, onOpenDrawer }) {
     const [skuInventories, setSkuInventories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -114,7 +111,6 @@ function ProductSkuInventory({ product, onOpenDrawer }) {
     useEffect(() => {
         if (!product) return;
         setLoading(true);
-        // Fetch inventory for each SKU of the product
         const activeSkus = product.skus?.filter(s => s.isActive !== false) || [];
         Promise.all(activeSkus.map(sku =>
             getInventoryBySkuId(sku.id)
@@ -132,10 +128,10 @@ function ProductSkuInventory({ product, onOpenDrawer }) {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
             <div className="p-4 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
                 <div>
-                    <h3 className="font-bold text-gray-800">{product.name}</h3>
-                    <p className="text-sm text-gray-500 mt-0.5">{product.brandName} · {product.categoryName} · {product.skus?.length} phân loại</p>
+                    <h3 className="font-bold text-gray-800 text-sm sm:text-base">{product.name}</h3>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{product.brandName} · {product.categoryName} · {product.skus?.length} phân loại</p>
                 </div>
-                <span className="text-sm text-blue-600 font-semibold bg-blue-100 px-3 py-1 rounded-full">
+                <span className="text-xs sm:text-sm text-blue-600 font-semibold bg-blue-100 px-2 sm:px-3 py-1 rounded-full shrink-0 ml-2">
                     {skuInventories.filter(i => i.availableQuantity > 0).length} SKU còn hàng
                 </span>
             </div>
@@ -143,65 +139,93 @@ function ProductSkuInventory({ product, onOpenDrawer }) {
             {loading ? (
                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-blue-400" size={24} /></div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-md text-left">
-                        <thead className="bg-gray-50 text-sm text-gray-500 uppercase border-b">
-                            <tr>
-                                <th className="p-3">Phân loại (SKU)</th>
-                                <th className="p-3">Mã SKU</th>
-                                <th className="p-3 text-center">Thực tế</th>
-                                <th className="p-3 text-center text-emerald-600">Có thể bán</th>
-                                <th className="p-3 text-center text-amber-600">Đang giữ</th>
-                                <th className="p-3 text-center text-red-500">Lỗi</th>
-                                <th className="p-3 text-center">Ngưỡng</th>
-                                <th className="p-3 text-center">Chi tiết</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {skuInventories.map(inv => (
-                                <tr key={inv.id} className={`hover:bg-gray-50/60 transition-colors ${inv.lowStock ? 'bg-red-50/30' : ''}`}>
-                                    <td className="p-3 font-medium text-gray-800">{inv.skuCode}</td>
-                                    <td className="p-3 text-gray-500 font-mono text-sm">{inv.skuCode}</td>
-                                    <td className="p-3 text-center text-gray-600">{inv.physicalQuantity}</td>
-                                    <td className={`p-3 text-center font-bold ${inv.lowStock ? 'text-red-600' : 'text-emerald-600'}`}>
-                                        {inv.availableQuantity}
-                                        {inv.lowStock && <span className="ml-1 text-[10px] text-red-500">⚠</span>}
-                                    </td>
-                                    <td className="p-3 text-center text-amber-600">{inv.reservedQuantity > 0 ? inv.reservedQuantity : '—'}</td>
-                                    <td className="p-3 text-center text-red-500">{inv.defectQuantity > 0 ? inv.defectQuantity : '—'}</td>
-                                    <td className="p-3 text-center text-gray-500">{inv.lowStockThreshold > 0 ? inv.lowStockThreshold : '—'}</td>
-                                    <td className="p-3 text-center">
-                                        <button onClick={() => onOpenDrawer(inv)}
-                                            className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer">
-                                            Xem
-                                        </button>
-                                    </td>
+                /* Mobile: cards, Desktop: table */
+                <>
+                    {/* Mobile card list */}
+                    <div className="block sm:hidden divide-y divide-gray-100">
+                        {skuInventories.map(inv => (
+                            <div key={inv.id} className={`p-3 ${inv.lowStock ? 'bg-red-50/30' : ''}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="font-semibold text-gray-800 text-sm">{inv.skuCode}</span>
+                                    {inv.lowStock && <span className="text-xs text-red-600 font-bold bg-red-100 px-2 py-0.5 rounded-full">⚠ Sắp hết</span>}
+                                </div>
+                                <div className="grid grid-cols-4 gap-1 text-center">
+                                    {[
+                                        { label: 'Thực tế', val: inv.physicalQuantity, cls: 'text-gray-600' },
+                                        { label: 'Bán được', val: inv.availableQuantity, cls: inv.lowStock ? 'text-red-600 font-bold' : 'text-emerald-600 font-bold' },
+                                        { label: 'Giữ chỗ', val: inv.reservedQuantity || '—', cls: 'text-amber-600' },
+                                        { label: 'Lỗi', val: inv.defectQuantity || '—', cls: 'text-red-500' },
+                                    ].map(s => (
+                                        <div key={s.label} className="bg-gray-50 rounded-lg p-1.5">
+                                            <p className={`text-sm font-bold ${s.cls}`}>{s.val}</p>
+                                            <p className="text-xs text-gray-400">{s.label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={() => onOpenDrawer(inv)}
+                                    className="mt-2 w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium py-1.5 border border-blue-200 rounded-lg hover:bg-blue-50">
+                                    Xem chi tiết
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Desktop table */}
+                    <div className="hidden sm:block overflow-x-auto">
+                        <table className="w-full text-md text-left">
+                            <thead className="bg-gray-50 text-sm text-gray-500 uppercase border-b">
+                                <tr>
+                                    <th className="p-3">Phân loại (SKU)</th>
+                                    <th className="p-3">Mã SKU</th>
+                                    <th className="p-3 text-center">Thực tế</th>
+                                    <th className="p-3 text-center text-emerald-600">Có thể bán</th>
+                                    <th className="p-3 text-center text-amber-600">Đang giữ</th>
+                                    <th className="p-3 text-center text-red-500">Lỗi</th>
+                                    <th className="p-3 text-center">Ngưỡng</th>
+                                    <th className="p-3 text-center">Chi tiết</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {skuInventories.map(inv => (
+                                    <tr key={inv.id} className={`hover:bg-gray-50/60 transition-colors ${inv.lowStock ? 'bg-red-50/30' : ''}`}>
+                                        <td className="p-3 font-medium text-gray-800">{inv.skuCode}</td>
+                                        <td className="p-3 text-gray-500 font-mono text-sm">{inv.skuCode}</td>
+                                        <td className="p-3 text-center text-gray-600">{inv.physicalQuantity}</td>
+                                        <td className={`p-3 text-center font-bold ${inv.lowStock ? 'text-red-600' : 'text-emerald-600'}`}>
+                                            {inv.availableQuantity}
+                                            {inv.lowStock && <span className="ml-1 text-[10px] text-red-500">⚠</span>}
+                                        </td>
+                                        <td className="p-3 text-center text-amber-600">{inv.reservedQuantity > 0 ? inv.reservedQuantity : '—'}</td>
+                                        <td className="p-3 text-center text-red-500">{inv.defectQuantity > 0 ? inv.defectQuantity : '—'}</td>
+                                        <td className="p-3 text-center text-gray-500">{inv.lowStockThreshold > 0 ? inv.lowStockThreshold : '—'}</td>
+                                        <td className="p-3 text-center">
+                                            <button onClick={() => onOpenDrawer(inv)}
+                                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer">
+                                                Xem
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
             )}
         </div>
     );
 }
 
-// ─── Main page ─────────────────────────────────────────────────────────────
 export default function InventoryDashboardPage() {
     const { adminUser } = useAdminAuth();
 
-    // Dashboard summary
     const [loading, setLoading] = useState(true);
     const [stockData, setStockData] = useState(null);
     const [valuation, setValuation] = useState(null);
     const [lowStockCount, setLowStockCount] = useState(0);
     const [summaryPage, setSummaryPage] = useState(0);
 
-    // Product search mode
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [loadingProduct, setLoadingProduct] = useState(false);
 
-    // Side drawer
     const [selectedSku, setSelectedSku] = useState(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('movements');
@@ -283,77 +307,95 @@ export default function InventoryDashboardPage() {
         finally { setIsSubmitting(false); }
     };
 
-    // Paginated summary table
     const allItems = stockData?.items || [];
     const pageItems = allItems.slice(summaryPage * PAGE_SIZE, (summaryPage + 1) * PAGE_SIZE);
 
     return (
-        <div className="p-4 max-w-7xl mx-auto space-y-6">
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+        <div className="p-3 sm:p-4 max-w-7xl mx-auto space-y-4 sm:space-y-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <Package className="text-blue-600" /> Quản lý Tồn Kho
             </h1>
 
             {/* KPI WIDGETS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="bg-white rounded-xl shadow-sm border p-5 flex items-center justify-between">
-                    <div><p className="text-md text-gray-500 mb-1">Tổng SKUs</p><p className="text-3xl font-bold text-gray-800">{stockData?.totalSkus || 0}</p></div>
-                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"><Package size={22} /></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5">
+                <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-5 flex items-center justify-between">
+                    <div><p className="text-xs sm:text-md text-gray-500 mb-1">Tổng SKUs</p><p className="text-2xl sm:text-3xl font-bold text-gray-800">{stockData?.totalSkus || 0}</p></div>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0"><Package size={18} /></div>
                 </div>
-                <div className={`bg-white rounded-xl shadow-sm border p-5 flex items-center justify-between ${lowStockCount > 0 ? 'border-red-100' : ''}`}>
-                    <div><p className="text-md text-red-500 mb-1 font-medium">Sắp hết hàng</p><p className="text-3xl font-bold text-red-600">{lowStockCount} <span className="text-xl font-normal">SKUs</span></p></div>
-                    <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center"><AlertTriangle size={22} /></div>
+                <div className={`bg-white rounded-xl shadow-sm border p-3 sm:p-5 flex items-center justify-between ${lowStockCount > 0 ? 'border-red-100' : ''}`}>
+                    <div><p className="text-xs sm:text-md text-red-500 mb-1 font-medium">Sắp hết hàng</p><p className="text-2xl sm:text-3xl font-bold text-red-600">{lowStockCount} <span className="text-lg sm:text-xl font-normal">SKUs</span></p></div>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0"><AlertTriangle size={18} /></div>
                 </div>
                 {isAdmin && (
-                    <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-5 flex items-center justify-between">
-                        <div><p className="text-md text-emerald-600 mb-1 font-medium">Tổng Giá Trị Kho</p>
-                            <p className="text-2xl font-bold text-emerald-700">{valuation !== null ? formatCurrency(valuation) : '...'}</p></div>
-                        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center"><DollarSign size={22} /></div>
+                    <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-3 sm:p-5 flex items-center justify-between col-span-2 sm:col-span-1">
+                        <div><p className="text-xs sm:text-md text-emerald-600 mb-1 font-medium">Tổng Giá Trị Kho</p>
+                            <p className="text-base sm:text-2xl font-bold text-emerald-700">{valuation !== null ? formatCurrency(valuation) : '...'}</p></div>
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shrink-0"><DollarSign size={18} /></div>
                     </div>
                 )}
             </div>
 
-            {/* ── PRODUCT SEARCH SECTION ── */}
+            {/* PRODUCT SEARCH SECTION */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b bg-gray-50">
-                    <h2 className="font-bold text-gray-800 mb-1">Tra cứu tồn kho theo sản phẩm</h2>
-                    <p className="text-sm text-gray-500">Tìm sản phẩm để xem chi tiết từng biến thể (SKU)</p>
+                <div className="p-4 sm:p-5 border-b bg-gray-50">
+                    <h2 className="font-bold text-gray-800 text-sm sm:text-base mb-0.5">Tra cứu tồn kho theo sản phẩm</h2>
+                    <p className="text-xs sm:text-sm text-gray-500">Tìm sản phẩm để xem chi tiết từng biến thể (SKU)</p>
                 </div>
-                <div className="p-5">
+                <div className="p-3 sm:p-5">
                     <ProductSearchDropdown onSelect={handleSelectProduct} />
-
                     {loadingProduct && (
                         <div className="mt-6 flex justify-center py-8">
                             <Loader2 className="animate-spin text-blue-400" size={28} />
                         </div>
                     )}
-
                     {!loadingProduct && selectedProduct && (
                         <ProductSkuInventory product={selectedProduct} onOpenDrawer={openDrawer} />
                     )}
-
                     {!loadingProduct && !selectedProduct && (
-                        <div className="mt-8 text-center text-gray-400 py-8 border-2 border-dashed border-gray-200 rounded-xl">
-                            <Search size={32} className="mx-auto mb-3 text-gray-200" />
-                            <p className="font-medium">Nhập tên sản phẩm hoặc mã SKU để tra cứu</p>
-                            <p className="text-md mt-1">Hệ thống sẽ hiển thị toàn bộ biến thể và trạng thái tồn kho</p>
+                        <div className="mt-6 sm:mt-8 text-center text-gray-400 py-6 sm:py-8 border-2 border-dashed border-gray-200 rounded-xl">
+                            <Search size={28} className="mx-auto mb-3 text-gray-200" />
+                            <p className="font-medium text-sm">Nhập tên sản phẩm hoặc mã SKU để tra cứu</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* ── FULL STOCK TABLE (paginated) ── */}
+            {/* FULL STOCK TABLE */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-5 border-b bg-gray-50 flex justify-between items-center">
+                <div className="p-4 sm:p-5 border-b bg-gray-50 flex justify-between items-center">
                     <div>
-                        <h2 className="font-bold text-gray-800">Tổng quan tồn kho</h2>
-                        <p className="text-sm text-gray-500 mt-0.5">{allItems.length} SKUs · Nhấn vào hàng để xem chi tiết</p>
+                        <h2 className="font-bold text-gray-800 text-sm sm:text-base">Tổng quan tồn kho</h2>
+                        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{allItems.length} SKUs</p>
                     </div>
-                    <button onClick={fetchDashboardData} className="text-md text-gray-600 flex items-center gap-1 hover:text-blue-600">
-                        <RefreshCcw size={16} className={loading ? 'animate-spin' : ''} /> Làm mới
+                    <button onClick={fetchDashboardData} className="text-sm text-gray-600 flex items-center gap-1 hover:text-blue-600">
+                        <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> <span className="hidden sm:inline">Làm mới</span>
                     </button>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Mobile: compact rows */}
+                <div className="block sm:hidden divide-y divide-gray-100">
+                    {loading ? (
+                        <div className="p-8 text-center text-gray-400">Đang tải...</div>
+                    ) : pageItems.map((item) => (
+                        <div key={item.id} onClick={() => openDrawer(item)}
+                            className={`flex items-center gap-3 p-3 hover:bg-blue-50/50 cursor-pointer ${item.lowStock ? 'bg-red-50/20' : ''}`}>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-800 text-sm truncate">
+                                    {item.productName}
+                                    {item.lowStock && <span className="ml-2 text-xs text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">Sắp hết</span>}
+                                </p>
+                                <p className="text-xs text-gray-400 font-mono mt-0.5">{item.skuCode}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className={`font-bold text-sm ${item.lowStock ? 'text-red-600' : 'text-emerald-600'}`}>{item.availableQuantity}</p>
+                                <p className="text-xs text-gray-400">có thể bán</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full text-md text-left">
                         <thead className="bg-gray-50 text-sm text-gray-500 uppercase border-b">
                             <tr>
@@ -395,26 +437,24 @@ export default function InventoryDashboardPage() {
                 />
             </div>
 
-            {/* ── SIDE DRAWER ── */}
+            {/* SIDE DRAWER — full screen on mobile */}
             {isDrawerOpen && (
                 <div className="fixed inset-0 z-50 flex justify-end">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsDrawerOpen(false)} />
-                    <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col">
-                        {/* Drawer Header */}
-                        <div className="p-6 border-b bg-gray-50 flex justify-between items-start">
+                    <div className="relative w-full sm:max-w-2xl bg-white h-full shadow-2xl flex flex-col">
+                        <div className="p-4 sm:p-6 border-b bg-gray-50 flex justify-between items-start">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-800">Chi tiết tồn kho</h2>
-                                <p className="text-md text-gray-500 mt-1">
+                                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Chi tiết tồn kho</h2>
+                                <p className="text-xs sm:text-md text-gray-500 mt-1">
                                     <span className="font-semibold text-gray-700">{selectedSku?.productName}</span>
                                     {' '}· <span className="font-mono text-sm">{selectedSku?.skuCode}</span>
                                 </p>
                             </div>
-                            <button onClick={() => setIsDrawerOpen(false)} className="text-gray-400 hover:text-red-500 bg-gray-200 p-2 rounded-full">
+                            <button onClick={() => setIsDrawerOpen(false)} className="text-gray-400 hover:text-red-500 bg-gray-200 p-2 rounded-full shrink-0">
                                 <X size={18} />
                             </button>
                         </div>
 
-                        {/* Stock summary strip */}
                         <div className="grid grid-cols-4 divide-x border-b text-center">
                             {[
                                 { label: 'Thực tế', value: selectedSku?.physicalQuantity, color: 'text-gray-700' },
@@ -422,33 +462,31 @@ export default function InventoryDashboardPage() {
                                 { label: 'Giữ chỗ', value: selectedSku?.reservedQuantity, color: 'text-amber-600' },
                                 { label: 'Lỗi', value: selectedSku?.defectQuantity, color: 'text-red-500' },
                             ].map(stat => (
-                                <div key={stat.label} className="p-3">
-                                    <div className={`text-2xl font-black ${stat.color}`}>{stat.value ?? '—'}</div>
-                                    <div className="text-sm text-gray-500 mt-0.5">{stat.label}</div>
+                                <div key={stat.label} className="p-2 sm:p-3">
+                                    <div className={`text-xl sm:text-2xl font-black ${stat.color}`}>{stat.value ?? '—'}</div>
+                                    <div className="text-xs sm:text-sm text-gray-500 mt-0.5">{stat.label}</div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Tabs */}
-                        <div className="flex border-b px-6 overflow-x-auto">
+                        <div className="flex border-b px-3 sm:px-6 overflow-x-auto">
                             {[
                                 { id: 'movements', label: 'Lịch sử', icon: Activity },
                                 { id: 'adjust', label: 'Điều chỉnh', icon: Edit3 },
-                                ...(isAdmin ? [{ id: 'settings', label: 'Ngưỡng cảnh báo', icon: Settings }] : []),
+                                ...(isAdmin ? [{ id: 'settings', label: 'Ngưỡng', icon: Settings }] : []),
                             ].map(tab => {
                                 const Icon = tab.icon;
                                 return (
                                     <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                        className={`px-4 py-3 text-md font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap
+                                        className={`px-3 sm:px-4 py-3 text-xs sm:text-md font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap
                                             ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                                        <Icon size={15} /> {tab.label}
+                                        <Icon size={14} /> {tab.label}
                                     </button>
                                 );
                             })}
                         </div>
 
-                        {/* Tab content */}
-                        <div className="flex-1 overflow-y-auto p-6">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                             {activeTab === 'movements' && (
                                 loadingDrawer ? (
                                     <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={28} /></div>
@@ -459,20 +497,20 @@ export default function InventoryDashboardPage() {
                                         {movements.map(mov => {
                                             const isAdd = mov.afterQuantity > mov.beforeQuantity;
                                             return (
-                                                <div key={mov.id} className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border">
+                                                <div key={mov.id} className="flex items-start gap-3 p-3 sm:p-4 bg-gray-50 rounded-xl border">
                                                     <div className={`mt-0.5 p-2 rounded-full shrink-0 ${isAdd ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
-                                                        {isAdd ? <ArrowDownRight size={16} /> : <ArrowUpRight size={16} />}
+                                                        {isAdd ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start">
-                                                            <span className="font-bold text-md text-gray-800">{mov.movementType}</span>
-                                                            <span className={`font-bold text-md ${isAdd ? 'text-green-600' : 'text-red-500'}`}>
+                                                            <span className="font-bold text-sm text-gray-800">{mov.movementType}</span>
+                                                            <span className={`font-bold text-sm ${isAdd ? 'text-green-600' : 'text-red-500'}`}>
                                                                 {isAdd ? '+' : '-'}{mov.quantity}
                                                             </span>
                                                         </div>
-                                                        <p className="text-sm text-gray-500 mt-0.5">{formatDate(mov.createdAt)}</p>
-                                                        {mov.note && <p className="text-md text-gray-700 mt-1 truncate">{mov.note}</p>}
-                                                        <div className="flex justify-between text-sm text-gray-400 mt-2 pt-2 border-t border-gray-200">
+                                                        <p className="text-xs text-gray-500 mt-0.5">{formatDate(mov.createdAt)}</p>
+                                                        {mov.note && <p className="text-sm text-gray-700 mt-1 truncate">{mov.note}</p>}
+                                                        <div className="flex justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-gray-200">
                                                             <span>Trước: {mov.beforeQuantity}</span>
                                                             <span className="font-semibold text-gray-600">Sau: {mov.afterQuantity}</span>
                                                         </div>
@@ -505,7 +543,7 @@ export default function InventoryDashboardPage() {
                                                 onChange={e => setAdjustForm({ ...adjustForm, reason: e.target.value })} />
                                         </div>
                                         <button type="submit" disabled={isSubmitting}
-                                            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors flex justify-center items-center gap-2 disabled:opacity-60">
+                                            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-xl transition-colors flex justify-center items-center gap-2 disabled:opacity-60">
                                             {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Xác nhận điều chỉnh'}
                                         </button>
                                     </form>
@@ -526,7 +564,7 @@ export default function InventoryDashboardPage() {
                                             <p className="text-sm text-gray-400 mt-1.5">Đặt 0 để tắt cảnh báo.</p>
                                         </div>
                                         <button type="submit" disabled={isSubmitting}
-                                            className="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2.5 rounded-xl transition-colors flex justify-center items-center gap-2 disabled:opacity-60">
+                                            className="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 rounded-xl transition-colors flex justify-center items-center gap-2 disabled:opacity-60">
                                             {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Lưu cài đặt'}
                                         </button>
                                     </form>
