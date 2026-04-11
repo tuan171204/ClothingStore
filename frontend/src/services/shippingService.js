@@ -52,7 +52,7 @@ export const getWards = async (districtId) => {
 
 export const sendWebhook = async (payload) => {
     try {
-        const response = await axios.get('/ghn/webhook', payload);
+        const response = await axios.get('/webhook', payload);
         return response.data;
     } catch (error) {
         console.error("Lỗi bắn webhook:", error);

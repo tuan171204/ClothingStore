@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Send, Truck, RefreshCw, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from '@/lib/axios';
+import { sendWebhook } from '@/services/shippingService';
 
 /**
  * Danh sách trạng thái GHN đầy đủ (khớp với tài liệu chính thức và GhnStatus.java).
@@ -86,11 +87,7 @@ export default function GhnSimulatorPage() {
         if (!payload.ShopID) delete payload.ShopID;
 
         try {
-            // Gọi trực tiếp /api/webhook/ghn (không qua api prefix, không cần JWT)
-            const res = await axios.post('/api/v1/webhook', payload, {
-                // Override baseURL nếu cần — webhook không đi qua /api/v1
-                baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
-            });
+            const res = await sendWebhook(payload)
 
             toast.success('Đã bắn Webhook thành công!');
             setResponseLog({
