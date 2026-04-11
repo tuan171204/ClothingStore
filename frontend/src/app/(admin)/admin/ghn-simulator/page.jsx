@@ -87,7 +87,7 @@ export default function GhnSimulatorPage() {
 
         try {
             // Gọi trực tiếp /api/webhook/ghn (không qua api prefix, không cần JWT)
-            const res = await axios.post('/api/webhook/ghn', payload, {
+            const res = await axios.post('/api/v1/webhook', payload, {
                 // Override baseURL nếu cần — webhook không đi qua /api/v1
                 baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
             });

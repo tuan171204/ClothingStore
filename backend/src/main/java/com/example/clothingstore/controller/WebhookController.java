@@ -13,20 +13,20 @@ import org.springframework.web.bind.annotation.*;
  * Endpoint: POST /api/webhook/ghn
  *
  * Lưu ý bảo mật:
- *  - Endpoint này phải được EXCLUDE khỏi Spring Security JWT filter
- *    (GHN gọi không có Authorization header).
- *  - Validation ShopID được thực hiện trong GhnWebhookService để đảm bảo
- *    chỉ chấp nhận request từ đúng shop.
+ * - Endpoint này phải được EXCLUDE khỏi Spring Security JWT filter
+ * (GHN gọi không có Authorization header).
+ * - Validation ShopID được thực hiện trong GhnWebhookService để đảm bảo
+ * chỉ chấp nhận request từ đúng shop.
  *
  * Quy tắc GHN Retry:
- *  - GHN mong đợi HTTP 200. Nếu nhận 4xx/5xx, GHN sẽ retry tối đa 10 lần,
- *    mỗi lần cách nhau 5 giây.
- *  - Do đó controller LUÔN trả về 200, dù có lỗi nghiệp vụ nội bộ.
- *    Lỗi được log và xử lý trong service, không throw ra ngoài.
+ * - GHN mong đợi HTTP 200. Nếu nhận 4xx/5xx, GHN sẽ retry tối đa 10 lần,
+ * mỗi lần cách nhau 5 giây.
+ * - Do đó controller LUÔN trả về 200, dù có lỗi nghiệp vụ nội bộ.
+ * Lỗi được log và xử lý trong service, không throw ra ngoài.
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/webhook")
+@RequestMapping("${api.prefix}/webhook")
 @RequiredArgsConstructor
 public class WebhookController {
 
@@ -37,7 +37,7 @@ public class WebhookController {
      *
      * Luôn trả về 200 OK — xem javadoc class.
      */
-    @PostMapping("/ghn")
+    @PostMapping()
     public ResponseEntity<String> handleGhnWebhook(@RequestBody GhnWebhookPayload payload) {
         log.debug("[WebhookController] Nhận GHN webhook: type={}, orderCode={}",
                 payload.getType(), payload.getOrderCode());
