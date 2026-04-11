@@ -3,7 +3,7 @@ name: Keep Render & Aiven Alive
 on:
   schedule:
     # Cú pháp Cron: Chạy vào phút thứ 0 của mỗi 2 tiếng đồng hồ
-    - cron: '0 */2 * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công trên giao diện GitHub để kiểm tra ngay lập tức
 
 jobs:
