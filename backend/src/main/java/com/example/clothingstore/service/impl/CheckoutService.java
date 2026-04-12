@@ -22,6 +22,8 @@ import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -60,6 +62,10 @@ public class CheckoutService {
     private final FlashSaleRedisService flashSaleRedisService;
     private final RabbitTemplate rabbitTemplate;
 
+    @Autowired
+    @Lazy
+    private CheckoutService self;
+
     private static final int MAX_RETRY = 3;
 
     // ----------------------------------------------------------------
@@ -81,7 +87,7 @@ public class CheckoutService {
         }
 
         try {
-            return executeCheckoutWithRetry(request, userId);
+            return self.executeCheckoutWithRetry(request, userId);
         } catch (StockException e) {
             return CheckoutResponse.builder()
                     .status(e.getType() == StockException.Type.OUT_OF_STOCK

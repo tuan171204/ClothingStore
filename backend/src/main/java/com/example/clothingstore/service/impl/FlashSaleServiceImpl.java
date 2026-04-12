@@ -33,6 +33,17 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private final SkuRepository skuRepository;
     private final FlashSaleRedisService flashSaleRedisService;
 
+    private static final long STATUS_GRACE_SECONDS = 30L;
+
+    private String deriveStatus(FlashSale sale) {
+        LocalDateTime now       = LocalDateTime.now();
+        LocalDateTime gracedNow = now.plusSeconds(STATUS_GRACE_SECONDS);
+
+        if (gracedNow.isBefore(sale.getStartTime())) return "UPCOMING";
+        if (now.isAfter(sale.getEndTime()))           return "ENDED";
+        return "ACTIVE";
+    }
+
     // ── READ ──────────────────────────────────────────────────────
 
     @Override
@@ -80,6 +91,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
 
         FlashSale saved = flashSaleRepository.save(sale);
 
+        // Sync to Redis — this handles the "kích hoạt ngay" case correctly
+        // because syncFlashSaleToRedis checks isActive and TTL from endTime
         flashSaleRedisService.syncFlashSaleToRedis(saved);
 
         return toResponse(saved);
@@ -87,19 +100,12 @@ public class FlashSaleServiceImpl implements FlashSaleService {
 
     // ── UPDATE ────────────────────────────────────────────────────
 
-    /**
-     * Full replacement strategy: delete all existing items and re-create from request.
-     * This is safe because FlashSaleItem has no @Version — we intentionally skip optimistic
-     * locking here (as noted in the architecture context). High-concurrency sold_quantity
-     * deduction during a live sale should go through Redis atomic operations, not MySQL row locks.
-     */
     @Override
     @Transactional
     public FlashSaleResponse update(Long id, FlashSaleRequest request) {
         FlashSale sale = findOrThrow(id);
         validateDates(request.startTime(), request.endTime());
 
-        // 🔥 XÓA REDIS CŨ TRƯỚC KHI CẬP NHẬT
         flashSaleRedisService.clearFlashSaleFromRedis(sale);
 
         sale.setName(request.name());
@@ -128,38 +134,43 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (!flashSaleRepository.existsById(id)) {
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
-
         FlashSale sale = findOrThrow(id);
         flashSaleRedisService.clearFlashSaleFromRedis(sale);
-
-        flashSaleRepository.deleteById(id); // cascade deletes items
+        flashSaleRepository.deleteById(id);
     }
 
+    // ── GET CURRENT ACTIVE ────────────────────────────────────────
+
+    /**
+     * FIX: Use the graced "now" so a sale starting "right now" is included.
+     * Pass gracedNow to the repository query so it matches sales that started
+     * up to GRACE_SECONDS in the future.
+     */
     @Override
     public FlashSaleResponse getCurrentActive() {
-        LocalDateTime now = LocalDateTime.now();
-        // Lấy chiến dịch đang chạy đầu tiên
-        FlashSale currentSale = flashSaleRepository.findCurrentActiveSales(now)
+        LocalDateTime gracedNow = LocalDateTime.now().plusSeconds(STATUS_GRACE_SECONDS);
+
+        FlashSale currentSale = flashSaleRepository.findCurrentActiveSales(gracedNow)
                 .stream()
                 .findFirst()
                 .orElse(null);
 
         if (currentSale == null) {
-            return null; // Không có Flash Sale nào đang chạy
+            return null;
         }
 
-        // Chuyển sang DTO và override lại tồn kho Real-time từ Redis
         FlashSaleResponse baseResponse = toResponse(currentSale);
 
         List<FlashSaleResponse.FlashSaleItemResponse> realTimeItems = baseResponse.items().stream()
                 .map(item -> {
-                    // Gọi Redis lấy số lượng còn lại chính xác từng mili-giây
-                    Integer realRemaining = flashSaleRedisService.getRealTimeRemainingStock(currentSale.getId(), item.skuId());
+                    Integer realRemaining = flashSaleRedisService.getRealTimeRemainingStock(
+                            currentSale.getId(), item.skuId());
                     int finalRemaining = realRemaining != null ? realRemaining : item.remainingQuantity();
 
                     return new FlashSaleResponse.FlashSaleItemResponse(
-                            item.id(), item.skuId(), item.productId(), item.skuCode(), item.productName(), item.variantName(),
-                            item.thumbnailUrl(), item.originalPrice(), item.promotionalPrice(),
+                            item.id(), item.skuId(), item.productId(), item.skuCode(),
+                            item.productName(), item.variantName(), item.thumbnailUrl(),
+                            item.originalPrice(), item.promotionalPrice(),
                             item.totalQuantity(), item.totalQuantity() - finalRemaining, finalRemaining
                     );
                 })
@@ -208,11 +219,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     // ── MAPPER ────────────────────────────────────────────────────
 
     private FlashSaleResponse toResponse(FlashSale sale) {
-        LocalDateTime now = LocalDateTime.now();
-        String status;
-        if (now.isBefore(sale.getStartTime()))      status = "UPCOMING";
-        else if (now.isAfter(sale.getEndTime()))    status = "ENDED";
-        else                                        status = "ACTIVE";
+        // FIX: Use deriveStatus() with grace buffer instead of raw time comparison
+        String status = deriveStatus(sale);
 
         List<FlashSaleResponse.FlashSaleItemResponse> itemResponses =
                 sale.getItems().stream().map(item -> {
@@ -221,7 +229,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                             .map(v -> v.getOptionValue().getValue())
                             .collect(Collectors.joining(" - "));
                     String productName = sku.getProduct() != null ? sku.getProduct().getName() : "";
-                    String thumbnail = sku.getImgUrl() != null ? sku.getImgUrl()
+                    String thumbnail   = sku.getImgUrl() != null ? sku.getImgUrl()
                             : (sku.getProduct() != null ? sku.getProduct().getThumbnail() : null);
 
                     return new FlashSaleResponse.FlashSaleItemResponse(
@@ -232,11 +240,11 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                             productName,
                             variantName,
                             thumbnail,
-                            sku.getPrice(),                               // original price
+                            sku.getPrice(),
                             item.getPromotionalPrice(),
                             item.getTotalQuantity(),
                             item.getSoldQuantity(),
-                            item.getTotalQuantity() - item.getSoldQuantity()  // remaining
+                            item.getTotalQuantity() - item.getSoldQuantity()
                     );
                 }).collect(Collectors.toList());
 

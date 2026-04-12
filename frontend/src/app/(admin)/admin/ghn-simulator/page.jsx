@@ -3,15 +3,9 @@
 import React, { useState } from 'react';
 import { Send, Truck, RefreshCw, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'react-toastify';
-import axios from '@/lib/axios';
 import { sendWebhook } from '@/services/shippingService';
 
-/**
- * Danh sách trạng thái GHN đầy đủ (khớp với tài liệu chính thức và GhnStatus.java).
- * Bao gồm cả các trạng thái trung gian để test webhook toàn diện.
- */
 const STATUS_OPTIONS = [
-    // --- Luồng tiến (không đổi OrderStatus) ---
     { value: 'ready_to_pick', label: 'Chờ lấy hàng', group: 'Đang vận chuyển' },
     { value: 'picking', label: 'Đang lấy hàng', group: 'Đang vận chuyển' },
     { value: 'picked', label: 'Đã lấy hàng', group: 'Đang vận chuyển' },
@@ -22,7 +16,6 @@ const STATUS_OPTIONS = [
     { value: 'on_hold', label: 'Tạm giữ - liên hệ khách', group: 'Đang vận chuyển' },
     { value: 'delivering', label: 'Đang giao tới khách', group: 'Đang vận chuyển' },
     { value: 'delivery_fail', label: 'Giao thất bại, sẽ thử lại', group: 'Đang vận chuyển' },
-    // --- Trạng thái cuối (có đổi OrderStatus) ---
     { value: 'delivered', label: 'Giao thành công → COMPLETED', group: 'Kết thúc' },
     { value: 'cancel', label: 'Hủy đơn → CANCELLED', group: 'Kết thúc' },
     { value: 'return', label: 'Bắt đầu hoàn hàng → CANCELLED', group: 'Kết thúc' },
@@ -59,7 +52,6 @@ export default function GhnSimulatorPage() {
         setLoading(true);
         setResponseLog(null);
 
-        // Payload chuẩn format tài liệu GHN
         const payload = {
             Type: type,
             Time: new Date().toISOString(),
@@ -83,12 +75,11 @@ export default function GhnSimulatorPage() {
             ReasonCode: '',
         };
 
-        // Xóa field undefined để JSON gọn hơn
         if (!payload.ShopID) delete payload.ShopID;
 
         try {
-            const res = await sendWebhook(payload)
-
+            // sendWebhook now uses POST — this actually hits the backend
+            const res = await sendWebhook(payload);
             toast.success('Đã bắn Webhook thành công!');
             setResponseLog({
                 type: 'success',
@@ -96,7 +87,7 @@ export default function GhnSimulatorPage() {
                 payloadSent: payload,
             });
         } catch (error) {
-            toast.error('Lỗi khi bắn Webhook!');
+            toast.error('Lỗi khi bắn Webhook: ' + (error.response?.data?.message || error.message));
             setResponseLog({
                 type: 'error',
                 data: error.response?.data || error.message,
@@ -111,12 +102,12 @@ export default function GhnSimulatorPage() {
     const isTerminalStatus = selectedStatusInfo?.group === 'Kết thúc';
 
     return (
-        <div className="max-w-5xl mx-auto p-6">
+        <div className="max-w-5xl mx-auto p-4 sm:p-6">
 
             {/* Header */}
-            <div className="mb-8 border-b pb-5">
-                <h1 className="text-2xl font-black text-orange-600 flex items-center gap-2 uppercase tracking-tight">
-                    <Truck size={28} /> GHN Webhook Simulator
+            <div className="mb-6 sm:mb-8 border-b pb-4 sm:pb-5">
+                <h1 className="text-xl sm:text-2xl font-black text-orange-600 flex items-center gap-2 uppercase tracking-tight">
+                    <Truck size={24} /> GHN Webhook Simulator
                 </h1>
                 <p className="text-gray-500 mt-2 text-sm max-w-2xl">
                     Giả lập tín hiệu webhook từ Giao Hàng Nhanh bắn về hệ thống.
@@ -125,12 +116,12 @@ export default function GhnSimulatorPage() {
             </div>
 
             {/* Info box */}
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex gap-3">
+            <div className="mb-5 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex gap-3">
                 <Info size={18} className="shrink-0 mt-0.5 text-blue-500" />
                 <div>
                     <p className="font-semibold mb-1">Cách sử dụng:</p>
                     <ol className="list-decimal list-inside space-y-1 text-blue-700">
-                        <li>Vào trang <strong>Đơn hàng</strong>, chọn đơn đang ở trạng thái <code>SHIPPING</code></li>
+                        <li>Vào trang <strong>Đơn hàng</strong>, chọn đơn đang ở trạng thái <code className="bg-blue-100 px-1 rounded">SHIPPING</code></li>
                         <li>Copy <strong>Mã vận đơn</strong> (Tracking Code) của đơn đó</li>
                         <li>Dán vào ô bên dưới, chọn trạng thái muốn giả lập, bấm <strong>BẮN WEBHOOK</strong></li>
                         <li>Quay lại trang đơn hàng, refresh và kiểm tra trạng thái đã được cập nhật chưa</li>
@@ -138,20 +129,29 @@ export default function GhnSimulatorPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* FIX NOTE */}
+            <div className="mb-5 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800 flex gap-3">
+                <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-green-600" />
+                <p>
+                    <strong>Webhook dùng POST request</strong> đến <code className="bg-green-100 px-1 rounded">POST /api/v1/webhook</code> —
+                    trạng thái đơn hàng sẽ được cập nhật ngay trong database sau khi bắn thành công.
+                </p>
+            </div>
+
+            {/* GRID: Form + Console */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
 
                 {/* FORM */}
-                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-orange-200 p-6">
-                    <form onSubmit={handleSendWebhook} className="space-y-5">
+                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-orange-200 p-4 sm:p-6">
+                    <form onSubmit={handleSendWebhook} className="space-y-4 sm:space-y-5">
 
-                        {/* Mã vận đơn */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1.5">
                                 Mã vận đơn (OrderCode) <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
-                                className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500 font-mono font-bold text-orange-700 uppercase tracking-widest"
+                                className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500 font-mono font-bold text-orange-700 uppercase tracking-widest text-sm sm:text-base"
                                 placeholder="VD: LT8EWV"
                                 value={orderCode}
                                 onChange={(e) => setOrderCode(e.target.value.toUpperCase())}
@@ -161,15 +161,14 @@ export default function GhnSimulatorPage() {
                             </p>
                         </div>
 
-                        {/* ShopID (tùy chọn) */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1.5">
                                 ShopID <span className="text-gray-400 font-normal">(tùy chọn)</span>
                             </label>
                             <input
                                 type="number"
-                                className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500 font-mono text-gray-600"
-                                placeholder="VD: 4905307 (để trống = bỏ qua validate)"
+                                className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-orange-500 font-mono text-gray-600 text-sm"
+                                placeholder="VD: 4905307"
                                 value={shopId}
                                 onChange={(e) => setShopId(e.target.value)}
                             />
@@ -178,7 +177,6 @@ export default function GhnSimulatorPage() {
                             </p>
                         </div>
 
-                        {/* Type */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1.5">
                                 Loại sự kiện (Type)
@@ -194,7 +192,6 @@ export default function GhnSimulatorPage() {
                             </select>
                         </div>
 
-                        {/* Status — chỉ hiện khi type = switch_status */}
                         {type === 'switch_status' && (
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1.5">
@@ -218,9 +215,12 @@ export default function GhnSimulatorPage() {
                                 </select>
 
                                 {isTerminalStatus && (
-                                    <p className="text-[11px] text-red-500 mt-1 font-medium">
-                                        ⚠️ Trạng thái này sẽ thay đổi OrderStatus trong database!
-                                    </p>
+                                    <div className="mt-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                                        <p className="text-xs text-red-600 font-semibold flex items-start gap-1.5">
+                                            <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                                            Trạng thái này sẽ CẬP NHẬT OrderStatus trong database khi webhook được xử lý thành công!
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -231,17 +231,15 @@ export default function GhnSimulatorPage() {
                             className="w-full mt-2 bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg flex justify-center items-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-lg shadow-orange-200"
                         >
                             {loading
-                                ? <><RefreshCw size={18} className="animate-spin" /> ĐANG BẮN...</>
-                                : <><Send size={18} /> BẮN WEBHOOK NGAY</>
+                                ? <><RefreshCw size={16} className="animate-spin" /> ĐANG BẮN...</>
+                                : <><Send size={16} /> BẮN WEBHOOK NGAY</>
                             }
                         </button>
                     </form>
                 </div>
 
                 {/* LOG CONSOLE */}
-                <div className="lg:col-span-3 bg-[#1e1e1e] rounded-xl shadow-inner border border-gray-800 p-4 font-mono text-sm flex flex-col min-h-[480px]">
-
-                    {/* Thanh tiêu đề terminal giả */}
+                <div className="lg:col-span-3 bg-[#1e1e1e] rounded-xl shadow-inner border border-gray-800 p-4 font-mono text-sm flex flex-col min-h-[320px] sm:min-h-[480px]">
                     <div className="flex items-center gap-2 border-b border-gray-700 pb-3 mb-3 text-gray-400">
                         <div className="flex gap-1.5">
                             <div className="w-3 h-3 rounded-full bg-red-500" />
@@ -255,14 +253,12 @@ export default function GhnSimulatorPage() {
 
                     <div className="flex-1 overflow-y-auto">
                         {!responseLog ? (
-                            <p className="text-gray-500 italic">Waiting for webhook trigger...</p>
+                            <p className="text-gray-500 italic text-xs sm:text-sm">Waiting for webhook trigger...</p>
                         ) : (
-                            <div className="space-y-4 animate-fade-in">
-
-                                {/* Request */}
+                            <div className="space-y-4">
                                 <div>
-                                    <p className="text-blue-400 font-bold mb-1">
-                                        POST /api/webhook/ghn
+                                    <p className="text-blue-400 font-bold mb-1 text-xs sm:text-sm">
+                                        POST /api/v1/webhook
                                     </p>
                                     <p className="text-gray-400 text-xs mb-1">Payload:</p>
                                     <pre className="text-yellow-300 bg-black/30 p-3 rounded-lg overflow-x-auto text-xs leading-relaxed">
@@ -270,14 +266,13 @@ export default function GhnSimulatorPage() {
                                     </pre>
                                 </div>
 
-                                {/* Response */}
                                 <div className="border-t border-gray-700 pt-3">
                                     <p className="text-gray-400 text-xs mb-1">Response:</p>
                                     {responseLog.type === 'success' ? (
                                         <div className="text-green-400 flex items-start gap-2 bg-green-400/10 p-3 rounded-lg">
-                                            <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+                                            <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="font-bold text-sm">200 OK — Webhook processed</p>
+                                                <p className="font-bold text-xs sm:text-sm">200 OK — Webhook processed</p>
                                                 <pre className="whitespace-pre-wrap text-xs mt-1 text-green-300">
                                                     {typeof responseLog.data === 'string'
                                                         ? responseLog.data
@@ -290,9 +285,9 @@ export default function GhnSimulatorPage() {
                                         </div>
                                     ) : (
                                         <div className="text-red-400 flex items-start gap-2 bg-red-400/10 p-3 rounded-lg">
-                                            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                                            <AlertCircle size={15} className="mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="font-bold text-sm">Error</p>
+                                                <p className="font-bold text-xs sm:text-sm">Error</p>
                                                 <pre className="whitespace-pre-wrap text-xs mt-1">
                                                     {typeof responseLog.data === 'string'
                                                         ? responseLog.data

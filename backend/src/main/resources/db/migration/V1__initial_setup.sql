@@ -271,7 +271,7 @@ CREATE TABLE `inventory` (
     PRIMARY KEY (id),
     UNIQUE KEY uq_inventory_sku (sku_id),
     CONSTRAINT fk_inventory_sku FOREIGN KEY (sku_id) REFERENCES skus (id) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `goods_receipts` (
     id         BIGINT      NOT NULL AUTO_INCREMENT,
@@ -281,7 +281,7 @@ CREATE TABLE `goods_receipts` (
     created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT fk_grn_user FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `goods_receipt_items` (
     id                BIGINT NOT NULL AUTO_INCREMENT,
@@ -293,7 +293,7 @@ CREATE TABLE `goods_receipt_items` (
     PRIMARY KEY (id),
     CONSTRAINT fk_grni_grn FOREIGN KEY (grn_id) REFERENCES goods_receipts (id) ON DELETE CASCADE,
     CONSTRAINT fk_grni_sku FOREIGN KEY (sku_id) REFERENCES skus (id) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `stock_movements` (
     id              BIGINT      NOT NULL AUTO_INCREMENT,
@@ -311,7 +311,7 @@ CREATE TABLE `stock_movements` (
     INDEX idx_movement_sku  (sku_id),
     INDEX idx_movement_type (movement_type),
     INDEX idx_movement_ref  (reference_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `stock_adjustments` (
     id              BIGINT NOT NULL AUTO_INCREMENT,
@@ -325,7 +325,7 @@ CREATE TABLE `stock_adjustments` (
     PRIMARY KEY (id),
     CONSTRAINT fk_adj_sku  FOREIGN KEY (sku_id)      REFERENCES skus  (id) ON DELETE RESTRICT,
     CONSTRAINT fk_adj_user FOREIGN KEY (adjusted_by) REFERENCES users (id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `reviews` (
     id               BIGINT       AUTO_INCREMENT PRIMARY KEY,
@@ -340,7 +340,7 @@ CREATE TABLE `reviews` (
     created_at       DATETIME,
     CONSTRAINT fk_review_product FOREIGN KEY (product_id) REFERENCES products(id),
     CONSTRAINT fk_review_order   FOREIGN KEY (order_id)   REFERENCES orders(id)   ON DELETE SET NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX idx_review_user_order    ON reviews (user_id, order_id);
 CREATE INDEX idx_review_product_status ON reviews (product_id, status);
@@ -361,7 +361,7 @@ CREATE TABLE `product_comments` (
     INDEX idx_comment_product (product_id, status),
     INDEX idx_comment_user    (user_id),
     INDEX idx_comment_parent  (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =======================================================
 -- PHẦN 2: MOCK DATA

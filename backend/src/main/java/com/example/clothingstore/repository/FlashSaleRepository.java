@@ -14,7 +14,6 @@ import java.util.List;
 @Repository
 public interface FlashSaleRepository extends JpaRepository<FlashSale, Long> {
 
-    /** All active sales overlapping [start, end] — used for conflict detection */
     @Query("""
             SELECT fs FROM FlashSale fs
             WHERE fs.isActive = true
@@ -25,7 +24,6 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, Long> {
             @Param("start") LocalDateTime start,
             @Param("end")   LocalDateTime end);
 
-    /** Admin list with optional name filter */
     Page<FlashSale> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
     Page<FlashSale> findAll(Pageable pageable);
@@ -38,6 +36,14 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, Long> {
             """)
     List<FlashSale> findCurrentlyActiveSales();
 
+    /**
+     * FIX: Accepts :now parameter so the caller can pass a "graced" time
+     * (e.g. LocalDateTime.now().plusSeconds(30)) to include sales that
+     * started very recently (within the grace window).
+     *
+     * The condition fs.startTime <= :now means: the sale has already started
+     * (or will start within the grace period from the caller's perspective).
+     */
     @Query("""
             SELECT DISTINCT fs FROM FlashSale fs
             LEFT JOIN FETCH fs.items

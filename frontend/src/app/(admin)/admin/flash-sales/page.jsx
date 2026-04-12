@@ -3,8 +3,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     Zap, Plus, Edit, Trash2, X, RefreshCw, Search,
-    Clock, Package, ChevronLeft, ChevronRight, CheckCircle, AlertCircle,
-    Calendar, Tag, Loader2, Save
+    Clock, Package, ChevronLeft, ChevronRight,
+    Calendar, Loader2, Save, DollarSign, CheckSquare2
 } from 'lucide-react';
 import {
     getFlashSalesPaged,
@@ -19,8 +19,34 @@ import SkuPickerModal from '@/components/admin/SkuPickerModal';
 // ─── Helpers ──────────────────────────────────────────────────────
 const fmt = (n) => n != null ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n) : '—';
 const fmtDt = (s) => s ? new Date(s).toLocaleString('vi-VN') : '—';
+
+/**
+ * Convert ISO/LocalDateTime string → value for <input type="datetime-local">
+ * Handles both "2026-04-12T10:30:00" and "2026-04-12T10:30:00.000" formats.
+ */
 const toLocalInput = (iso) => iso ? iso.slice(0, 16) : '';
-const fromLocalInput = (s) => s ? s + ':00' : null; // yyyy-MM-ddTHH:mm → yyyy-MM-ddTHH:mm:ss
+
+/**
+ * Convert datetime-local value → ISO string to send to backend.
+ * Appends seconds so the backend LocalDateTime parser is happy.
+ */
+const fromLocalInput = (s) => s ? s + ':00' : null;
+
+/**
+ * FIX: Status derivation uses a small grace buffer (+30 s) so that a Flash Sale
+ * whose startTime is "right now" (or a few seconds in the past due to clock skew)
+ * is correctly shown as ACTIVE rather than UPCOMING.
+ */
+const deriveStatus = (sale) => {
+    const now = new Date();
+    const start = new Date(sale.startTime);
+    const end = new Date(sale.endTime);
+    const GRACE_MS = 30_000; // 30 second buffer
+
+    if (now.getTime() + GRACE_MS < start.getTime()) return 'UPCOMING';
+    if (now > end) return 'ENDED';
+    return 'ACTIVE';
+};
 
 const STATUS_STYLES = {
     UPCOMING: 'bg-blue-100 text-blue-800',
@@ -28,7 +54,13 @@ const STATUS_STYLES = {
     ENDED: 'bg-gray-100 text-gray-600',
 };
 
-// ─── Flash Sale Form Modal ────────────────────────────────────────
+const STATUS_LABELS = {
+    UPCOMING: 'Sắp diễn ra',
+    ACTIVE: 'Đang diễn ra',
+    ENDED: 'Đã kết thúc',
+};
+
+// ─── Flash Sale Form Modal ─────────────────────────────────────────
 function FlashSaleFormModal({ sale, onClose, onSaved }) {
     const isEdit = !!sale;
     const [form, setForm] = useState({
@@ -47,6 +79,12 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
             totalQuantity: String(i.totalQuantity),
         })),
     });
+
+    // ── Bulk price/qty state ──────────────────────────────────────
+    const [bulkPrice, setBulkPrice] = useState('');
+    const [bulkQty, setBulkQty] = useState('');
+    const [selectedRows, setSelectedRows] = useState(new Set());
+
     const [showPicker, setShowPicker] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -63,15 +101,19 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
             promotionalPrice: '',
             totalQuantity: '',
         }));
-
-        setForm(prev => ({
-            ...prev,
-            items: [...prev.items, ...formattedItems],
-        }));
+        setForm(prev => ({ ...prev, items: [...prev.items, ...formattedItems] }));
     };
 
     const removeItem = (idx) => {
         setForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
+        setSelectedRows(prev => {
+            const next = new Set(prev);
+            next.delete(idx);
+            // Re-index remaining selections
+            const reindexed = new Set();
+            for (const r of next) { if (r < idx) reindexed.add(r); else if (r > idx) reindexed.add(r - 1); }
+            return reindexed;
+        });
     };
 
     const updateItem = (idx, field, value) => {
@@ -81,6 +123,41 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
             return { ...prev, items };
         });
     };
+
+    // ── Bulk apply ────────────────────────────────────────────────
+    const applyBulk = () => {
+        if (!bulkPrice && !bulkQty) {
+            toast.warning('Nhập giá hoặc số lượng để áp dụng hàng loạt');
+            return;
+        }
+        const targets = selectedRows.size > 0
+            ? [...selectedRows]
+            : form.items.map((_, i) => i);
+
+        setForm(prev => {
+            const items = [...prev.items];
+            targets.forEach(idx => {
+                if (bulkPrice) items[idx] = { ...items[idx], promotionalPrice: bulkPrice };
+                if (bulkQty) items[idx] = { ...items[idx], totalQuantity: bulkQty };
+            });
+            return { ...prev, items };
+        });
+        toast.success(`Đã áp dụng cho ${targets.length} sản phẩm`);
+    };
+
+    const toggleRow = (idx) => {
+        setSelectedRows(prev => {
+            const next = new Set(prev);
+            next.has(idx) ? next.delete(idx) : next.add(idx);
+            return next;
+        });
+    };
+
+    const toggleAll = (checked) => {
+        setSelectedRows(checked ? new Set(form.items.map((_, i) => i)) : new Set());
+    };
+
+    const allChecked = form.items.length > 0 && selectedRows.size === form.items.length;
 
     const handleSave = async () => {
         if (!form.name.trim()) { toast.error('Vui lòng nhập tên chiến dịch'); return; }
@@ -131,12 +208,12 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
 
     return (
         <>
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[94vh] flex flex-col overflow-hidden">
 
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 shrink-0">
-                        <h2 className="font-bold text-gray-900 flex items-center gap-2 text-xl">
+                    <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b bg-gray-50 shrink-0">
+                        <h2 className="font-bold text-gray-900 flex items-center gap-2 text-base sm:text-xl">
                             <Zap size={18} className="text-orange-500" />
                             {isEdit ? 'Cập nhật Flash Sale' : 'Tạo Flash Sale mới'}
                         </h2>
@@ -146,12 +223,12 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                     </div>
 
                     {/* Body */}
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
 
                         {/* Campaign info */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="sm:col-span-2">
+                                <label className="block text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wide mb-1.5">
                                     Tên chiến dịch *
                                 </label>
                                 <input
@@ -159,22 +236,22 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                     value={form.name}
                                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                                     placeholder="VD: Black Friday 2026"
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm sm:text-md focus:outline-none focus:ring-2 focus:ring-orange-400"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                                <label className="block text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wide mb-1.5">
                                     Bắt đầu *
                                 </label>
                                 <input
                                     type="datetime-local"
                                     value={form.startTime}
                                     onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))}
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm sm:text-md focus:outline-none focus:ring-2 focus:ring-orange-400"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                                <label className="block text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wide mb-1.5">
                                     Kết thúc *
                                 </label>
                                 <input
@@ -182,10 +259,10 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                     value={form.endTime}
                                     min={form.startTime}
                                     onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))}
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-md focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm sm:text-md focus:outline-none focus:ring-2 focus:ring-orange-400"
                                 />
                             </div>
-                            <div className="md:col-span-2 flex items-center gap-3 bg-orange-50 px-4 py-3 rounded-xl border border-orange-100">
+                            <div className="sm:col-span-2 flex items-center gap-3 bg-orange-50 px-4 py-3 rounded-xl border border-orange-100">
                                 <input
                                     type="checkbox"
                                     id="isActive"
@@ -193,91 +270,151 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                     onChange={e => setForm(p => ({ ...p, isActive: e.target.checked }))}
                                     className="w-4 h-4 accent-orange-600 cursor-pointer"
                                 />
-                                <label htmlFor="isActive" className="text-md font-bold text-orange-900 cursor-pointer">
+                                <label htmlFor="isActive" className="text-sm sm:text-md font-bold text-orange-900 cursor-pointer">
                                     Kích hoạt chiến dịch ngay
                                 </label>
                             </div>
                         </div>
 
+                        {/* ── BULK APPLY PANEL ─────────────────────────────────── */}
+                        {form.items.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 sm:p-4">
+                                <p className="text-xs sm:text-sm font-bold text-amber-800 flex items-center gap-2 mb-3">
+                                    <DollarSign size={14} /> Áp dụng giá / số lượng hàng loạt
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="number" min="0"
+                                            placeholder="Giá KM hàng loạt (đ)"
+                                            value={bulkPrice}
+                                            onChange={e => setBulkPrice(e.target.value)}
+                                            className="w-full border border-amber-300 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                                        />
+                                    </div>
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="number" min="1"
+                                            placeholder="Số lượng hàng loạt"
+                                            value={bulkQty}
+                                            onChange={e => setBulkQty(e.target.value)}
+                                            className="w-full border border-amber-300 rounded-lg pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={applyBulk}
+                                        className="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors cursor-pointer whitespace-nowrap"
+                                    >
+                                        <CheckSquare2 size={14} />
+                                        Áp dụng {selectedRows.size > 0 ? `(${selectedRows.size})` : 'tất cả'}
+                                    </button>
+                                </div>
+                                <p className="text-sm text-amber-600 mt-2">
+                                    Tick checkbox ở từng hàng để áp dụng cho sản phẩm cụ thể, hoặc để trống để áp cho tất cả.
+                                </p>
+                            </div>
+                        )}
+
                         {/* SKU list */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
-                                <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">
+                                <label className="text-sm sm:text-sm font-bold text-gray-600 uppercase tracking-wide">
                                     Sản phẩm khuyến mãi ({form.items.length})
                                 </label>
                                 <button
                                     onClick={() => setShowPicker(true)}
-                                    className="flex items-center gap-1.5 text-md font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                                    className="flex items-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
                                 >
-                                    <Plus size={15} /> Thêm SKU
+                                    <Plus size={14} /> Thêm SKU
                                 </button>
                             </div>
 
                             {form.items.length === 0 ? (
                                 <div className="flex flex-col items-center py-10 border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
-                                    <Package size={32} className="opacity-20 mb-2" />
-                                    <p className="text-md">Chưa có sản phẩm nào</p>
+                                    <Package size={28} className="opacity-20 mb-2" />
+                                    <p className="text-sm">Chưa có sản phẩm nào</p>
                                     <button
                                         onClick={() => setShowPicker(true)}
-                                        className="mt-3 text-md font-semibold text-orange-600 hover:underline cursor-pointer"
+                                        className="mt-3 text-sm font-semibold text-orange-600 hover:underline cursor-pointer"
                                     >
                                         + Thêm sản phẩm
                                     </button>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
+                                    {/* Select-all row */}
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                                        <input
+                                            type="checkbox"
+                                            checked={allChecked}
+                                            onChange={e => toggleAll(e.target.checked)}
+                                            className="w-4 h-4 accent-orange-500 cursor-pointer"
+                                        />
+                                        <span className="text-sm text-gray-500 font-medium">Chọn tất cả để áp giá hàng loạt</span>
+                                    </div>
+
                                     {form.items.map((item, idx) => {
                                         const promoNum = Number(item.promotionalPrice) || 0;
                                         const origNum = Number(item.originalPrice) || 0;
-                                        const saving = origNum > 0 && promoNum > 0 && promoNum < origNum
+                                        const savingPct = origNum > 0 && promoNum > 0 && promoNum < origNum
                                             ? Math.round((1 - promoNum / origNum) * 100)
                                             : null;
+                                        const isSelected = selectedRows.has(idx);
 
                                         return (
-                                            <div key={item.skuId}
-                                                className="flex items-start gap-3 p-4 border border-gray-200 rounded-xl bg-gray-50 hover:border-orange-200 transition-colors">
+                                            <div
+                                                key={item.skuId}
+                                                className={`flex items-start gap-2 sm:gap-3 p-3 sm:p-4 border rounded-xl transition-colors ${isSelected ? 'border-orange-300 bg-orange-50/40' : 'border-gray-200 bg-gray-50 hover:border-orange-200'}`}
+                                            >
+                                                {/* Checkbox */}
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleRow(idx)}
+                                                    className="w-4 h-4 accent-orange-500 cursor-pointer mt-1 shrink-0"
+                                                />
+
                                                 {/* Thumbnail */}
-                                                <div className="w-12 h-12 rounded-lg border bg-white overflow-hidden shrink-0 flex items-center justify-center">
+                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg border bg-white overflow-hidden shrink-0 flex items-center justify-center">
                                                     {item.thumbnail
                                                         ? <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
-                                                        : <Package size={16} className="text-gray-300" />}
+                                                        : <Package size={14} className="text-gray-300" />
+                                                    }
                                                 </div>
 
                                                 {/* Info */}
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-md font-semibold text-gray-900 truncate">{item.productName}</p>
-                                                    <p className="text-sm text-gray-500 mb-2">{item.variantName} · Giá gốc: {fmt(item.originalPrice)}</p>
+                                                    <p className="text-xs sm:text-md font-semibold text-gray-900 truncate">{item.productName}</p>
+                                                    <p className="text-xs text-gray-500 mb-2">{item.variantName} · Giá gốc: {fmt(item.originalPrice)}</p>
 
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <div>
-                                                            <label className="block text-[14px] font-bold text-gray-500 uppercase mb-1">
+                                                            <label className="block text-[13px] font-bold text-gray-500 uppercase mb-1">
                                                                 Giá KM (đ) *
                                                             </label>
                                                             <input
-                                                                type="number"
-                                                                min={0}
+                                                                type="number" min={0}
                                                                 value={item.promotionalPrice}
                                                                 onChange={e => updateItem(idx, 'promotionalPrice', e.target.value)}
                                                                 placeholder="VD: 99000"
-                                                                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-md focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                                                className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 text-xs sm:text-md focus:outline-none focus:ring-1 focus:ring-orange-400"
                                                             />
-                                                            {saving !== null && (
-                                                                <p className="text-[14px] text-orange-600 font-bold mt-0.5">
-                                                                    Giảm {saving}% so với giá gốc
+                                                            {savingPct !== null && (
+                                                                <p className="text-[13px] text-orange-600 font-bold mt-0.5">
+                                                                    Giảm {savingPct}%
                                                                 </p>
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <label className="block text-[14px] font-bold text-gray-500 uppercase mb-1">
+                                                            <label className="block text-[13px] font-bold text-gray-500 uppercase mb-1">
                                                                 Số lượng *
                                                             </label>
                                                             <input
-                                                                type="number"
-                                                                min={1}
+                                                                type="number" min={1}
                                                                 value={item.totalQuantity}
                                                                 onChange={e => updateItem(idx, 'totalQuantity', e.target.value)}
                                                                 placeholder="VD: 50"
-                                                                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-md focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                                                className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 text-xs sm:text-md focus:outline-none focus:ring-1 focus:ring-orange-400"
                                                             />
                                                         </div>
                                                     </div>
@@ -286,9 +423,9 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                                 {/* Remove */}
                                                 <button
                                                     onClick={() => removeItem(idx)}
-                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mt-0.5"
+                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mt-0.5 shrink-0"
                                                 >
-                                                    <Trash2 size={14} />
+                                                    <Trash2 size={13} />
                                                 </button>
                                             </div>
                                         );
@@ -299,17 +436,17 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3 shrink-0">
+                    <div className="px-4 sm:px-6 py-4 border-t bg-gray-50 flex justify-end gap-3 shrink-0">
                         <button
                             onClick={onClose}
-                            className="px-5 py-2.5 text-md text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold cursor-pointer transition-colors"
+                            className="px-4 sm:px-5 py-2.5 text-sm sm:text-md text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold cursor-pointer transition-colors"
                         >
                             Hủy
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="px-6 py-2.5 text-md text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-60 rounded-xl font-bold cursor-pointer flex items-center gap-2 shadow-sm transition-colors"
+                            className="px-5 sm:px-6 py-2.5 text-sm sm:text-md text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-60 rounded-xl font-bold cursor-pointer flex items-center gap-2 shadow-sm transition-colors"
                         >
                             {saving
                                 ? <><Loader2 size={14} className="animate-spin" /> Đang lưu...</>
@@ -331,13 +468,13 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
     );
 }
 
-// ─── Main Flash Sale Admin Page ───────────────────────────────────
+// ─── Main Flash Sale Admin Page ────────────────────────────────────
 export default function FlashSalesPage() {
     const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 });
     const [page, setPage] = useState(0);
     const [keyword, setKeyword] = useState('');
     const [loading, setLoading] = useState(true);
-    const [formTarget, setFormTarget] = useState(null); // null = closed, 'new' = create, object = edit
+    const [formTarget, setFormTarget] = useState(null);
     const debounce = useRef(null);
 
     const PAGE_SIZE = 10;
@@ -345,7 +482,7 @@ export default function FlashSalesPage() {
     const load = useCallback(async (pg = 0) => {
         setLoading(true);
         try {
-            const res = await getFlashSalesPaged({ keyword, page: pg, size: PAGE_SIZE })
+            const res = await getFlashSalesPaged({ keyword, page: pg, size: PAGE_SIZE });
             setData(res);
         } catch { toast.error('Không thể tải danh sách Flash Sale'); }
         finally { setLoading(false); }
@@ -362,7 +499,7 @@ export default function FlashSalesPage() {
     const handleDelete = async (id, name) => {
         if (!window.confirm(`Xóa Flash Sale "${name}"?`)) return;
         try {
-            await deleteFlashSale(id)
+            await deleteFlashSale(id);
             toast.success('Đã xóa!');
             load(page);
         } catch { toast.error('Không thể xóa. Kiểm tra lại.'); }
@@ -370,45 +507,47 @@ export default function FlashSalesPage() {
 
     const openEdit = async (id) => {
         try {
-            const detail = await getFlashSaleById(id)
+            const detail = await getFlashSaleById(id);
             setFormTarget(detail);
         } catch { toast.error('Không thể tải chi tiết'); }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-            {/* Page header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 sm:mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <Zap size={22} className="text-orange-500" /> Quản lý Flash Sale
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <Zap size={20} className="text-orange-500" /> Quản lý Flash Sale
                     </h1>
-                    <p className="text-md text-gray-500 mt-0.5">
-                        {data.totalElements} chiến dịch
-                    </p>
+                    <p className="text-xs sm:text-md text-gray-500 mt-0.5">{data.totalElements} chiến dịch</p>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={() => load(page)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border bg-white border-gray-300 text-gray-600 hover:bg-gray-50 text-md font-medium cursor-pointer transition-colors">
-                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Làm mới
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <button
+                        onClick={() => load(page)}
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border bg-white border-gray-300 text-gray-600 hover:bg-gray-50 text-sm font-medium cursor-pointer transition-colors"
+                    >
+                        <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> <span className="hidden sm:inline">Làm mới</span>
                     </button>
-                    <button onClick={() => setFormTarget('new')}
-                        className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-600 transition-colors shadow-sm cursor-pointer text-md">
-                        <Plus size={17} /> Tạo Flash Sale
+                    <button
+                        onClick={() => setFormTarget('new')}
+                        className="flex items-center gap-2 bg-orange-500 text-white px-3 sm:px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-600 transition-colors shadow-sm cursor-pointer text-sm flex-1 sm:flex-none justify-center"
+                    >
+                        <Plus size={16} /> Tạo Flash Sale
                     </button>
                 </div>
             </div>
 
             {/* Search */}
-            <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-5 flex gap-3">
-                <div className="relative flex-1">
+            <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-4 sm:mb-5">
+                <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
                         placeholder="Tìm theo tên chiến dịch..."
                         value={keyword}
                         onChange={e => setKeyword(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 text-md border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
                     />
                 </div>
             </div>
@@ -422,15 +561,55 @@ export default function FlashSalesPage() {
                 ) : data.content.length === 0 ? (
                     <div className="py-20 text-center text-gray-400">
                         <Zap size={48} className="mx-auto mb-3 opacity-20" />
-                        <p className="text-md">Chưa có Flash Sale nào.</p>
+                        <p className="text-sm">Chưa có Flash Sale nào.</p>
                         <button onClick={() => setFormTarget('new')}
-                            className="mt-4 text-md text-orange-500 hover:underline cursor-pointer font-semibold">
+                            className="mt-4 text-sm text-orange-500 hover:underline cursor-pointer font-semibold">
                             + Tạo Flash Sale đầu tiên
                         </button>
                     </div>
                 ) : (
                     <>
-                        <div className="overflow-x-auto">
+                        {/* Mobile: card list */}
+                        <div className="block sm:hidden divide-y divide-gray-100">
+                            {data.content.map(sale => {
+                                const status = deriveStatus(sale);
+                                return (
+                                    <div key={sale.id} className="p-3">
+                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-gray-900 text-sm truncate">{sale.name}</p>
+                                                <p className="text-xs text-gray-400 font-mono mt-0.5">#{sale.id}</p>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1 shrink-0">
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-600'}`}>
+                                                    {STATUS_LABELS[status]}
+                                                </span>
+                                                {!sale.isActive && <span className="text-xs text-gray-400">Đã tắt</span>}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                                            <span><Calendar size={11} className="inline mr-1" />{fmtDt(sale.startTime)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-500">{sale.items?.length || 0} SKUs</span>
+                                            <div className="flex gap-1.5">
+                                                <button onClick={() => openEdit(sale.id)}
+                                                    className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer">
+                                                    <Edit size={13} />
+                                                </button>
+                                                <button onClick={() => handleDelete(sale.id, sale.name)}
+                                                    className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer">
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop: table */}
+                        <div className="hidden sm:block overflow-x-auto">
                             <table className="w-full text-md">
                                 <thead className="bg-gray-50 border-b text-sm font-bold text-gray-500 uppercase tracking-wide">
                                     <tr>
@@ -442,78 +621,72 @@ export default function FlashSalesPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {data.content.map(sale => (
-                                        <tr key={sale.id} className="hover:bg-gray-50/60 transition-colors">
-                                            <td className="px-5 py-4">
-                                                <div className="font-semibold text-gray-900">{sale.name}</div>
-                                                <div className="text-sm text-gray-400 font-mono mt-0.5">#{sale.id}</div>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                                                    <Calendar size={11} className="text-gray-400" />
-                                                    <span>{fmtDt(sale.startTime)}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 text-sm text-gray-600 mt-0.5">
-                                                    <Clock size={11} className="text-gray-400" />
-                                                    <span>{fmtDt(sale.endTime)}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4 text-center">
-                                                <span className="font-bold text-gray-700">
-                                                    {sale.items?.length || 0}
-                                                </span>
-                                                <span className="text-gray-400 text-sm"> SKUs</span>
-                                            </td>
-                                            <td className="px-5 py-4 text-center">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <span className={`px-2 py-0.5 rounded-full text-sm font-bold ${STATUS_STYLES[sale.status] || 'bg-gray-100 text-gray-600'}`}>
-                                                        {sale.status === 'UPCOMING' ? 'Sắp diễn ra'
-                                                            : sale.status === 'ACTIVE' ? 'Đang diễn ra'
-                                                                : 'Đã kết thúc'}
-                                                    </span>
-                                                    {!sale.isActive && (
-                                                        <span className="text-[14px] text-gray-400">Đã tắt</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    <button
-                                                        onClick={() => openEdit(sale.id)}
-                                                        className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer"
-                                                        title="Sửa"
-                                                    >
-                                                        <Edit size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(sale.id, sale.name)}
-                                                        className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                                                        title="Xóa"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {data.content.map(sale => {
+                                        // FIX: use client-side deriveStatus instead of trusting backend status string
+                                        const status = deriveStatus(sale);
+                                        return (
+                                            <tr key={sale.id} className="hover:bg-gray-50/60 transition-colors">
+                                                <td className="px-5 py-4">
+                                                    <div className="font-semibold text-gray-900">{sale.name}</div>
+                                                    <div className="text-sm text-gray-400 font-mono mt-0.5">#{sale.id}</div>
+                                                </td>
+                                                <td className="px-5 py-4">
+                                                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                                                        <Calendar size={11} className="text-gray-400" />
+                                                        <span>{fmtDt(sale.startTime)}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-sm text-gray-600 mt-0.5">
+                                                        <Clock size={11} className="text-gray-400" />
+                                                        <span>{fmtDt(sale.endTime)}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    <span className="font-bold text-gray-700">{sale.items?.length || 0}</span>
+                                                    <span className="text-gray-400 text-sm"> SKUs</span>
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className={`px-2 py-0.5 rounded-full text-sm font-bold ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-600'}`}>
+                                                            {STATUS_LABELS[status]}
+                                                        </span>
+                                                        {!sale.isActive && (
+                                                            <span className="text-[14px] text-gray-400">Đã tắt</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-4">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        <button onClick={() => openEdit(sale.id)}
+                                                            className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer">
+                                                            <Edit size={14} />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(sale.id, sale.name)}
+                                                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
 
                         {/* Pagination */}
                         {data.totalPages > 1 && (
-                            <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50 text-md">
-                                <span className="text-gray-500">
+                            <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t bg-gray-50 text-sm flex-wrap gap-2">
+                                <span className="text-gray-500 text-xs sm:text-sm">
                                     Trang {page + 1}/{data.totalPages} · {data.totalElements} chiến dịch
                                 </span>
                                 <div className="flex gap-1">
                                     <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
                                         className="p-1.5 rounded-lg border border-gray-300 disabled:opacity-40 cursor-pointer hover:bg-gray-100">
-                                        <ChevronLeft size={15} />
+                                        <ChevronLeft size={14} />
                                     </button>
                                     <button onClick={() => setPage(p => Math.min(data.totalPages - 1, p + 1))} disabled={page >= data.totalPages - 1}
                                         className="p-1.5 rounded-lg border border-gray-300 disabled:opacity-40 cursor-pointer hover:bg-gray-100">
-                                        <ChevronRight size={15} />
+                                        <ChevronRight size={14} />
                                     </button>
                                 </div>
                             </div>

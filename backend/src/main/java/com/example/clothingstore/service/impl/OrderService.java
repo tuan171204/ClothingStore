@@ -29,14 +29,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -93,7 +93,7 @@ public class OrderService {
 
     public BigDecimal getTotalAmountByFilter(OrderFilterRequest filter) {
         Specification<Order> spec = OrderSpecification.buildSpec(filter);
-        Page<Order> page = orderRepository.findAll(spec, PageRequest.of(0, Integer.MAX_VALUE));
+        Slice<Order> page = orderRepository.findAll(spec, PageRequest.of(0, Integer.MAX_VALUE));
         return page.getContent().stream()
                 .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
                 .map(Order::getTotalAmount)
@@ -106,12 +106,14 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "order_detail", key = "#id")
     public OrderResponse getOrderById(Long id) {
         return orderResponseMapper.toOrderResponse(
                 orderRepository.findByIdWithItems(id)
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng ID: " + id)));
     }
 
+    @Cacheable(value = "orders_user", key = "#userId")
     public List<OrderResponse> getOrderByUserId(String userId) {
         return orderRepository.findByUserId(userId).stream()
                 .map(orderResponseMapper::toOrderResponse)
@@ -122,6 +124,7 @@ public class OrderService {
     // TẠO ĐƠN HÀNG (legacy flow — giữ lại cho compatibility)
     // =========================================================
 
+    @CacheEvict(value = "orders_user", key = "#result.userId")
     @Transactional
     public Order createOrder(OrderDTO orderDTO) {
         var context  = SecurityContextHolder.getContext();
@@ -186,6 +189,10 @@ public class OrderService {
      *
      * Nếu GHN lỗi: đơn vẫn giữ CONFIRMED, log cảnh báo để Admin xử lý thủ công.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "order_detail", key = "#orderId"),
+            @CacheEvict(value = "orders_user", allEntries = true)
+    })
     @Transactional
     public void autoConfirmAndShip(Long orderId) {
         Order order = orderRepository.findByIdWithItems(orderId)
@@ -224,7 +231,10 @@ public class OrderService {
     // =========================================================
     // CẬP NHẬT TRẠNG THÁI (Admin thủ công)
     // =========================================================
-
+    @Caching(evict = {
+            @CacheEvict(value = "order_detail", key = "#orderId"),
+            @CacheEvict(value = "orders_user", allEntries = true)
+    })
     @Transactional
     public void updateOrderStatus(Long orderId, OrderStatus status) {
         Order order = orderRepository.findByIdWithItems(orderId)
@@ -266,6 +276,10 @@ public class OrderService {
     /**
      * Admin thủ công duyệt + ship (vẫn giữ cho trường hợp autoShip bị lỗi GHN).
      */
+    @Caching(evict = {
+            @CacheEvict(value = "order_detail", key = "#orderId"),
+            @CacheEvict(value = "orders_user", allEntries = true)
+    })
     @Transactional
     public Order confirmAndShipOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
@@ -309,6 +323,10 @@ public class OrderService {
      * @param request chứa lý do hủy từ khách
      * @return OrderResponse sau khi cập nhật
      */
+    @Caching(evict = {
+            @CacheEvict(value = "order_detail", key = "#orderId"),
+            @CacheEvict(value = "orders_user", key = "#result.userId")
+    })
     @Transactional
     public OrderResponse cancelOrder(Long orderId, CancelOrderRequest request) {
         // Lấy thông tin người dùng đang login
@@ -401,6 +419,10 @@ public class OrderService {
      * @param request chứa reason, description, imageUrls
      * @return OrderResponse sau khi cập nhật
      */
+    @Caching(evict = {
+            @CacheEvict(value = "order_detail", key = "#orderId"),
+            @CacheEvict(value = "orders_user", key = "#result.userId")
+    })
     @Transactional
     public OrderResponse requestReturnOrder(Long orderId, ReturnOrderRequest request) {
         String currentUserId = resolveCurrentUserId();
@@ -455,6 +477,10 @@ public class OrderService {
         return orderResponseMapper.toOrderResponse(order);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "order_detail", key = "#orderId"),
+            @CacheEvict(value = "orders_user", key = "#result.userId")
+    })
     @Transactional
     public OrderResponse approveReturnOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)

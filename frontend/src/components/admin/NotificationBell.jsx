@@ -48,7 +48,7 @@ export default function NotificationBell() {
 
         // Xử lý URL: "http://localhost:8080/api/v1" -> "http://localhost:8080/ws/notifications"
         const baseUrl = process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '');
-        const wsUrl = `${baseUrl}/ws/notifications`;
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
 
         const stompClient = new Client({
             webSocketFactory: () => new SockJS(wsUrl),
@@ -57,6 +57,8 @@ export default function NotificationBell() {
             },
             debug: (str) => console.log(str),
             reconnectDelay: 5000,
+            heartbeatIncoming: 20000,
+            heartbeatOutgoing: 20000,
             onConnect: () => {
                 console.log("Đã kết nối WebSocket Thông báo!");
 

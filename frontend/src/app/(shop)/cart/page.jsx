@@ -202,13 +202,22 @@ export default function CartPage() {
 
                         <Link
                             href="/checkout"
-                            className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-base sm:text-lg text-white transition-all duration-300 ${hasWarnings
-                                ? 'bg-amber-500 hover:bg-amber-600'
-                                : 'bg-gray-900 hover:bg-black'
+                            className={`group relative w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-base sm:text-lg text-white transition-all duration-300 hover:-translate-y-1 ${hasWarnings
+                                ? 'bg-amber-500 hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-500/40'
+                                : 'bg-gray-900 hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-900/40'
                                 }`}
                         >
-                            {hasWarnings ? "Xem lại & Thanh toán" : "Tiến hành Thanh toán"}
-                            <ArrowRight size={20} />
+                            {!hasWarnings && (
+                                <span className="absolute inset-0 rounded-xl bg-gray-900 opacity-20 group-hover:animate-ping" />
+                            )}
+
+                            <span className="relative z-10 flex items-center gap-2">
+                                {hasWarnings ? "Xem lại & Thanh toán" : "Tiến hành Thanh toán"}
+                                <ArrowRight
+                                    size={20}
+                                    className="transition-transform duration-300 group-hover:translate-x-1.5"
+                                />
+                            </span>
                         </Link>
 
                         {hasWarnings && (

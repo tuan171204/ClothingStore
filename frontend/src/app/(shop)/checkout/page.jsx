@@ -272,7 +272,7 @@ export default function CheckoutPage() {
                 shippingFee,
                 paymentMethod,
                 couponCode: appliedCoupon?.code || null,
-                items: cartItems.map(item => ({ skuId: item.skuId, name: item.productName, quantity: item.quantity, price: item.price }))
+                items: cartItems.map(item => ({ skuId: item.skuId, productName: item.productName, quantity: item.quantity, price: item.price }))
             };
         } else {
             if (!formData.fullName || !formData.phone || !formData.specificAddress || !selectedProvince || !selectedDistrict || !selectedWard) {
@@ -289,7 +289,7 @@ export default function CheckoutPage() {
                 shippingFee,
                 paymentMethod,
                 couponCode: appliedCoupon?.code || null,
-                items: cartItems.map(item => ({ skuId: item.skuId, name: item.productName, quantity: item.quantity, price: item.price }))
+                items: cartItems.map(item => ({ skuId: item.skuId, productName: item.productName, quantity: item.quantity, price: item.price }))
             };
         }
 
