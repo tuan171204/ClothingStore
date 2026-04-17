@@ -421,7 +421,7 @@ public class OrderService {
      */
     @Caching(evict = {
             @CacheEvict(value = "order_detail", key = "#orderId"),
-            @CacheEvict(value = "orders_user", key = "#result.userId")
+            @CacheEvict(value = "orders_user", key = "#result.userId", allEntries = true)
     })
     @Transactional
     public OrderResponse requestReturnOrder(Long orderId, ReturnOrderRequest request) {
@@ -479,7 +479,7 @@ public class OrderService {
 
     @Caching(evict = {
             @CacheEvict(value = "order_detail", key = "#orderId"),
-            @CacheEvict(value = "orders_user", key = "#result.userId")
+            @CacheEvict(value = "orders_user", key = "#result.userId", allEntries = true)
     })
     @Transactional
     public OrderResponse approveReturnOrder(Long orderId) {

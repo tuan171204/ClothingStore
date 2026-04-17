@@ -11,6 +11,7 @@ import com.example.clothingstore.service.InventoryService;
 import com.example.clothingstore.service.rabbitmq.OrderProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,13 +34,15 @@ public class GhnWebhookService {
 
     private final OrderRepository orderRepository;
     private final GhnConfig       ghnConfig;
-    private final InventoryService inventoryService; // Thêm dòng này
+    private final InventoryService inventoryService;
     private final OrderProducer orderProducer;
+    private final CacheManager cacheManager;
 
     // ----------------------------------------------------------------
     // Entry point — gọi từ WebhookController
     // ----------------------------------------------------------------
 
+    @Transactional
     public void handle(GhnWebhookPayload payload) {
 
         if (!isValidPayload(payload)) {
@@ -77,7 +80,6 @@ public class GhnWebhookService {
      *   2. order.trackingMessage ← thông báo thân thiện cho khách xem
      *   3. order.status          ← chỉ đổi khi GHN báo trạng thái cuối (delivered/cancel/return...)
      */
-    @Transactional
     protected void handleStatusChanged(GhnWebhookPayload payload) {
         String orderCode = payload.getOrderCode();
         GhnStatus ghnStatus = GhnStatus.fromCode(payload.getStatus());
@@ -103,12 +105,14 @@ public class GhnWebhookService {
         String newTrackingStatus  = ghnStatus.getGhnCode();
         String newTrackingMessage = ghnStatus.getTrackingMessage();
 
+        String oldTrackingStatus = order.getTrackingStatus();
+
         if (!newTrackingStatus.equals(order.getTrackingStatus())) {
             order.setTrackingStatus(newTrackingStatus);
             order.setTrackingMessage(newTrackingMessage);
             changed = true;
             log.info("[GHN Webhook] trackingStatus {} → {} (orderId={})",
-                    order.getTrackingStatus(), newTrackingStatus, order.getId());
+                    oldTrackingStatus, newTrackingStatus, order.getId());
         }
 
         // 2. Chỉ đổi OrderStatus cốt lõi khi GHN báo trạng thái cuối
@@ -146,8 +150,21 @@ public class GhnWebhookService {
         }
 
         if (changed) {
-            orderRepository.save(order);
-            log.info("[GHN Webhook] ✅ Lưu cập nhật đơn hàng id={}", order.getId());
+            var detailCache = cacheManager.getCache("order_detail");
+            if (detailCache != null) {
+                detailCache.evict(order.getId());
+            }
+
+            var userCache = cacheManager.getCache("orders_user");
+            if (userCache != null) {
+                if (order.getUserId() != null) {
+                    userCache.evict(order.getUserId());
+                } else {
+                    userCache.clear();
+                }
+            }
+
+            log.info("[GHN Webhook] ✅ Lưu cập nhật đơn hàng id={} và đã dọn dẹp Redis Cache", order.getId());
         }
     }
 

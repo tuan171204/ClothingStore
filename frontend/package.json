@@ -23,6 +23,7 @@
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
     "react-toastify": "^11.0.5",
+    "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1",
     "sockjs-client": "^1.6.1",
     "swiper": "^12.1.2"

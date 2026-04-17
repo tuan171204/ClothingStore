@@ -24,7 +24,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none # Chuyển thành 'validate' khi deploy thật
+      ddl-auto: validate # Chuyển thành 'validate' khi deploy thật
     show-sql: false
     properties:
       hibernate:

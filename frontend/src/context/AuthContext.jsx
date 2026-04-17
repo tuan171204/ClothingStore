@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }) => {
         const data = await authService.login(username, password);
         const token = data.result.token;
         localStorage.setItem('token', token);
+        localStorage.setItem('refresh_token', token);
 
         // Lấy thông tin user ngay sau khi có token
         const userInfo = await authService.getMyInfo();
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }) => {
 
         // Lưu Custom JWT vào localStorage
         localStorage.setItem('token', token);
+        localStorage.setItem('refresh_token', token);
 
         // Fetch lại thông tin User (Lúc này Backend đã nhận diện được user qua token mới)
         const userInfo = await authService.getMyInfo();
@@ -67,6 +69,7 @@ export const AuthProvider = ({ children }) => {
             await authService.logout(token).catch(e => console.error(e));
         }
         localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
         setUser(null);
         router.push('/login'); // Đá về trang login
     };

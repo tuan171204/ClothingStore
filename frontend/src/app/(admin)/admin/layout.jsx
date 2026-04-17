@@ -7,7 +7,7 @@ import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import AdminHeader from '@/components/admin/AdminHeader';
 import {
     LayoutDashboard, Package, ShoppingCart, FolderTree,
-    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck, Zap, Menu, X
+    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck, Zap, Menu, X, Users
 } from 'lucide-react';
 
 const navItems = [
@@ -23,6 +23,7 @@ const navItems = [
     { href: '/admin/reviews', icon: Star, label: 'Duyệt đánh giá' },
     { href: '/admin/coupons', icon: Ticket, label: 'Mã giảm giá' },
     { href: '/admin/flash-sales', icon: Zap, label: 'Flash Sale' },
+    { href: '/admin/users', icon: Users, label: 'Người dùng' },
 ];
 
 // Shared nav content

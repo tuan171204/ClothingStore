@@ -31,6 +31,7 @@ export const AdminAuthProvider = ({ children }) => {
                 } catch (error) {
                     console.error("Token Admin hết hạn hoặc không hợp lệ:", error);
                     localStorage.removeItem('admin_token');
+                    localStorage.removeItem('admin_refresh_token');
                     if (pathname !== '/admin/login') router.push('/admin/login');
                 }
             } else {
@@ -46,6 +47,7 @@ export const AdminAuthProvider = ({ children }) => {
             const data = await authService.login(username, password);
             const token = data.result.token;
             localStorage.setItem('admin_token', token);
+            localStorage.setItem('admin_refresh_token', token);
 
             const userInfo = await authService.getMyInfo();
             const role = userInfo.result.role.name;
@@ -57,6 +59,7 @@ export const AdminAuthProvider = ({ children }) => {
                 router.push('/admin/dashboard');
             } else {
                 localStorage.removeItem('admin_token');
+                localStorage.removeItem('admin_refresh_token');
                 throw new Error("Tài khoản của bạn không có quyền truy cập trang quản trị!");
             }
         } catch (error) {
@@ -70,6 +73,7 @@ export const AdminAuthProvider = ({ children }) => {
             await authService.logout(token).catch(e => console.error(e));
         }
         localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_refresh_token');
         setAdminUser(null);
         router.push('/admin/login');
     };
