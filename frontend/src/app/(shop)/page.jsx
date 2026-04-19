@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ProductCard from '@/components/shop/ProductCard';
 import { getProductsWithFilter } from '@/services/productService';
-import { getCategories } from '@/services/categoryService';
+import { getCategoriesGrouped, getParentCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';
 import {
     Filter, ChevronLeft, ChevronRight, Search, ArrowDown,
@@ -54,6 +54,7 @@ function TrustBadges() {
 
 // ────────────────────────────────────────────────────────────
 // SECTION: Category showcase
+// FIX: Chỉ hiển thị danh mục GỐC (parentCategories), link vào đó sẽ lọc được cả con
 // ────────────────────────────────────────────────────────────
 const CATEGORY_COVERS = [
     'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600&q=80',
@@ -64,8 +65,8 @@ const CATEGORY_COVERS = [
     'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&q=80',
 ];
 
-function CategoryShowcase({ categories }) {
-    const display = categories.slice(0, 6);
+function CategoryShowcase({ parentCategories }) {
+    const display = parentCategories.slice(0, 6);
     return (
         <section className="w-full py-16 md:py-24 bg-white">
             <div className="container mx-auto px-4">
@@ -102,12 +103,6 @@ function CategoryShowcase({ categories }) {
 // ────────────────────────────────────────────────────────────
 function BrandStrip({ brands }) {
     if (!brands?.length) return null;
-    const logos = [
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Nike_swoosh_logo_black.svg/1200px-Nike_swoosh_logo_black.svg.png',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Adidas_Logo.svg/1200px-Adidas_Logo.svg.png',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/1200px-Amazon_logo.svg.png',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Logo_NIKE.svg/1200px-Logo_NIKE.svg.png',
-    ];
     return (
         <section className="w-full py-12 bg-gray-50 border-y border-gray-100">
             <div className="container mx-auto px-4">
@@ -115,7 +110,7 @@ function BrandStrip({ brands }) {
                     Thương hiệu đang kinh doanh
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12">
-                    {brands.slice(0, 8).map((b, i) => (
+                    {brands.slice(0, 8).map((b) => (
                         <Link key={b.id} href={`/products?brandId=${b.id}`}
                             className="group flex items-center gap-2.5 px-5 py-3 bg-white rounded-2xl border border-gray-100
                                 shadow-sm hover:shadow-md hover:border-gray-300 transition-all">
@@ -132,7 +127,7 @@ function BrandStrip({ brands }) {
 }
 
 // ────────────────────────────────────────────────────────────
-// SECTION: New arrivals (latest products)
+// SECTION: New arrivals
 // ────────────────────────────────────────────────────────────
 function NewArrivals() {
     const [products, setProducts] = useState([]);
@@ -169,14 +164,13 @@ function NewArrivals() {
 }
 
 // ────────────────────────────────────────────────────────────
-// SECTION: Seasonal / Editorial banner
+// SECTION: Editorial banner
 // ────────────────────────────────────────────────────────────
 function EditorialBanner() {
     return (
         <section className="w-full py-16 bg-gray-50">
             <div className="container mx-auto px-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* Left: Summer collection */}
                     <div className="relative overflow-hidden rounded-3xl aspect-[4/3] group cursor-pointer">
                         <img
                             src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80"
@@ -193,8 +187,6 @@ function EditorialBanner() {
                             </Link>
                         </div>
                     </div>
-
-                    {/* Right: stacked two cards */}
                     <div className="flex flex-col gap-5 h-full">
                         <div className="relative overflow-hidden rounded-3xl group cursor-pointer flex-1">
                             <img
@@ -214,7 +206,6 @@ function EditorialBanner() {
                                 </div>
                             </div>
                         </div>
-
                         <div className="relative overflow-hidden rounded-3xl group cursor-pointer bg-gray-900 flex-1">
                             <img
                                 src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=700&q=80"
@@ -238,19 +229,21 @@ function EditorialBanner() {
         </section>
     );
 }
+
 // ────────────────────────────────────────────────────────────
-// SECTION: Trending / Featured products
+// SECTION: Trending
+// FIX: Dùng parentCategories cho tab, để backend lấy đủ SP của cả con
 // ────────────────────────────────────────────────────────────
-function TrendingSection({ categories }) {
+function TrendingSection({ parentCategories }) {
     const [activeTab, setActiveTab] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const tabs = categories.slice(0, 7);
+    const tabs = parentCategories.slice(0, 7);
 
     useEffect(() => {
         if (tabs.length) setActiveTab(tabs[0].id);
-    }, [categories]);
+    }, [parentCategories]);
 
     useEffect(() => {
         if (!activeTab) return;
@@ -299,7 +292,7 @@ function TrendingSection({ categories }) {
 }
 
 // ────────────────────────────────────────────────────────────
-// SECTION: Social proof / stats
+// SECTION: Stats
 // ────────────────────────────────────────────────────────────
 function StatsSection() {
     const stats = [
@@ -378,7 +371,7 @@ function Testimonials() {
 }
 
 // ────────────────────────────────────────────────────────────
-// SECTION: Newsletter / CTA
+// SECTION: Newsletter
 // ────────────────────────────────────────────────────────────
 function NewsletterCTA() {
     const [email, setEmail] = useState('');
@@ -414,10 +407,11 @@ function NewsletterCTA() {
 }
 
 // ────────────────────────────────────────────────────────────
-// ORIGINAL FILTER SIDEBAR (extracted to avoid duplication)
+// SECTION: Filter Sidebar (homepage product section)
+// FIX: Dùng grouped categories thay vì flat list
 // ────────────────────────────────────────────────────────────
-function FilterSidebar({ categories, brands, filters, setFilters, searchInput,
-    setSearchInput, priceInput, setPriceInput, page, setPage, setIsMobileFilterOpen }) {
+function FilterSidebar({ grouped, orphans, allCategories, brands, filters, setFilters,
+    searchInput, setSearchInput, priceInput, setPriceInput, page, setPage, setIsMobileFilterOpen }) {
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
@@ -455,45 +449,74 @@ function FilterSidebar({ categories, brands, filters, setFilters, searchInput,
                 </div>
             </div>
 
-            {/* Categories */}
+            {/* Categories — phân cấp cha → con */}
             <div>
-                <h4 className="text-md font-bold tracking-wide uppercase text-gray-500 mb-3">Danh mục</h4>
-                <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="radio" name="category" checked={filters.categoryId === ''}
-                            onChange={() => handleFilterChange('categoryId', '')}
-                            className="w-4 h-4 text-gray-900 border-gray-300" />
-                        <span className="text-gray-600 font-medium group-hover:text-gray-900">Tất cả danh mục</span>
-                    </label>
-                    {categories.map(c => (
-                        <label key={c.id} className="flex items-center gap-3 cursor-pointer group">
-                            <input type="radio" name="category" checked={filters.categoryId === String(c.id)}
-                                onChange={() => handleFilterChange('categoryId', String(c.id))}
-                                className="w-4 h-4 text-gray-900 border-gray-300" />
-                            <span className="text-gray-600 font-medium group-hover:text-gray-900">{c.name}</span>
-                        </label>
+                <h4 className="text-xs font-black tracking-widest uppercase text-gray-400 mb-3">Danh mục</h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    <button onClick={() => handleFilterChange('categoryId', '')}
+                        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-all
+                            ${filters.categoryId === '' ? 'bg-gray-900 text-white font-bold shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        Tất cả danh mục
+                    </button>
+
+                    {grouped.map(parent => {
+                        const isParentActive = filters.categoryId === String(parent.id);
+                        return (
+                            <div key={parent.id} className="flex flex-col gap-1">
+                                <button onClick={() => handleFilterChange('categoryId', String(parent.id))}
+                                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-all
+                                        ${isParentActive ? 'bg-gray-900 text-white font-bold shadow-md' : 'bg-gray-50 text-gray-700 font-semibold hover:bg-gray-100'}`}>
+                                    {parent.name}
+                                </button>
+
+                                {parent.children.length > 0 && (
+                                    <div className="pl-4 ml-4 border-l-2 border-gray-100 space-y-1 py-1">
+                                        {parent.children.map(child => {
+                                            const isChildActive = filters.categoryId === String(child.id);
+                                            return (
+                                                <button key={child.id} onClick={() => handleFilterChange('categoryId', String(child.id))}
+                                                    className={`w-full flex items-center px-3 py-2 rounded-lg text-sm transition-all
+                                                        ${isChildActive ? 'bg-gray-800 text-white font-bold shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}>
+                                                    {child.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {orphans.map(cat => (
+                        <button key={cat.id} onClick={() => handleFilterChange('categoryId', String(cat.id))}
+                            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-all
+                                ${filters.categoryId === String(cat.id) ? 'bg-gray-900 text-white font-bold shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                            {cat.name}
+                        </button>
                     ))}
                 </div>
             </div>
 
-            {/* Brands */}
+            {/* Brands - Chuyển thành Button */}
             <div>
-                <h4 className="text-md font-bold tracking-wide uppercase text-gray-500 mb-3">Thương hiệu</h4>
-                <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="radio" name="brand" checked={filters.brandId === ''}
-                            onChange={() => handleFilterChange('brandId', '')}
-                            className="w-4 h-4 text-gray-900 border-gray-300" />
-                        <span className="text-gray-600 font-medium group-hover:text-gray-900">Tất cả thương hiệu</span>
-                    </label>
-                    {brands.map(b => (
-                        <label key={b.id} className="flex items-center gap-3 cursor-pointer group">
-                            <input type="radio" name="brand" checked={filters.brandId === String(b.id)}
-                                onChange={() => handleFilterChange('brandId', String(b.id))}
-                                className="w-4 h-4 text-gray-900 border-gray-300" />
-                            <span className="text-gray-600 font-medium group-hover:text-gray-900">{b.name}</span>
-                        </label>
-                    ))}
+                <h4 className="text-xs font-black tracking-widest uppercase text-gray-400 mb-3">Thương hiệu</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                    <button onClick={() => handleFilterChange('brandId', '')}
+                        className={`w-full flex items-center px-4 py-2.5 rounded-xl text-sm transition-all
+                            ${filters.brandId === '' ? 'bg-gray-900 text-white font-bold shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        Tất cả thương hiệu
+                    </button>
+                    {brands.map(b => {
+                        const isActive = filters.brandId === String(b.id);
+                        return (
+                            <button key={b.id} onClick={() => handleFilterChange('brandId', String(b.id))}
+                                className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all
+                                    ${isActive ? 'bg-gray-900 text-white font-bold shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                                {b.logo && <img src={b.logo} alt={b.name} className="w-5 h-5 object-contain rounded" />}
+                                {b.name}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -541,7 +564,11 @@ const HERO_VIDEOS = [
 
 export default function HomePage() {
     const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
+    // FIX: tách riêng parentCategories (cho showcase/trending) và grouped (cho filter sidebar)
+    const [parentCategories, setParentCategories] = useState([]);
+    const [grouped, setGrouped] = useState([]);
+    const [orphans, setOrphans] = useState([]);
+    const [allCategories, setAllCategories] = useState([]);
     const [brands, setBrands] = useState([]);
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
@@ -555,10 +582,18 @@ export default function HomePage() {
     const videoRef = useRef(null);
 
     useEffect(() => {
-        Promise.all([getCategories(), getBrands()]).then(([cats, brs]) => {
-            setCategories(cats);
+        Promise.all([
+            getCategoriesGrouped(),
+            getBrands(),
+        ]).then(([catData, brs]) => {
+            setGrouped(catData.grouped || []);
+            setOrphans(catData.orphans || []);
+            setAllCategories(catData.all || []);
+            // Danh mục cha cho showcase & trending
+            setParentCategories(catData.grouped?.map(g => ({ id: g.id, name: g.name })) || []);
             setBrands(brs);
         });
+
         axios.get('/flash-sales/current-active').then(res => {
             if (res.status === 200 && res.data) setFlashSale(res.data);
         }).catch(() => { });
@@ -592,14 +627,18 @@ export default function HomePage() {
         }
     };
 
-    const filterProps = { categories, brands, filters, setFilters, searchInput, setSearchInput, priceInput, setPriceInput, page, setPage };
+    const filterProps = {
+        grouped, orphans, allCategories, brands,
+        filters, setFilters,
+        searchInput, setSearchInput,
+        priceInput, setPriceInput,
+        page, setPage,
+    };
 
     return (
         <div className="w-full flex flex-col">
 
-            {/* ═══════════════════════════════════════════════
-                HERO — unchanged, kept exactly as original
-            ════════════════════════════════════════════════ */}
+            {/* HERO */}
             <section className="relative w-full h-screen flex items-center justify-center overflow-hidden">
                 <video ref={videoRef} autoPlay muted playsInline
                     onEnded={() => setCurrentVideoIndex(p => (p + 1) % HERO_VIDEOS.length)}
@@ -622,19 +661,12 @@ export default function HomePage() {
                 </div>
             </section>
 
-            {/* ═══════════════════════════════════════════════
-                NEW: Trust badges strip
-            ════════════════════════════════════════════════ */}
             <TrustBadges />
 
-            {/* ═══════════════════════════════════════════════
-                NEW: Category showcase grid
-            ════════════════════════════════════════════════ */}
-            {categories.length > 0 && <CategoryShowcase categories={categories} />}
+            {/* FIX: truyền parentCategories (chỉ danh mục gốc) */}
+            {parentCategories.length > 0 && <CategoryShowcase parentCategories={parentCategories} />}
 
-            {/* ═══════════════════════════════════════════════
-                FLASH SALE — unchanged, kept exactly as original
-            ════════════════════════════════════════════════ */}
+            {/* FLASH SALE */}
             {flashSale && (
                 <div className="w-full bg-linear-to-r from-red-50 to-orange-50 py-10 sm:py-12 border-y border-red-100 overflow-hidden">
                     <div className="container mx-auto px-4">
@@ -697,37 +729,19 @@ export default function HomePage() {
                 </div>
             )}
 
-            {/* ═══════════════════════════════════════════════
-                NEW: New arrivals
-            ════════════════════════════════════════════════ */}
             <NewArrivals />
-
-            {/* ═══════════════════════════════════════════════
-                NEW: Seasonal editorial banners
-            ════════════════════════════════════════════════ */}
             <EditorialBanner />
-
-            {/* ═══════════════════════════════════════════════
-                NEW: Brand strip
-            ════════════════════════════════════════════════ */}
             {brands.length > 0 && <BrandStrip brands={brands} />}
 
-            {/* ═══════════════════════════════════════════════
-                NEW: Trending by category (tab-switching)
-            ════════════════════════════════════════════════ */}
-            {categories.length > 0 && <TrendingSection categories={categories} />}
+            {/* FIX: truyền parentCategories cho tab switching */}
+            {parentCategories.length > 0 && <TrendingSection parentCategories={parentCategories} />}
 
-            {/* ═══════════════════════════════════════════════
-                NEW: Stats / social proof
-            ════════════════════════════════════════════════ */}
             <StatsSection />
 
-            {/* ═══════════════════════════════════════════════
-                PRODUCTS SECTION — unchanged structure, kept exactly as original
-            ════════════════════════════════════════════════ */}
+            {/* PRODUCTS SECTION */}
             <div id="products-section" className="w-full bg-slate-50">
                 <div className="container mx-auto px-4 py-12 sm:py-16 md:py-24">
-                    {/* Mobile filter toggle bar */}
+                    {/* Mobile filter toggle */}
                     <div className="flex items-center justify-between mb-6 md:hidden">
                         <div>
                             <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Tất cả sản phẩm</h2>
@@ -824,14 +838,7 @@ export default function HomePage() {
                 </div>
             </div>
 
-            {/* ═══════════════════════════════════════════════
-                NEW: Testimonials
-            ════════════════════════════════════════════════ */}
             <Testimonials />
-
-            {/* ═══════════════════════════════════════════════
-                NEW: Newsletter CTA
-            ════════════════════════════════════════════════ */}
             <NewsletterCTA />
         </div>
     );

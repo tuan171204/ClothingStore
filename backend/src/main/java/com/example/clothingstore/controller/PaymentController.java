@@ -55,15 +55,13 @@ public class PaymentController {
             // 1. Verify chữ ký (Checksum) xem có đúng VNPay gửi không
             VnPayResponse response = vnPayService.handleVnPayCallback(request);
 
-            if ("00".equals(response.getCode())) {
-                // 2. Nếu OK -> Cập nhật trạng thái đơn hàng
-                try {
-                    Long orderId = Long.parseLong(txnRef);
+            // 2. Nếu OK -> Cập nhật trạng thái đơn hàng
+            try {
+                Long orderId = Long.parseLong(txnRef);
 
-                    orderService.autoConfirmAndShip(orderId);
-                } catch (NumberFormatException e) {
-                    System.err.println("Lỗi parse OrderID: " + e.getMessage());
-                }
+                orderService.autoConfirmAndShip(orderId);
+            } catch (NumberFormatException e) {
+                System.err.println("Lỗi parse OrderID: " + e.getMessage());
             }
             return ResponseEntity.ok(response);
         } else {

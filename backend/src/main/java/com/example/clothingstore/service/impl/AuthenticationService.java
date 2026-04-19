@@ -148,9 +148,12 @@ public class AuthenticationService {
 
         var token = generateToken(user);
 
+        String roleName = user.getRole() != null ? user.getRole().getName() : "";
+
         return AuthenticationResponse.builder()
                 .token(token)
                 .isAuthenticated(true)
+                .role(roleName)
                 .build();
     }
 

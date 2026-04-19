@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProductCard from '@/components/shop/ProductCard';
 import { getProductsWithFilter } from '@/services/productService';
-import { getCategories } from '@/services/categoryService';
+import { getCategoriesGrouped } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';
 import {
     Filter, ChevronLeft, ChevronRight, Search, X,
@@ -47,15 +47,12 @@ function Breadcrumb({ category, brand }) {
 }
 
 // ── Active filter chips ──────────────────────────────────────
-function ActiveFilters({ filters, categories, brands, onRemove, onClearAll }) {
+function ActiveFilters({ filters, allCategories, brands, onRemove, onClearAll }) {
     const chips = [];
 
-    if (filters.keyword) chips.push({
-        key: 'keyword',
-        label: `Tìm kiếm: "${filters.keyword}"`,
-    });
+    if (filters.keyword) chips.push({ key: 'keyword', label: `Tìm kiếm: "${filters.keyword}"` });
     if (filters.categoryId) {
-        const cat = categories.find(c => String(c.id) === String(filters.categoryId));
+        const cat = allCategories.find(c => String(c.id) === String(filters.categoryId));
         if (cat) chips.push({ key: 'categoryId', label: `Danh mục: ${cat.name}` });
     }
     if (filters.brandId) {
@@ -91,7 +88,115 @@ function ActiveFilters({ filters, categories, brands, onRemove, onClearAll }) {
 }
 
 // ── Sidebar filter panel ─────────────────────────────────────
-function FilterPanel({ categories, brands, filters, onChange, priceInput, setPriceInput, onApplyPrice, onClose }) {
+/**
+ * FIX: CategoryFilter hiển thị đúng cấu trúc cha → con.
+ * - Danh mục cha: font đậm, click lọc sản phẩm của cha + tất cả con.
+ * - Danh mục con: indent, font nhỏ hơn.
+ * - Backend đã được sửa để khi lọc theo id cha sẽ bao gồm sản phẩm của con.
+ */
+
+function CategoryFilter({ grouped, orphans, currentCategoryId, onChange }) {
+    const [expanded, setExpanded] = React.useState({});
+
+    // Tự động mở rộng danh mục cha nếu bản thân nó hoặc con của nó đang được chọn
+    useEffect(() => {
+        const initialExpanded = {};
+        grouped.forEach(p => {
+            if (String(currentCategoryId) === String(p.id) || p.children.some(c => String(currentCategoryId) === String(c.id))) {
+                initialExpanded[p.id] = true;
+            }
+        });
+        setExpanded(prev => ({ ...prev, ...initialExpanded }));
+    }, [currentCategoryId, grouped]);
+
+    const toggleExpand = (id, e) => {
+        e.stopPropagation();
+        setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    return (
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+            {/* Nút Tất cả */}
+            <button
+                onClick={() => onChange('categoryId', '')}
+                className={`w-full flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+                    ${!currentCategoryId
+                        ? 'bg-gray-900 text-white shadow-md'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                Tất cả danh mục
+            </button>
+
+            {/* Cây danh mục Cha - Con */}
+            {grouped.map(parent => {
+                const isParentActive = String(currentCategoryId) === String(parent.id);
+                const hasChildren = parent.children && parent.children.length > 0;
+                const isExpanded = expanded[parent.id];
+
+                return (
+                    <div key={parent.id} className="flex flex-col gap-1">
+                        {/* Dòng danh mục cha */}
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => onChange('categoryId', String(parent.id))}
+                                className={`flex-1 flex items-center px-4 py-2.5 rounded-xl text-sm transition-all
+                                    ${isParentActive
+                                        ? 'bg-gray-900 text-white shadow-md font-bold'
+                                        : 'bg-gray-50 text-gray-700 font-semibold hover:bg-gray-100'}`}>
+                                <span className="truncate">{parent.name}</span>
+                            </button>
+
+                            {/* Nút mũi tên để đóng/mở danh mục con */}
+                            {hasChildren && (
+                                <button
+                                    onClick={(e) => toggleExpand(parent.id, e)}
+                                    className={`p-2.5 rounded-xl transition-all 
+                                        ${isExpanded ? 'bg-gray-200 text-gray-900' : 'bg-gray-50 text-gray-400 hover:bg-gray-200 hover:text-gray-900'}`}>
+                                    <ChevronRight size={16} className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Khối danh mục con (Accordion) */}
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out
+                            ${isExpanded ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                            <div className="pl-4 ml-4 border-l-2 border-gray-100 space-y-1 py-1">
+                                {parent.children.map(child => {
+                                    const isChildActive = String(currentCategoryId) === String(child.id);
+                                    return (
+                                        <button
+                                            key={child.id}
+                                            onClick={() => onChange('categoryId', String(child.id))}
+                                            className={`w-full flex items-center px-3 py-2 rounded-lg text-sm transition-all
+                                                ${isChildActive
+                                                    ? 'bg-gray-800 text-white font-semibold shadow-sm'
+                                                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}>
+                                            <span className="truncate">{child.name}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+
+            {/* Danh mục không có cha (Orphans) */}
+            {orphans.map(cat => (
+                <button
+                    key={cat.id}
+                    onClick={() => onChange('categoryId', String(cat.id))}
+                    className={`w-full flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+                        ${String(currentCategoryId) === String(cat.id)
+                            ? 'bg-gray-900 text-white shadow-md'
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                    {cat.name}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function FilterPanel({ grouped, orphans, brands, filters, onChange, priceInput, setPriceInput, onApplyPrice, onClose }) {
     const hasFilters = filters.categoryId || filters.brandId || filters.minPrice || filters.maxPrice || filters.keyword;
 
     return (
@@ -118,28 +223,16 @@ function FilterPanel({ categories, brands, filters, onChange, priceInput, setPri
                 </div>
             </div>
 
-            {/* Categories */}
-            {categories.length > 0 && (
+            {/* Categories — phân cấp cha con */}
+            {(grouped.length > 0 || orphans.length > 0) && (
                 <div>
                     <h4 className="text-sm font-black tracking-widest text-gray-400 uppercase mb-3">Danh mục</h4>
-                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
-                        <button
-                            onClick={() => onChange('categoryId', '')}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-md font-medium transition-all
-                                ${!filters.categoryId ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
-                            Tất cả danh mục
-                        </button>
-                        {categories.map(c => (
-                            <button key={c.id}
-                                onClick={() => onChange('categoryId', String(c.id))}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-md font-medium transition-all
-                                    ${String(filters.categoryId) === String(c.id)
-                                        ? 'bg-gray-900 text-white'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
-                                {c.name}
-                            </button>
-                        ))}
-                    </div>
+                    <CategoryFilter
+                        grouped={grouped}
+                        orphans={orphans}
+                        currentCategoryId={filters.categoryId}
+                        onChange={onChange}
+                    />
                 </div>
             )}
 
@@ -161,10 +254,7 @@ function FilterPanel({ categories, brands, filters, onChange, priceInput, setPri
                                     ${String(filters.brandId) === String(b.id)
                                         ? 'bg-gray-900 text-white'
                                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
-                                {b.logo && (
-                                    <img src={b.logo} alt={b.name}
-                                        className="w-5 h-5 object-contain rounded" />
-                                )}
+                                {b.logo && <img src={b.logo} alt={b.name} className="w-5 h-5 object-contain rounded" />}
                                 {b.name}
                             </button>
                         ))}
@@ -176,16 +266,14 @@ function FilterPanel({ categories, brands, filters, onChange, priceInput, setPri
             <div>
                 <h4 className="text-sm font-black tracking-widest text-gray-400 uppercase mb-3">Khoảng giá</h4>
                 <div className="flex items-center gap-2 mb-3">
-                    <input
-                        type="number" placeholder="Từ" min="0"
+                    <input type="number" placeholder="Từ" min="0"
                         value={priceInput.min}
                         onChange={e => setPriceInput(p => ({ ...p, min: e.target.value }))}
                         className="w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-xl text-md text-center
                             focus:ring-2 focus:ring-gray-900 outline-none"
                     />
                     <span className="text-gray-300 font-bold">—</span>
-                    <input
-                        type="number" placeholder="Đến" min="0"
+                    <input type="number" placeholder="Đến" min="0"
                         value={priceInput.max}
                         onChange={e => setPriceInput(p => ({ ...p, max: e.target.value }))}
                         className="w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-xl text-md text-center
@@ -268,24 +356,26 @@ function ProductSkeleton() {
     );
 }
 
-// ── MAIN INNER (uses useSearchParams) ───────────────────────
+// ── MAIN INNER ───────────────────────────────────────────────
 function ProductsPageInner() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    // Read initial values from URL (supports links from homepage)
     const initCategory = searchParams.get('categoryId') ?? '';
     const initBrand = searchParams.get('brandId') ?? '';
     const initKeyword = searchParams.get('keyword') ?? '';
 
     const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
+    // Dữ liệu danh mục phân cấp
+    const [grouped, setGrouped] = useState([]);   // mảng cha, mỗi cha có .children
+    const [orphans, setOrphans] = useState([]);   // con mà không tìm được cha
+    const [allCategories, setAllCategories] = useState([]); // flat list cho ActiveFilters
     const [brands, setBrands] = useState([]);
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+    const [viewMode, setViewMode] = useState('grid');
     const [sort, setSort] = useState('');
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -302,13 +392,15 @@ function ProductsPageInner() {
 
     // ── Load reference data ────────────────────────────────
     useEffect(() => {
-        Promise.all([getCategories(), getBrands()]).then(([cats, brs]) => {
-            setCategories(Array.isArray(cats) ? cats : []);
+        Promise.all([getCategoriesGrouped(), getBrands()]).then(([catData, brs]) => {
+            setGrouped(catData.grouped || []);
+            setOrphans(catData.orphans || []);
+            setAllCategories(catData.all || []);
             setBrands(Array.isArray(brs) ? brs : []);
         });
     }, []);
 
-    // ── Re-sync from URL when params change (e.g. browser back) ──
+    // ── Re-sync URL params ─────────────────────────────────
     useEffect(() => {
         setFilters(prev => ({
             ...prev,
@@ -333,7 +425,6 @@ function ProductsPageInner() {
             const data = await getProductsWithFilter(params);
             let prods = data.products ?? [];
 
-            // Client-side sort (backend doesn't expose sort param)
             if (sort === 'price_asc') prods = [...prods].sort((a, b) => (a.basePrice ?? 0) - (b.basePrice ?? 0));
             if (sort === 'price_desc') prods = [...prods].sort((a, b) => (b.basePrice ?? 0) - (a.basePrice ?? 0));
             if (sort === 'newest') prods = [...prods].sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
@@ -384,12 +475,12 @@ function ProductsPageInner() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // ── Derived display names for breadcrumb ─────────────
-    const activeCategoryName = categories.find(c => String(c.id) === String(filters.categoryId))?.name;
+    // Tìm tên danh mục đang được chọn (dùng allCategories flat list)
+    const activeCategoryName = allCategories.find(c => String(c.id) === String(filters.categoryId))?.name;
     const activeBrandName = brands.find(b => String(b.id) === String(filters.brandId))?.name;
 
     const filterPanelProps = {
-        categories, brands, filters,
+        grouped, orphans, brands, filters,
         onChange: handleFilterChange,
         priceInput, setPriceInput,
         onApplyPrice: handleApplyPrice,
@@ -415,9 +506,8 @@ function ProductsPageInner() {
                             )}
                         </div>
 
-                        {/* Toolbar: sort + view mode + mobile filter */}
+                        {/* Toolbar */}
                         <div className="flex items-center gap-2 flex-wrap">
-                            {/* Sort */}
                             <div className="relative flex items-center">
                                 <ArrowUpDown size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
                                 <select
@@ -431,7 +521,6 @@ function ProductsPageInner() {
                                 </select>
                             </div>
 
-                            {/* View mode toggle (desktop) */}
                             <div className="hidden md:flex items-center border border-gray-200 rounded-xl overflow-hidden">
                                 <button onClick={() => setViewMode('grid')}
                                     className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
@@ -443,7 +532,6 @@ function ProductsPageInner() {
                                 </button>
                             </div>
 
-                            {/* Mobile filter button */}
                             <button
                                 onClick={() => setIsMobileFilterOpen(true)}
                                 className="flex md:hidden items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-md font-bold">
@@ -459,7 +547,9 @@ function ProductsPageInner() {
                     {/* Active filter chips */}
                     <div className="mt-4">
                         <ActiveFilters
-                            filters={filters} categories={categories} brands={brands}
+                            filters={filters}
+                            allCategories={allCategories}
+                            brands={brands}
                             onRemove={handleRemoveFilter}
                             onClearAll={() => { handleFilterChange('_reset', ''); setPriceInput({ min: '', max: '' }); }} />
                     </div>
@@ -537,36 +627,27 @@ function ProductsPageInner() {
                                     <ChevronLeft size={18} />
                                 </button>
 
-                                {/* Smart page numbers */}
                                 {(() => {
                                     const pages = [];
                                     const showAround = 2;
                                     for (let i = 0; i < totalPages; i++) {
-                                        if (
-                                            i === 0 || i === totalPages - 1 ||
-                                            (i >= page - showAround && i <= page + showAround)
-                                        ) {
+                                        if (i === 0 || i === totalPages - 1 ||
+                                            (i >= page - showAround && i <= page + showAround)) {
                                             pages.push(i);
-                                        } else if (
-                                            i === page - showAround - 1 ||
-                                            i === page + showAround + 1
-                                        ) {
+                                        } else if (i === page - showAround - 1 || i === page + showAround + 1) {
                                             pages.push('...');
                                         }
                                     }
                                     return [...new Set(pages)].map((p_, idx) =>
                                         p_ === '...' ? (
-                                            <span key={`dots-${idx}`} className="w-10 h-10 flex items-center justify-center text-gray-400 text-md">
-                                                ···
-                                            </span>
+                                            <span key={`dots-${idx}`} className="w-10 h-10 flex items-center justify-center text-gray-400 text-md">···</span>
                                         ) : (
                                             <button key={p_}
                                                 onClick={() => handlePageChange(p_)}
                                                 className={`w-10 h-10 rounded-xl font-bold text-md transition-all
                                                     ${page === p_
                                                         ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20'
-                                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-900 hover:text-gray-900'
-                                                    }`}>
+                                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-900 hover:text-gray-900'}`}>
                                                 {p_ + 1}
                                             </button>
                                         )
@@ -590,16 +671,14 @@ function ProductsPageInner() {
             {/* ── Mobile filter drawer ── */}
             {isMobileFilterOpen && (
                 <div className="fixed inset-0 z-50 md:hidden">
-                    <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setIsMobileFilterOpen(false)} />
                     <div className="absolute right-0 top-0 bottom-0 w-80 max-w-[90vw] bg-white shadow-2xl flex flex-col">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                             <h3 className="font-black text-gray-900 flex items-center gap-2">
                                 <Filter size={17} /> Bộ lọc
                             </h3>
-                            <button
-                                onClick={() => setIsMobileFilterOpen(false)}
+                            <button onClick={() => setIsMobileFilterOpen(false)}
                                 className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
                                 <X size={16} />
                             </button>
@@ -614,7 +693,6 @@ function ProductsPageInner() {
     );
 }
 
-// ── Outer wrapper with Suspense (required for useSearchParams in Next.js App Router) ──
 export default function ProductsPage() {
     return (
         <Suspense fallback={

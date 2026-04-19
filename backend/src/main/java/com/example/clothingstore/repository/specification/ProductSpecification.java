@@ -1,6 +1,9 @@
 package com.example.clothingstore.repository.specification;
 
+import com.example.clothingstore.entity.Category;
 import com.example.clothingstore.entity.Product;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 import java.math.BigDecimal;
 import java.util.List;
@@ -9,9 +12,19 @@ public class ProductSpecification {
 
     // 1. Lọc theo Danh mục
     public static Specification<Product> hasCategory(Long categoryId) {
-        return (root, query, criteriaBuilder) -> {
-            if (categoryId == null) return null; // Nếu Frontend không truyền lên, bỏ qua điều kiện này
-            return criteriaBuilder.equal(root.get("category").get("id"), categoryId);
+        if (categoryId == null) return null;
+
+        return (root, query, cb) -> {
+            Subquery<Long> categorySubquery = query.subquery(Long.class);
+            Root<Category> catRoot = categorySubquery.from(Category.class);
+
+            categorySubquery.select(catRoot.get("id"))
+                    .where(cb.or(
+                            cb.equal(catRoot.get("id"), categoryId),
+                            cb.equal(catRoot.get("parent").get("id"), categoryId)
+                    ));
+
+            return root.get("category").get("id").in(categorySubquery);
         };
     }
 
@@ -47,5 +60,41 @@ public class ProductSpecification {
             }
             return root.get("id").in(ids);
         };
+    }
+
+    // 5. Lọc sản phẩm đang active.
+    public static Specification<Product> isActive() {
+        return (root, query, cb) -> cb.isTrue(root.get("isActive"));
+    }
+
+    /**
+     * 6. Tổng hợp tất cả điều kiện lọc.
+     * Luôn bao gồm isActive = true.
+     *
+     * @param productIdsFromSearch null = không có keyword (bỏ qua OpenSearch)
+     */
+    public static Specification<Product> buildFilter(
+            List<Long> productIdsFromSearch,
+            Long categoryId,
+            Long brandId,
+            BigDecimal minPrice,
+            BigDecimal maxPrice
+    ) {
+        Specification<Product> spec = isActive();
+
+        if (productIdsFromSearch != null) {
+            spec = spec.and(hasIdIn(productIdsFromSearch));
+        }
+        if (categoryId != null) {
+            spec = spec.and(hasCategory(categoryId));
+        }
+        if (brandId != null) {
+            spec = spec.and(hasBrand(brandId));
+        }
+        if (minPrice != null || maxPrice != null) {
+            spec = spec.and(priceBetween(minPrice, maxPrice));
+        }
+
+        return spec;
     }
 }
