@@ -111,7 +111,7 @@ payment:
     tmn-code: ${VNP_TMN_CODE}
     secret-key: ${VNP_HASH_SECRET}
     url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-    return-url: "http://localhost:3000/payment-result"
+    return-url: $"{VNP_RETURN_URL}"
 
 shipping:
   ghn:
