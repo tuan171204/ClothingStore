@@ -125,3 +125,4 @@ logging:
   level:
     root: INFO
     com.example.clothingstore: DEBUG
+    org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport: ERROR

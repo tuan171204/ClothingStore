@@ -1,10 +1,10 @@
 package com.example.clothingstore.controller;
 
+import com.example.clothingstore.dtos.ApiResponse;
 import com.example.clothingstore.dtos.PagedResponse;
+import com.example.clothingstore.dtos.address.response.AddressResponse;
 import com.example.clothingstore.dtos.user.request.*;
 import com.example.clothingstore.dtos.user.response.*;
-import com.example.clothingstore.entity.User;
-import com.example.clothingstore.repository.UserRepository;
 import com.example.clothingstore.service.impl.UserManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,18 +23,27 @@ import java.util.List;
 /**
  * Unified controller for Customer & Staff management.
  *
+ * Nhiệm vụ tầng Controller:
+ *   - Nhận HTTP request, parse params/body
+ *   - Xác thực phân quyền (@PreAuthorize)
+ *   - Delegate 100% business logic sang UserManagementService
+ *   - Trả về HTTP response
+ *
+ * KHÔNG: inject repository, inject mapper, gọi DB trực tiếp.
+ *
  * Security matrix:
- * ┌────────────────────────────────┬─────────┬───────┬───────────┐
- * │ Operation                      │ STAFF   │ ADMIN │ SUPER_ADM │
- * ├────────────────────────────────┼─────────┼───────┼───────────┤
- * │ List/search customers          │   ✓     │  ✓    │    ✓      │
- * │ View customer detail           │   ✓     │  ✓    │    ✓      │
- * │ Enable/disable customer        │   ✗     │  ✓    │    ✓      │
- * │ Create staff                   │   ✗     │  ✓    │    ✓      │
- * │ Update staff                   │   ✗     │  ✓    │    ✓      │
- * │ Soft-delete staff              │   ✗     │  ✓    │    ✓      │
- * │ Assign role                    │   ✗     │  ✓    │    ✓      │
- * └────────────────────────────────┴─────────┴───────┴───────────┘
+ * ┌──────────────────────────────────────────┬─────────┬───────┬───────────┐
+ * │ Operation                                │ STAFF   │ ADMIN │ SUPER_ADM │
+ * ├──────────────────────────────────────────┼─────────┼───────┼───────────┤
+ * │ List/search customers                    │   ✓     │  ✓    │    ✓      │
+ * │ View customer detail                     │   ✓     │  ✓    │    ✓      │
+ * │ View user addresses                      │   ✓     │  ✓    │    ✓      │
+ * │ Enable/disable user                      │   ✗     │  ✓    │    ✓      │
+ * │ Assign role                              │   ✗     │  ✓    │    ✓      │
+ * │ Create / Update / Delete staff           │   ✗     │  ✓    │    ✓      │
+ * └──────────────────────────────────────────┴─────────┴───────┴───────────┘
+ *
+ * Base URL: /api/v1/management
  */
 @RestController
 @RequestMapping("${api.prefix}/management")
@@ -44,7 +53,10 @@ import java.util.List;
 public class UserManagementController {
 
     private final UserManagementService userManagementService;
-    private final UserRepository        userRepository;
+
+    // ════════════════════════════════════════════════════════
+    // CUSTOMER ENDPOINTS
+    // ════════════════════════════════════════════════════════
 
     /**
      * GET /management/customers
@@ -53,8 +65,8 @@ public class UserManagementController {
     @GetMapping("/customers")
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
     @Operation(summary = "List & search customers",
-               description = "Paginated customer list. Filter by keyword (name/email/phone), " +
-                             "active status, auth provider, registration date range.")
+            description = "Paginated customer list. Filter by keyword (name/email/phone), " +
+                    "active status, auth provider, registration date range.")
     public ResponseEntity<PagedResponse<UserDetailResponse>> listCustomers(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Boolean active,
@@ -73,12 +85,11 @@ public class UserManagementController {
 
     /**
      * GET /management/customers/{userId}
-     * Returns customer detail with order history stats.
      */
     @GetMapping("/customers/{userId}")
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
     @Operation(summary = "Customer detail",
-               description = "Full customer profile including total orders, total spending, membership tier.")
+            description = "Full customer profile including total orders, total spending, membership tier.")
     public ResponseEntity<UserDetailResponse> getCustomerDetail(@PathVariable String userId) {
         return ResponseEntity.ok(userManagementService.getUserDetail(userId));
     }
@@ -89,55 +100,32 @@ public class UserManagementController {
 
     /**
      * GET /management/staff
-     * List all staff members (STAFF and ADMIN roles).
+     * ?keyword=&role=STAFF&active=true&page=0&size=20
+     *
+     * Khi không truyền role, service sẽ trả về cả STAFF lẫn ADMIN.
      */
     @GetMapping("/staff")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "List all staff accounts",
-               description = "Returns STAFF and ADMIN role users with pagination.")
+    @Operation(summary = "List all staff accounts")
     public ResponseEntity<PagedResponse<UserDetailResponse>> listStaff(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String role,  // STAFF or ADMIN
+            @RequestParam(required = false) String role,
             @RequestParam(required = false) Boolean active,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        // Default to filtering all staff roles if none specified
-        String resolvedRole = (role != null && !role.isBlank()) ? role : null;
-
         UserFilterRequest filter = UserFilterRequest.builder()
-                .keyword(keyword).role(resolvedRole).active(active)
+                .keyword(keyword).role(role).active(active)
                 .page(page).size(size).build();
-
-        // If no specific role given, we need to get both STAFF and ADMIN
-        // Simplest: call service twice and merge, or use IN clause in spec
-        // Here we use a combined approach via a non-standard filter
-        PagedResponse<UserDetailResponse> result = userManagementService.getUsers(filter);
-
-        // Filter out customers from result if no role specified
-        if (resolvedRole == null) {
-            var staffOnly = result.getContent().stream()
-                    .filter(u -> "STAFF".equals(u.getRole()) || "ADMIN".equals(u.getRole()))
-                    .toList();
-            return ResponseEntity.ok(PagedResponse.<UserDetailResponse>builder()
-                    .content(staffOnly)
-                    .page(result.getPage()).size(result.getSize())
-                    .totalElements(result.getTotalElements())
-                    .totalPages(result.getTotalPages())
-                    .build());
-        }
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(userManagementService.getStaff(filter));
     }
 
     /**
      * POST /management/staff
-     * Admin creates a new staff account.
      */
     @PostMapping("/staff")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Create staff account",
-               description = "Creates a STAFF or ADMIN account. " +
-                             "SUPER_ADMIN role cannot be assigned via this API.")
+    @Operation(summary = "Create staff account")
     public ResponseEntity<UserDetailResponse> createStaff(
             @Valid @RequestBody CreateStaffRequest request) {
         return ResponseEntity.status(201)
@@ -146,85 +134,87 @@ public class UserManagementController {
 
     /**
      * PUT /management/staff/{userId}
-     * Admin updates staff info or role.
      */
     @PutMapping("/staff/{userId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Update staff account",
-               description = "Update staff name, email, phone, role. " +
-                             "Admin cannot change their own role.")
+    @Operation(summary = "Update staff account")
     public ResponseEntity<UserDetailResponse> updateStaff(
             @PathVariable String userId,
             @Valid @RequestBody UpdateStaffRequest request) {
-        String currentUserId = resolveCurrentUserId();
-        return ResponseEntity.ok(userManagementService.updateStaff(userId, request, currentUserId));
+        return ResponseEntity.ok(
+                userManagementService.updateStaff(userId, request, resolveCurrentUserId()));
     }
 
     /**
      * DELETE /management/staff/{userId}
-     * Soft delete staff account.
      */
     @DeleteMapping("/staff/{userId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Soft-delete staff account",
-               description = "Sets active=false. Preserves audit trail in orders and GRNs. " +
-                             "Cannot delete SUPER_ADMIN or self.")
+    @Operation(summary = "Soft-delete staff account")
     public ResponseEntity<Void> softDeleteStaff(@PathVariable String userId) {
-        String currentUserId = resolveCurrentUserId();
-        userManagementService.softDeleteStaff(userId, currentUserId);
+        userManagementService.softDeleteStaff(userId, resolveCurrentUserId());
         return ResponseEntity.noContent().build();
     }
 
     // ════════════════════════════════════════════════════════
-    // SHARED: STATUS & ROLE
+    // SHARED: STATUS, ROLE, ADDRESSES
     // ════════════════════════════════════════════════════════
 
     /**
      * PATCH /management/users/{userId}/status
-     * Enable or disable any user (customer or staff).
-     *
      * Body: { "active": false, "reason": "Spam account" }
      */
     @PatchMapping("/users/{userId}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Enable / Disable user account",
-               description = "Toggles user active status. Disabled users cannot log in. " +
-                             "Cannot disable SUPER_ADMIN or self.")
+    @Operation(summary = "Enable / Disable user account")
     public ResponseEntity<UserDetailResponse> updateUserStatus(
             @PathVariable String userId,
             @Valid @RequestBody UpdateUserStatusRequest request) {
-        String currentUserId = resolveCurrentUserId();
-        return ResponseEntity.ok(userManagementService.updateUserStatus(userId, request, currentUserId));
+        return ResponseEntity.ok(
+                userManagementService.updateUserStatus(userId, request, resolveCurrentUserId()));
     }
 
     /**
      * PATCH /management/users/{userId}/role
-     * Assign a new role to any user.
-     *
      * Body: { "role": "STAFF" }
      */
     @PatchMapping("/users/{userId}/role")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Assign role to user",
-               description = "Changes user role. Cannot assign SUPER_ADMIN role.")
+    @Operation(summary = "Assign role to user")
     public ResponseEntity<UserDetailResponse> assignRole(
             @PathVariable String userId,
-            @RequestBody java.util.Map<String, String> body) {
-        String roleName = body.get("role");
-        if (roleName == null || roleName.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(userManagementService.assignRole(userId, roleName));
+            @RequestBody AssignRoleRequest request) {
+        return ResponseEntity.ok(
+                userManagementService.assignRole(userId, request.getRole()));
+    }
+
+    /**
+     * GET /management/users/{userId}/addresses
+     *
+     * Lấy toàn bộ sổ địa chỉ của 1 user theo ID.
+     * Dùng cho Admin xem địa chỉ của khách hàng hoặc nhân viên.
+     */
+    @GetMapping("/users/{userId}/addresses")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Get user address book",
+            description = "Returns all saved delivery addresses for the specified user.")
+    public ApiResponse<List<AddressResponse>> getUserAddresses(@PathVariable String userId) {
+        return ApiResponse.<List<AddressResponse>>builder()
+                .result(userManagementService.getUserAddresses(userId))
+                .build();
     }
 
     // ════════════════════════════════════════════════════════
-    // HELPER
+    // PRIVATE HELPER
     // ════════════════════════════════════════════════════════
 
+    /**
+     * Lấy userId của người đang gọi API (dùng cho các thao tác cần biết "ai đang thực hiện").
+     * Đây là thông tin xác thực — thuộc trách nhiệm của Controller layer.
+     */
     private String resolveCurrentUserId() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username)
-                .map(User::getId)
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+        return userManagementService.resolveCurrentUserId(
+                SecurityContextHolder.getContext().getAuthentication().getName()
+        );
     }
 }

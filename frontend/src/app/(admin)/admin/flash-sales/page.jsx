@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     Zap, Plus, Edit, Trash2, X, RefreshCw, Search,
     Clock, Package, ChevronLeft, ChevronRight,
-    Calendar, Loader2, Save, DollarSign, CheckSquare2
+    Calendar, Loader2, Save, DollarSign, CheckSquare2, BarChart2
 } from 'lucide-react';
 import {
     getFlashSalesPaged,
@@ -15,34 +15,20 @@ import {
 } from '@/services/flashSaleService';
 import { toast } from 'react-toastify';
 import SkuPickerModal from '@/components/admin/SkuPickerModal';
+import FlashSaleAnalyticsModal from '@/components/admin/FlashSaleAnalyticsModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 const fmt = (n) => n != null ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n) : '—';
 const fmtDt = (s) => s ? new Date(s).toLocaleString('vi-VN') : '—';
 
-/**
- * Convert ISO/LocalDateTime string → value for <input type="datetime-local">
- * Handles both "2026-04-12T10:30:00" and "2026-04-12T10:30:00.000" formats.
- */
 const toLocalInput = (iso) => iso ? iso.slice(0, 16) : '';
-
-/**
- * Convert datetime-local value → ISO string to send to backend.
- * Appends seconds so the backend LocalDateTime parser is happy.
- */
 const fromLocalInput = (s) => s ? s + ':00' : null;
 
-/**
- * FIX: Status derivation uses a small grace buffer (+30 s) so that a Flash Sale
- * whose startTime is "right now" (or a few seconds in the past due to clock skew)
- * is correctly shown as ACTIVE rather than UPCOMING.
- */
 const deriveStatus = (sale) => {
     const now = new Date();
     const start = new Date(sale.startTime);
     const end = new Date(sale.endTime);
-    const GRACE_MS = 30_000; // 30 second buffer
-
+    const GRACE_MS = 30_000;
     if (now.getTime() + GRACE_MS < start.getTime()) return 'UPCOMING';
     if (now > end) return 'ENDED';
     return 'ACTIVE';
@@ -80,11 +66,9 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
         })),
     });
 
-    // ── Bulk price/qty state ──────────────────────────────────────
     const [bulkPrice, setBulkPrice] = useState('');
     const [bulkQty, setBulkQty] = useState('');
     const [selectedRows, setSelectedRows] = useState(new Set());
-
     const [showPicker, setShowPicker] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -109,7 +93,6 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
         setSelectedRows(prev => {
             const next = new Set(prev);
             next.delete(idx);
-            // Re-index remaining selections
             const reindexed = new Set();
             for (const r of next) { if (r < idx) reindexed.add(r); else if (r > idx) reindexed.add(r - 1); }
             return reindexed;
@@ -124,7 +107,6 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
         });
     };
 
-    // ── Bulk apply ────────────────────────────────────────────────
     const applyBulk = () => {
         if (!bulkPrice && !bulkQty) {
             toast.warning('Nhập giá hoặc số lượng để áp dụng hàng loạt');
@@ -276,7 +258,7 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                             </div>
                         </div>
 
-                        {/* ── BULK APPLY PANEL ─────────────────────────────────── */}
+                        {/* Bulk apply panel */}
                         {form.items.length > 0 && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 sm:p-4">
                                 <p className="text-xs sm:text-sm font-bold text-amber-800 flex items-center gap-2 mb-3">
@@ -318,7 +300,7 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                         {/* SKU list */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
-                                <label className="text-sm sm:text-sm font-bold text-gray-600 uppercase tracking-wide">
+                                <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">
                                     Sản phẩm khuyến mãi ({form.items.length})
                                 </label>
                                 <button
@@ -342,7 +324,6 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {/* Select-all row */}
                                     <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
                                         <input
                                             type="checkbox"
@@ -366,27 +347,21 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                                 key={item.skuId}
                                                 className={`flex items-start gap-2 sm:gap-3 p-3 sm:p-4 border rounded-xl transition-colors ${isSelected ? 'border-orange-300 bg-orange-50/40' : 'border-gray-200 bg-gray-50 hover:border-orange-200'}`}
                                             >
-                                                {/* Checkbox */}
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     onChange={() => toggleRow(idx)}
                                                     className="w-4 h-4 accent-orange-500 cursor-pointer mt-1 shrink-0"
                                                 />
-
-                                                {/* Thumbnail */}
                                                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg border bg-white overflow-hidden shrink-0 flex items-center justify-center">
                                                     {item.thumbnail
                                                         ? <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
                                                         : <Package size={14} className="text-gray-300" />
                                                     }
                                                 </div>
-
-                                                {/* Info */}
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs sm:text-md font-semibold text-gray-900 truncate">{item.productName}</p>
                                                     <p className="text-xs text-gray-500 mb-2">{item.variantName} · Giá gốc: {fmt(item.originalPrice)}</p>
-
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <div>
                                                             <label className="block text-[13px] font-bold text-gray-500 uppercase mb-1">
@@ -419,8 +394,6 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
                                                         </div>
                                                     </div>
                                                 </div>
-
-                                                {/* Remove */}
                                                 <button
                                                     onClick={() => removeItem(idx)}
                                                     className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mt-0.5 shrink-0"
@@ -469,12 +442,15 @@ function FlashSaleFormModal({ sale, onClose, onSaved }) {
 }
 
 // ─── Main Flash Sale Admin Page ────────────────────────────────────
+// FIX: analyticsSaleId state phải nằm TRONG component, không phải ngoài module
 export default function FlashSalesPage() {
     const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 });
     const [page, setPage] = useState(0);
     const [keyword, setKeyword] = useState('');
     const [loading, setLoading] = useState(true);
     const [formTarget, setFormTarget] = useState(null);
+    // FIX: Di chuyển hook từ ngoài module vào trong component
+    const [analyticsSaleId, setAnalyticsSaleId] = useState(null);
     const debounce = useRef(null);
 
     const PAGE_SIZE = 10;
@@ -553,7 +529,7 @@ export default function FlashSalesPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible">
                 {loading ? (
                     <div className="py-16 flex justify-center">
                         <Loader2 size={28} className="animate-spin text-orange-400" />
@@ -593,6 +569,10 @@ export default function FlashSalesPage() {
                                         <div className="flex items-center justify-between">
                                             <span className="text-xs text-gray-500">{sale.items?.length || 0} SKUs</span>
                                             <div className="flex gap-1.5">
+                                                <button onClick={() => setAnalyticsSaleId(sale.id)}
+                                                    className="p-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer">
+                                                    <BarChart2 size={13} />
+                                                </button>
                                                 <button onClick={() => openEdit(sale.id)}
                                                     className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer">
                                                     <Edit size={13} />
@@ -608,7 +588,7 @@ export default function FlashSalesPage() {
                             })}
                         </div>
 
-                        {/* Desktop: table */}
+                        {/* Desktop: table — overflow-visible để dropdown không bị clip */}
                         <div className="hidden sm:block overflow-x-auto">
                             <table className="w-full text-md">
                                 <thead className="bg-gray-50 border-b text-sm font-bold text-gray-500 uppercase tracking-wide">
@@ -622,7 +602,6 @@ export default function FlashSalesPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {data.content.map(sale => {
-                                        // FIX: use client-side deriveStatus instead of trusting backend status string
                                         const status = deriveStatus(sale);
                                         return (
                                             <tr key={sale.id} className="hover:bg-gray-50/60 transition-colors">
@@ -657,12 +636,19 @@ export default function FlashSalesPage() {
                                                 <td className="px-5 py-4">
                                                     <div className="flex items-center justify-end gap-1.5">
                                                         <button onClick={() => openEdit(sale.id)}
-                                                            className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer">
+                                                            className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer"
+                                                            title="Chỉnh sửa">
                                                             <Edit size={14} />
                                                         </button>
                                                         <button onClick={() => handleDelete(sale.id, sale.name)}
-                                                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer">
+                                                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                                                            title="Xóa">
                                                             <Trash2 size={14} />
+                                                        </button>
+                                                        <button onClick={() => setAnalyticsSaleId(sale.id)}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors cursor-pointer"
+                                                            title="Báo cáo">
+                                                            <BarChart2 size={14} /> Báo cáo
                                                         </button>
                                                     </div>
                                                 </td>
@@ -701,6 +687,14 @@ export default function FlashSalesPage() {
                     sale={formTarget === 'new' ? null : formTarget}
                     onClose={() => setFormTarget(null)}
                     onSaved={() => load(page)}
+                />
+            )}
+
+            {/* Analytics modal */}
+            {analyticsSaleId && (
+                <FlashSaleAnalyticsModal
+                    saleId={analyticsSaleId}
+                    onClose={() => setAnalyticsSaleId(null)}
                 />
             )}
         </div>
