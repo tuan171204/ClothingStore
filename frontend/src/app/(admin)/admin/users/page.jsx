@@ -1,22 +1,11 @@
 'use client';
 
-/**
- * admin/users/page.jsx
- *
- * Nhiệm vụ tầng Page (UI):
- *   - Quản lý state (loading, data, modal, filter...)
- *   - Render UI và xử lý sự kiện người dùng
- *   - Gọi service functions từ userManagementService.js
- *   - KHÔNG gọi axios trực tiếp, KHÔNG chứa business logic
- */
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Users, Search, RefreshCw, MoreVertical, Eye,
-    MapPin, ShieldCheck, ChevronLeft, ChevronRight,
-    Loader2, X, Phone, Mail, Calendar, Star,
+    MapPin, ShieldCheck, Loader2, X, Phone, Mail, Calendar, Star,
     Home, CheckCircle2, UserX, UserPlus, Edit,
-    Trash2, KeyRound,
+    Trash2, KeyRound, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import {
@@ -29,6 +18,8 @@ import {
     softDeleteStaff,
     assignRole,
 } from '@/services/userManagementService';
+import Pagination from '@/components/admin/Pagination';
+import CustomerDetailModal from '@/components/admin/CustomerOrderDetailModal';
 
 // ─── Formatters ────────────────────────────────────────────────
 const fmt = (n) =>
@@ -47,7 +38,6 @@ const PAGE_SIZE = 20;
 
 // ─── Sub-components ────────────────────────────────────────────
 
-/** Avatar tạo từ initials + màu nhất quán */
 function UserAvatar({ user, size = 9 }) {
     const initials = (user.fullName || 'U').split(' ').map(w => w[0]).slice(-2).join('');
     const palette = ['from-blue-400 to-blue-600', 'from-violet-400 to-violet-600',
@@ -62,7 +52,6 @@ function UserAvatar({ user, size = 9 }) {
     );
 }
 
-/** Status badge */
 function StatusBadge({ active }) {
     return (
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold
@@ -74,8 +63,9 @@ function StatusBadge({ active }) {
 }
 
 /**
- * ActionMenu — dropdown dùng position:fixed để tránh bị clip bởi overflow:auto của table.
- * Tính tọa độ từ getBoundingClientRect() → render ra ngoài stacking context của table.
+ * ActionMenu — fixed positioning to avoid overflow:auto clipping.
+ * FIX: Unique keys now use `item-${item.label}` to avoid duplicate `key=0` issue
+ * that arises when button index collides between different render cycles.
  */
 function ActionMenu({ user, tab, onView, onViewAddresses, onToggleStatus, onEdit, onDelete }) {
     const [open, setOpen] = useState(false);
@@ -86,7 +76,9 @@ function ActionMenu({ user, tab, onView, onViewAddresses, onToggleStatus, onEdit
     const openMenu = () => {
         const rect = btnRef.current?.getBoundingClientRect();
         if (rect) {
-            setPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+            // FIX POSITIONING: Bỏ window.scrollY. 
+            // position: fixed hoạt động dựa trên viewport, getBoundingClientRect() cũng trả về tọa độ viewport.
+            setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
         }
         setOpen(true);
     };
@@ -104,19 +96,25 @@ function ActionMenu({ user, tab, onView, onViewAddresses, onToggleStatus, onEdit
 
     const action = (fn) => { fn(); setOpen(false); };
 
+    // FIX LOGIC TAB: Tách biệt menu item theo tab 'customer' và 'staff'
     const items = [
-        { icon: Eye, label: 'Xem chi tiết', color: 'text-indigo-600', onClick: () => action(() => onView(user)) },
-        { icon: MapPin, label: 'Sổ địa chỉ', color: 'text-blue-600', onClick: () => action(() => onViewAddresses(user)) },
-        ...(tab === 'staff' ? [
-            { icon: Edit, label: 'Chỉnh sửa', color: 'text-amber-600', onClick: () => action(() => onEdit(user)), divider: false },
-            { icon: Trash2, label: 'Xóa nhân viên', color: 'text-red-500', onClick: () => action(() => onDelete(user)), divider: false },
+        ...(tab === 'customer' ? [
+            { key: 'view-detail', icon: Eye, label: 'Xem chi tiết', color: 'text-indigo-600', onClick: () => action(() => onView(user)) },
+            { key: 'view-addresses', icon: MapPin, label: 'Sổ địa chỉ', color: 'text-blue-600', onClick: () => action(() => onViewAddresses(user)) },
         ] : []),
+
+        ...(tab === 'staff' ? [
+            { key: 'edit-staff', icon: Edit, label: 'Chỉnh sửa', color: 'text-amber-600', onClick: () => action(() => onEdit(user)) },
+            { key: 'delete-staff', icon: Trash2, label: 'Xóa nhân viên', color: 'text-red-500', onClick: () => action(() => onDelete(user)) },
+        ] : []),
+
         {
+            key: 'toggle-status',
             icon: user.active ? UserX : ShieldCheck,
             label: user.active ? 'Khóa tài khoản' : 'Mở khóa',
             color: user.active ? 'text-red-600' : 'text-green-600',
             onClick: () => action(() => onToggleStatus(user)),
-            divider: true,
+            divider: true, // Nếu staff không có menu phía trên, bạn có thể cân nhắc logic ẩn border-t đi nếu cần thiết
         },
     ];
 
@@ -131,9 +129,10 @@ function ActionMenu({ user, tab, onView, onViewAddresses, onToggleStatus, onEdit
                 <div ref={menuRef}
                     style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
                     className="w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 overflow-hidden">
-                    {items.map((item) => (
-                        <React.Fragment key={item.label}>
-                            {item.divider && <div className="my-1 border-t border-gray-100" />}
+                    {items.map((item, index) => (
+                        <React.Fragment key={item.key}>
+                            {/* Ẩn divider nếu nó là item đầu tiên (trường hợp tab staff chỉ có toggle-status) */}
+                            {item.divider && index !== 0 && <div className="my-1 border-t border-gray-100" />}
                             <button onClick={item.onClick}
                                 className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-md font-medium
                                     hover:bg-gray-50 transition-colors cursor-pointer text-left ${item.color}`}>
@@ -147,7 +146,7 @@ function ActionMenu({ user, tab, onView, onViewAddresses, onToggleStatus, onEdit
     );
 }
 
-/** Modal hiển thị sổ địa chỉ của user */
+/** Modal hiển thị sổ địa chỉ */
 function AddressModal({ user, onClose }) {
     const [addresses, setAddresses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -161,7 +160,7 @@ function AddressModal({ user, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50 shrink-0">
                     <div>
                         <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -191,16 +190,13 @@ function AddressModal({ user, onClose }) {
                                     className={`p-4 rounded-xl border ${addr.isDefault
                                         ? 'border-blue-200 bg-blue-50/50'
                                         : 'border-gray-100 bg-gray-50'}`}>
-                                    <div className="flex items-center justify-between gap-2 mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-bold text-gray-900 text-md">{addr.receiverName}</p>
-                                            {addr.isDefault && (
-                                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-sm font-bold rounded-full flex items-center gap-1">
-                                                    <CheckCircle2 size={10} /> Mặc định
-                                                </span>
-                                            )}
-                                        </div>
-                                        <span className="text-sm text-gray-400 font-mono">#{addr.id}</span>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <p className="font-bold text-gray-900 text-md">{addr.receiverName}</p>
+                                        {addr.isDefault && (
+                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-sm font-bold rounded-full flex items-center gap-1">
+                                                <CheckCircle2 size={10} /> Mặc định
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="space-y-1 text-md text-gray-600">
                                         <p className="flex items-center gap-2">
@@ -219,87 +215,6 @@ function AddressModal({ user, onClose }) {
                             ))}
                         </div>
                     )}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-/** Modal xem chi tiết user */
-function UserDetailModal({ user, onClose, onToggleStatus }) {
-    const tierStyle = TIER_BADGE[user.membershipTier] || TIER_BADGE.BRONZE;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50 shrink-0">
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                        <Eye size={16} className="text-indigo-500" /> Chi tiết người dùng
-                    </h3>
-                    <button onClick={onClose} className="p-1.5 hover:bg-gray-200 rounded-full cursor-pointer">
-                        <X size={17} />
-                    </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                    <div className="flex items-center gap-4">
-                        <UserAvatar user={user} size={14} />
-                        <div>
-                            <p className="font-bold text-gray-900 text-base">{user.fullName}</p>
-                            <p className="text-md text-gray-500">@{user.username}</p>
-                            <StatusBadge active={user.active} />
-                        </div>
-                    </div>
-
-                    <div className="space-y-3 text-md">
-                        {[
-                            { icon: Mail, label: 'Email', value: user.email },
-                            { icon: Phone, label: 'SĐT', value: user.phoneNumber || '—' },
-                            { icon: Calendar, label: 'Ngày sinh', value: fmtDate(user.dob) },
-                            { icon: Calendar, label: 'Tham gia', value: fmtDate(user.createdAt) },
-                            { icon: KeyRound, label: 'Đăng nhập', value: user.provider || 'LOCAL' },
-                        ].map(({ icon: Icon, label, value }) => (
-                            <div key={label} className="flex items-center gap-3">
-                                <Icon size={14} className="text-gray-400 shrink-0" />
-                                <span className="text-gray-500 w-20 shrink-0">{label}</span>
-                                <span className="font-medium text-gray-800 truncate">{value}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Customer info block */}
-                    {(user.membershipTier || user.totalOrders != null) && (
-                        <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
-                            <p className="text-sm font-black text-gray-400 uppercase tracking-wide">Thông tin khách hàng</p>
-                            {user.membershipTier && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-md text-gray-600">Hạng thành viên</span>
-                                    <span className={`px-2.5 py-1 rounded-full text-sm font-bold ${tierStyle}`}>
-                                        <Star size={10} className="inline mr-1" />{user.membershipTier}
-                                    </span>
-                                </div>
-                            )}
-                            {user.totalOrders != null && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-md text-gray-600">Số đơn hàng</span>
-                                    <span className="font-bold text-gray-800">{user.totalOrders} đơn</span>
-                                </div>
-                            )}
-                            {user.totalSpent != null && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-md text-gray-600">Tổng chi tiêu</span>
-                                    <span className="font-bold text-gray-800">{fmt(user.totalSpent)}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <button onClick={() => onToggleStatus(user)}
-                        className={`w-full py-2.5 rounded-xl font-bold text-md flex items-center justify-center gap-2 cursor-pointer transition-colors border
-                            ${user.active
-                                ? 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200'
-                                : 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200'}`}>
-                        {user.active ? <><UserX size={15} /> Khóa tài khoản</> : <><ShieldCheck size={15} /> Mở khóa</>}
-                    </button>
                 </div>
             </div>
         </div>
@@ -388,9 +303,7 @@ function StaffFormModal({ staff, onClose, onSaved }) {
                         </>
                     )}
                     <div>
-                        <label className="block text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">
-                            Role
-                        </label>
+                        <label className="block text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">Role</label>
                         <select value={form.role}
                             onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
                             className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-md focus:ring-2 focus:ring-blue-400 outline-none bg-white">
@@ -426,13 +339,13 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(true);
 
     // Modal states
-    const [viewUser, setViewUser] = useState(null);
+    // FIX: customerDetailId is separate from addressUser/viewUser to use CustomerDetailModal
+    const [customerDetailId, setCustomerDetailId] = useState(null);
     const [addressUser, setAddressUser] = useState(null);
     const [staffForm, setStaffForm] = useState(null); // null | 'new' | userObject
 
     const debounceRef = useRef(null);
 
-    // ── Data loading ──────────────────────────────────────────
     const load = useCallback(async (pg = 0) => {
         setLoading(true);
         try {
@@ -443,7 +356,6 @@ export default function UsersPage() {
                 ? await getCustomers(params)
                 : await getStaff(params);
 
-            // Normalize: unwrap ApiResponse wrapper nếu có
             const raw = res?.result ?? res;
             setData({
                 content: raw?.content ?? (Array.isArray(raw) ? raw : []),
@@ -457,7 +369,6 @@ export default function UsersPage() {
         }
     }, [tab, keyword, statusFilter]);
 
-    // Debounce keyword changes
     useEffect(() => {
         clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => { setPage(0); load(0); }, 350);
@@ -474,8 +385,6 @@ export default function UsersPage() {
             await updateUserStatus(user.id, !user.active);
             toast.success(`Đã ${action} tài khoản thành công!`);
             load(page);
-            // Cập nhật modal nếu đang mở
-            if (viewUser?.id === user.id) setViewUser(prev => ({ ...prev, active: !prev.active }));
         } catch {
             toast.error(`Không thể ${action} tài khoản`);
         }
@@ -530,7 +439,8 @@ export default function UsersPage() {
                 <ActionMenu
                     user={user}
                     tab={tab}
-                    onView={setViewUser}
+                    // FIX: Customers open CustomerDetailModal (with order history); staff still use old view
+                    onView={tab === 'customer' ? (u) => setCustomerDetailId(u.id) : (u) => setCustomerDetailId(u.id)}
                     onViewAddresses={setAddressUser}
                     onToggleStatus={handleToggleStatus}
                     onEdit={(u) => setStaffForm(u)}
@@ -556,7 +466,7 @@ export default function UsersPage() {
             <ActionMenu
                 user={user}
                 tab={tab}
-                onView={setViewUser}
+                onView={tab === 'customer' ? (u) => setCustomerDetailId(u.id) : (u) => setCustomerDetailId(u.id)}
                 onViewAddresses={setAddressUser}
                 onToggleStatus={handleToggleStatus}
                 onEdit={(u) => setStaffForm(u)}
@@ -573,7 +483,9 @@ export default function UsersPage() {
                     <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <Users size={22} className="text-blue-600" /> Quản lý người dùng
                     </h1>
-                    <p className="text-md text-gray-500 mt-0.5">Khách hàng &amp; Nhân viên · {data.totalElements} tài khoản</p>
+                    <p className="text-md text-gray-500 mt-0.5">
+                        Khách hàng &amp; Nhân viên · {data.totalElements} tài khoản
+                    </p>
                 </div>
                 <div className="flex gap-2 self-start sm:self-auto">
                     {tab === 'staff' && (
@@ -625,7 +537,7 @@ export default function UsersPage() {
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                {/* Mobile */}
+                {/* Mobile card view */}
                 <div className="block sm:hidden">
                     {loading ? (
                         <div className="py-12 flex justify-center">
@@ -639,7 +551,7 @@ export default function UsersPage() {
                     ) : data.content.map(renderCard)}
                 </div>
 
-                {/* Desktop — overflow-visible để dropdown không bị cắt */}
+                {/* Desktop table */}
                 <div className="hidden sm:block" style={{ overflowX: 'auto' }}>
                     <table className="w-full text-md text-left">
                         <thead className="bg-gray-50 border-b text-sm font-bold text-gray-500 uppercase tracking-wide">
@@ -668,42 +580,23 @@ export default function UsersPage() {
                     </table>
                 </div>
 
-                {/* Pagination */}
-                {data.totalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50 flex-wrap gap-2">
-                        <span className="text-sm text-gray-500">
-                            {data.totalElements} người dùng · Trang {page + 1}/{data.totalPages}
-                        </span>
-                        <div className="flex items-center gap-1">
-                            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                                className="p-1.5 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-100 cursor-pointer">
-                                <ChevronLeft size={14} />
-                            </button>
-                            {Array.from({ length: Math.min(data.totalPages, 5) }, (_, i) => {
-                                const p = Math.min(Math.max(page - 2 + i, 0), data.totalPages - 1);
-                                return (
-                                    <button key={p} onClick={() => setPage(p)}
-                                        className={`w-8 h-8 rounded-lg text-md font-medium cursor-pointer transition-colors
-                                            ${page === p ? 'bg-blue-600 text-white' : 'border border-gray-300 hover:bg-gray-100 text-gray-600'}`}>
-                                        {p + 1}
-                                    </button>
-                                );
-                            })}
-                            <button onClick={() => setPage(p => Math.min(data.totalPages - 1, p + 1))} disabled={page >= data.totalPages - 1}
-                                className="p-1.5 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-100 cursor-pointer">
-                                <ChevronRight size={14} />
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {/* FIX: Use Pagination component (replaces manual inline pagination) */}
+                <Pagination
+                    page={page}
+                    totalPages={data.totalPages}
+                    totalElements={data.totalElements}
+                    size={PAGE_SIZE}
+                    onPageChange={setPage}
+                    loading={loading}
+                />
             </div>
 
             {/* Modals */}
-            {viewUser && (
-                <UserDetailModal
-                    user={viewUser}
-                    onClose={() => setViewUser(null)}
-                    onToggleStatus={handleToggleStatus}
+            {/* FIX: CustomerDetailModal now handles full order history with search/filter/detail */}
+            {customerDetailId && (
+                <CustomerDetailModal
+                    userId={customerDetailId}
+                    onClose={() => setCustomerDetailId(null)}
                 />
             )}
             {addressUser && (

@@ -76,28 +76,38 @@ export default function ChatbotWidget() {
             const decoder = new TextDecoder('utf-8');
             let done = false;
 
+            // Dùng buffer để gom các mảnh dữ liệu (chunk) bị server cắt ngang
+            let buffer = '';
+
             while (!done) {
                 const { value, done: readerDone } = await reader.read();
                 done = readerDone;
 
                 if (value) {
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
+                    // Cộng dồn dữ liệu mới vào buffer
+                    buffer += decoder.decode(value, { stream: true });
 
-                    for (const line of lines) {
-                        if (line.startsWith('data:')) {
-                            const text = line.replace('data:', '').trim();
-                            if (text) {
-                                setMessages(prev => {
-                                    const newMessages = [...prev];
-                                    const lastIndex = newMessages.length - 1;
-                                    newMessages[lastIndex] = {
-                                        ...newMessages[lastIndex],
-                                        content: newMessages[lastIndex].content + text
-                                    };
-                                    return newMessages;
-                                });
-                            }
+                    // SSE chuẩn luôn ngăn cách các event bằng 2 dấu xuống dòng (\n\n)
+                    const parts = buffer.split('\n\n');
+
+                    // Giữ lại phần cuối cùng (có thể chưa nhận đủ \n\n do stream đang dở)
+                    buffer = parts.pop() || '';
+
+                    for (const part of parts) {
+                        // Dùng Regex xóa chữ "data:" ở đầu dòng nhưng GIỮ NGUYÊN mọi khoảng trắng và \n
+                        const text = part.replace(/^data:/gm, '');
+
+                        // Cập nhật State (Chỉ bỏ qua nếu text rỗng hoàn toàn, cho phép in ra khoảng trắng)
+                        if (text !== '') {
+                            setMessages(prev => {
+                                const newMessages = [...prev];
+                                const lastIndex = newMessages.length - 1;
+                                newMessages[lastIndex] = {
+                                    ...newMessages[lastIndex],
+                                    content: newMessages[lastIndex].content + text
+                                };
+                                return newMessages;
+                            });
                         }
                     }
                 }

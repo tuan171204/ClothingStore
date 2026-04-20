@@ -45,16 +45,21 @@ spring:
     google:
       genai:
         api-key: ${AI_GOOGLE_API_KEY}
-        chat:
-          options:
-            model: ${AI_MODEL}
-            temperature: 0.1
         embedding:
           api-key: ${AI_GOOGLE_API_KEY}
           text:
             options:
               model: "gemini-embedding-001"
               dimensions: 768
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai
+      chat:
+        options:
+          model: llama-3.1-8b-instant
+          temperature: 0.1
+      embedding:
+        enabled: false
     vectorstore:
       pinecone:
         api-key: ${PINECONE_API_KEY}

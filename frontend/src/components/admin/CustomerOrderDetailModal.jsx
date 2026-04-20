@@ -5,9 +5,11 @@ import {
     X, User, MapPin, ShoppingBag, Phone, Mail, Calendar,
     CreditCard, Package, ChevronLeft, ChevronRight, Clock,
     CheckCircle, XCircle, Truck, RotateCcw, AlertCircle,
-    Star, TrendingUp, Award, Search, Filter
+    Star, TrendingUp, Award, Search, Filter, Eye, Ban,
+    Home, CheckCircle2, ArrowLeft
 } from 'lucide-react';
 import axios from '@/lib/axios';
+import Pagination from '@/components/admin/Pagination';
 
 // ── Formatters ──────────────────────────────────────────────
 const fmtVND = (n) =>
@@ -125,15 +127,11 @@ function AddressesTab({ userId }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Fetch addresses for a specific user (admin endpoint)
-        // Fallback: use the management endpoint to get user detail which includes addresses
         const fetchAddresses = async () => {
             try {
-                // Try admin addresses endpoint; if not available, show empty
-                const res = await axios.get(`/management/customers/${userId}/addresses`);
+                const res = await axios.get(`/management/users/${userId}/addresses`);
                 setAddresses(res.data?.result ?? res.data ?? []);
             } catch {
-                // Silently fail — backend may not expose this endpoint yet
                 setAddresses([]);
             } finally {
                 setLoading(false);
@@ -150,9 +148,8 @@ function AddressesTab({ userId }) {
 
     if (!addresses.length) return (
         <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-            <MapPin size={32} className="mb-2 opacity-30" />
+            <Home size={32} className="mb-2 opacity-30" />
             <p className="text-md font-medium">Chưa có địa chỉ nào được lưu</p>
-            <p className="text-sm mt-1 opacity-70">API endpoint chưa được triển khai hoặc người dùng chưa thêm địa chỉ</p>
         </div>
     );
 
@@ -163,24 +160,25 @@ function AddressesTab({ userId }) {
                     className={`rounded-2xl border p-4 transition-all ${addr.isDefault
                         ? 'border-blue-200 bg-blue-50/50'
                         : 'border-slate-100 bg-white hover:border-slate-200'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
-                                ${addr.isDefault ? 'bg-blue-100' : 'bg-slate-100'}`}>
-                                <MapPin size={16} className={addr.isDefault ? 'text-blue-600' : 'text-slate-500'} />
+                    <div className="flex items-start gap-3">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
+                            ${addr.isDefault ? 'bg-blue-100' : 'bg-slate-100'}`}>
+                            <MapPin size={16} className={addr.isDefault ? 'text-blue-600' : 'text-slate-500'} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <p className="font-bold text-slate-800 text-md">{addr.receiverName}</p>
+                                {addr.isDefault && (
+                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-sm font-bold rounded-full flex items-center gap-1">
+                                        <CheckCircle2 size={10} /> Mặc định
+                                    </span>
+                                )}
                             </div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <p className="font-bold text-slate-800 text-md">{addr.receiverName}</p>
-                                    {addr.isDefault && (
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-sm font-bold rounded-full">Mặc định</span>
-                                    )}
-                                </div>
-                                <p className="text-md text-slate-500">{addr.phone}</p>
-                                <p className="text-md text-slate-600 mt-1">
-                                    {addr.streetAddress}, {addr.wardName}, {addr.districtName}, {addr.provinceName}
-                                </p>
-                            </div>
+                            <p className="text-md text-slate-500">{addr.phone}</p>
+                            <p className="text-md text-slate-600 mt-1">
+                                {[addr.streetAddress, addr.wardName, addr.districtName, addr.provinceName]
+                                    .filter(Boolean).join(', ')}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -189,14 +187,166 @@ function AddressesTab({ userId }) {
     );
 }
 
+// ── Order Item Detail (inline expand) ────────────────────────
+function OrderDetailPanel({ order, onBack }) {
+    return (
+        <div className="space-y-4">
+            {/* Back button */}
+            <button onClick={onBack}
+                className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors group">
+                <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+                Quay lại danh sách
+            </button>
+
+            {/* Header */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span className="text-lg font-black text-slate-900">Đơn #{order.id}</span>
+                            <OrderStatusBadge status={order.status} />
+                        </div>
+                        <p className="text-sm text-slate-400">{fmtDateTime(order.createdAt)}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xl font-black text-slate-900">{fmtVND(order.totalAmount)}</p>
+                        <span className={`text-sm px-2 py-0.5 rounded-lg font-semibold
+                            ${order.paymentMethod === 'VNPAY' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {order.paymentMethod}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Tracking */}
+                {order.trackingCode && (
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                        <p className="text-sm text-slate-500 mb-0.5">Mã vận đơn GHN</p>
+                        <p className="font-mono font-bold text-indigo-600">{order.trackingCode}</p>
+                        {order.trackingMessage && (
+                            <p className="text-sm text-slate-500 mt-1 italic">"{order.trackingMessage}"</p>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Shipping address */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                <p className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">Thông tin giao hàng</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <p className="text-slate-400 text-xs mb-0.5">Người nhận</p>
+                        <p className="font-semibold text-slate-800">{order.fullName}</p>
+                    </div>
+                    <div>
+                        <p className="text-slate-400 text-xs mb-0.5">SĐT</p>
+                        <p className="font-semibold text-slate-800">{order.phoneNumber}</p>
+                    </div>
+                    <div className="col-span-2">
+                        <p className="text-slate-400 text-xs mb-0.5">Địa chỉ</p>
+                        <p className="text-slate-700">{order.shippingAddress}</p>
+                    </div>
+                    {order.note && (
+                        <div className="col-span-2">
+                            <p className="text-slate-400 text-xs mb-0.5">Ghi chú</p>
+                            <p className="text-slate-700 italic">"{order.note}"</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Cancel info */}
+            {order.status === 'CANCELLED' && order.cancelReason && (
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
+                    <p className="text-sm font-bold text-red-700 flex items-center gap-2 mb-1">
+                        <Ban size={14} /> Lý do hủy đơn
+                    </p>
+                    <p className="text-sm text-red-600 italic">"{order.cancelReason}"</p>
+                    {order.cancelledAt && (
+                        <p className="text-xs text-red-400 mt-1">{fmtDateTime(order.cancelledAt)}</p>
+                    )}
+                </div>
+            )}
+
+            {/* Return info */}
+            {(order.status === 'RETURN_REQUESTED' || order.status === 'RETURNED') && order.returnReason && (
+                <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-2">
+                    <p className="text-sm font-bold text-orange-700 flex items-center gap-2">
+                        <RotateCcw size={14} /> Thông tin hoàn trả
+                    </p>
+                    <p className="text-sm text-orange-800"><span className="font-semibold">Lý do:</span> {order.returnReason}</p>
+                    {order.returnDescription && (
+                        <p className="text-sm text-orange-800"><span className="font-semibold">Chi tiết:</span> {order.returnDescription}</p>
+                    )}
+                    {Array.isArray(order.returnImageUrls) && order.returnImageUrls.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {order.returnImageUrls.map((img, idx) => (
+                                <a key={idx} href={img} target="_blank" rel="noreferrer"
+                                    className="block w-16 h-16 rounded-xl overflow-hidden border border-orange-200">
+                                    <img src={img} alt="Bằng chứng" className="w-full h-full object-cover" />
+                                </a>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Order items */}
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                <div className="px-4 py-3 border-b bg-slate-50">
+                    <p className="text-sm font-bold text-slate-700 uppercase tracking-wide">Sản phẩm đặt mua</p>
+                </div>
+                <div className="divide-y divide-slate-50">
+                    {order.orderItems?.map(item => (
+                        <div key={item.id} className="flex items-center justify-between px-4 py-3">
+                            <div className="min-w-0 flex-1 pr-4">
+                                <p className="font-semibold text-slate-800 text-md truncate">{item.productName}</p>
+                                <p className="text-sm text-slate-400">
+                                    x{item.quantity} × {fmtVND(item.price ?? item.priceAtPurchase)}
+                                </p>
+                            </div>
+                            <p className="font-bold text-blue-600 shrink-0">
+                                {fmtVND(item.subtotal ?? (item.quantity * (item.price ?? item.priceAtPurchase ?? 0)))}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Totals */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-2 text-sm">
+                <div className="flex justify-between text-slate-600">
+                    <span>Tạm tính</span>
+                    <span className="font-semibold">{fmtVND(order.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                    <span>Phí vận chuyển</span>
+                    <span className="font-semibold">{fmtVND(order.shippingFee)}</span>
+                </div>
+                {order.discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                        <span>Giảm giá {order.couponCode ? `(${order.couponCode})` : ''}</span>
+                        <span className="font-semibold">-{fmtVND(order.discountAmount)}</span>
+                    </div>
+                )}
+                <div className="flex justify-between font-black text-slate-900 text-base pt-2 border-t border-slate-100">
+                    <span>Tổng cộng</span>
+                    <span className="text-blue-600">{fmtVND(order.totalAmount)}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ── Orders Tab ───────────────────────────────────────────────
+const ORDERS_PAGE_SIZE = 8;
+
 function OrdersTab({ userId }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [statusFilter, setStatusFilter] = useState('');
     const [search, setSearch] = useState('');
-    const SIZE = 8;
+    const [selectedOrder, setSelectedOrder] = useState(null); // FIX: order detail view
 
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -212,37 +362,77 @@ function OrdersTab({ userId }) {
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
+    // Reset page when filters change
+    useEffect(() => { setPage(0); }, [search, statusFilter]);
+
     // Client-side filter + pagination
     const filtered = orders.filter(o => {
         const matchStatus = !statusFilter || o.status === statusFilter;
         const matchSearch = !search || (
-            String(o.id).includes(search) ||
-            (o.trackingCode ?? '').toLowerCase().includes(search.toLowerCase())
+            String(o.id).includes(search.trim()) ||
+            (o.trackingCode ?? '').toLowerCase().includes(search.toLowerCase().trim()) ||
+            (o.fullName ?? '').toLowerCase().includes(search.toLowerCase().trim())
         );
         return matchStatus && matchSearch;
     });
 
-    const totalPages = Math.ceil(filtered.length / SIZE);
-    const sliced = filtered.slice(page * SIZE, (page + 1) * SIZE);
+    const totalPages = Math.ceil(filtered.length / ORDERS_PAGE_SIZE);
+    const sliced = filtered.slice(page * ORDERS_PAGE_SIZE, (page + 1) * ORDERS_PAGE_SIZE);
+
+    // Show order detail
+    if (selectedOrder) {
+        return <OrderDetailPanel order={selectedOrder} onBack={() => setSelectedOrder(null)} />;
+    }
 
     return (
         <div className="space-y-3">
             {/* Filters */}
             <div className="flex flex-wrap gap-2">
-                <div className="relative flex-1 min-w-40">
+                <div className="relative flex-1 min-w-[160px]">
                     <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
-                        placeholder="Mã đơn, mã vận đơn..."
-                        className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-md focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Mã đơn, tên khách, mã vận đơn..."
+                        className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-md focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    {search && (
+                        <button onClick={() => setSearch('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                            <X size={13} />
+                        </button>
+                    )}
                 </div>
-                <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
-                    className="border border-slate-200 rounded-xl px-3 py-2 text-md font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                <select
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value)}
+                    className="border border-slate-200 rounded-xl px-3 py-2 text-md font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none min-w-[150px]"
+                >
                     <option value="">Tất cả trạng thái</option>
                     {Object.entries(ORDER_STATUS).map(([k, v]) => (
                         <option key={k} value={k}>{v.label}</option>
                     ))}
                 </select>
             </div>
+
+            {/* Stats chips */}
+            {!loading && (
+                <div className="flex flex-wrap gap-2">
+                    <span className="text-sm text-slate-500 font-medium px-3 py-1 bg-slate-100 rounded-full">
+                        {filtered.length} đơn hàng{search || statusFilter ? ' (đã lọc)' : ''}
+                    </span>
+                    {orders.filter(o => o.status === 'COMPLETED').length > 0 && (
+                        <span className="text-sm text-emerald-700 font-medium px-3 py-1 bg-emerald-50 rounded-full">
+                            ✓ {orders.filter(o => o.status === 'COMPLETED').length} hoàn thành
+                        </span>
+                    )}
+                    {orders.filter(o => o.status === 'CANCELLED').length > 0 && (
+                        <span className="text-sm text-red-600 font-medium px-3 py-1 bg-red-50 rounded-full">
+                            ✗ {orders.filter(o => o.status === 'CANCELLED').length} đã hủy
+                        </span>
+                    )}
+                </div>
+            )}
 
             {loading ? (
                 <div className="flex items-center justify-center h-40">
@@ -251,14 +441,17 @@ function OrdersTab({ userId }) {
             ) : !sliced.length ? (
                 <div className="flex flex-col items-center justify-center h-40 text-slate-400">
                     <ShoppingBag size={32} className="mb-2 opacity-30" />
-                    <p className="text-md font-medium">Không có đơn hàng nào</p>
+                    <p className="text-md font-medium">
+                        {search || statusFilter ? 'Không tìm thấy đơn hàng phù hợp' : 'Chưa có đơn hàng nào'}
+                    </p>
                 </div>
             ) : (
                 <>
                     <div className="space-y-2">
                         {sliced.map(order => (
                             <div key={order.id}
-                                className="bg-white rounded-2xl border border-slate-100 hover:border-slate-200 p-4 transition-all">
+                                className="bg-white rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-sm p-4 transition-all cursor-pointer group"
+                                onClick={() => setSelectedOrder(order)}>
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -269,13 +462,18 @@ function OrdersTab({ userId }) {
                                             )}
                                         </div>
                                         <p className="text-sm text-slate-400">{fmtDateTime(order.createdAt)}</p>
-                                        <div className="flex items-center gap-3 mt-2">
+                                        <div className="flex items-center gap-3 mt-2 flex-wrap">
                                             <span className="text-sm text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg">
                                                 {order.paymentMethod}
                                             </span>
                                             <span className="text-sm text-slate-500">
                                                 {order.orderItems?.length ?? 0} sản phẩm
                                             </span>
+                                            {order.couponCode && (
+                                                <span className="text-sm text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg font-medium">
+                                                    🏷️ {order.couponCode}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="text-right shrink-0">
@@ -283,37 +481,24 @@ function OrdersTab({ userId }) {
                                         {order.discountAmount > 0 && (
                                             <p className="text-sm text-emerald-600 font-semibold">-{fmtVND(order.discountAmount)}</p>
                                         )}
+                                        <p className="text-sm text-blue-500 font-semibold mt-1.5 flex items-center gap-1 justify-end
+                                            group-hover:text-blue-700 transition-colors">
+                                            <Eye size={12} /> Xem chi tiết
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-between pt-1">
-                            <p className="text-sm text-slate-400">
-                                {page * SIZE + 1}–{Math.min((page + 1) * SIZE, filtered.length)} / {filtered.length}
-                            </p>
-                            <div className="flex items-center gap-1">
-                                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                                    className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-                                    <ChevronLeft size={13} />
-                                </button>
-                                {Array.from({ length: totalPages }, (_, i) => (
-                                    <button key={i} onClick={() => setPage(i)}
-                                        className={`w-7 h-7 text-sm font-bold rounded-lg transition-all
-                                            ${i === page ? 'bg-slate-900 text-white' : 'border border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
-                                        {i + 1}
-                                    </button>
-                                ))}
-                                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                                    className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-                                    <ChevronRight size={13} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    {/* FIX: Use Pagination component correctly */}
+                    <Pagination
+                        page={page}
+                        totalPages={totalPages}
+                        totalElements={filtered.length}
+                        size={ORDERS_PAGE_SIZE}
+                        onPageChange={setPage}
+                    />
                 </>
             )}
         </div>
@@ -350,7 +535,7 @@ export default function CustomerDetailModal({ userId, onClose }) {
             <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
 
             {/* Panel */}
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
 
                 {/* Header */}
                 <div className="shrink-0 bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-5">
@@ -391,7 +576,7 @@ export default function CustomerDetailModal({ userId, onClose }) {
                 </div>
 
                 {/* Tabs */}
-                <div className="shrink-0 flex items-center gap-1 px-4 pt-3 pb-0 bg-slate-50/50 mt">
+                <div className="shrink-0 flex items-center gap-1 px-4 pt-3 pb-0 bg-slate-50/50">
                     <TabBtn active={tab === 'profile'} onClick={() => setTab('profile')} icon={User} label="Hồ sơ" />
                     <TabBtn active={tab === 'addresses'} onClick={() => setTab('addresses')} icon={MapPin} label="Địa chỉ" />
                     <TabBtn active={tab === 'orders'} onClick={() => setTab('orders')} icon={ShoppingBag} label="Đơn hàng"

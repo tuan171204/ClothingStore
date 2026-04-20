@@ -80,7 +80,7 @@ function CategoryShowcase({ parentCategories }) {
                         Xem tất cả <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
                     {display.map((cat, i) => (
                         <Link key={cat.id} href={`/products?categoryId=${cat.id}`}
                             className="group relative aspect-[3/4] overflow-hidden rounded-2xl cursor-pointer">
@@ -92,7 +92,20 @@ function CategoryShowcase({ parentCategories }) {
                             </div>
                         </Link>
                     ))}
-                </div>
+
+                    {/* XỬ LÝ LỖI KHUYẾT CỘT: Thêm ô "Xem tất cả" nếu dữ liệu có từ 1 đến 5 danh mục */}
+                    {display.length > 0 && display.length < 6 && (
+                        <Link href="/products"
+                            className="group relative aspect-[3/4] overflow-hidden rounded-2xl cursor-pointer bg-gray-50 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 hover:border-gray-900 hover:bg-gray-100 transition-all">
+                            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                <ArrowRight size={24} className="text-gray-900" />
+                            </div>
+                            <p className="text-gray-900 font-bold text-md text-center px-4">
+                                Xem tất cả<br />danh mục
+                            </p>
+                        </Link>
+                    )}
+                </div>``
             </div>
         </section>
     );
