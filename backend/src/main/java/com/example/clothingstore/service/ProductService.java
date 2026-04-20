@@ -21,6 +21,8 @@ public interface ProductService {
     // Input: productId và danh sách các valueId (id của màu Đỏ, id của size M)
     Long getSkuIdByOptions(Long productId, List<Long> selectedValueIds);
 
+    List<ProductResponse> getRelatedProducts(Long productId);
+
     // CRUD
     ProductResponse createProduct(ProductRequest request);
     ProductResponse updateProduct(Long id, ProductRequest request);

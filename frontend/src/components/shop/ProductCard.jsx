@@ -4,6 +4,41 @@ import { formatCurrency } from "@/services/productService";
 import { ShoppingBag } from "lucide-react"; // Dùng túi xách (ShoppingBag) sang hơn xe đẩy (ShoppingCart)
 
 const ProductCard = ({ product }) => {
+
+    const renderPrice = () => {
+        // 1. Trường hợp không có dữ liệu khoảng giá
+        if (!product.minPrice || !product.maxPrice) {
+            return (
+                <span className="text-lg font-black text-gray-900 tracking-tight">
+                    {formatCurrency(product.basePrice)}
+                </span>
+            );
+        }
+
+        // 2. Trường hợp tất cả biến thể đồng giá
+        if (product.minPrice === product.maxPrice) {
+            return (
+                <span className="text-lg font-black text-gray-900 tracking-tight">
+                    {formatCurrency(product.minPrice)}
+                </span>
+            );
+        }
+
+        // 3. Trường hợp có khoảng giá (Nổi bật nhưng không lố)
+        return (
+            <div className="flex items-center justify-center gap-2">
+                <span className="text-md font-bold text-gray-400">từ</span>
+                <span className="text-lg font-black text-red-600 tracking-tighter">
+                    {formatCurrency(product.minPrice)}
+                </span>
+                <span className="text-gray-500 mx-0.5">--</span>
+                <span className="text-lg font-black text-red-600 tracking-tighter">
+                    {formatCurrency(product.maxPrice)}
+                </span>
+            </div>
+        );
+    };
+
     return (
         <div className="group flex flex-col bg-white">
 
@@ -34,23 +69,23 @@ const ProductCard = ({ product }) => {
             </div>
 
             {/* 2. Phần Thông tin (Căn giữa, Monochrome) */}
-            <div className="flex flex-col text-center px-2 py-4">
-                {/* Brand Name */}
-                <span className="text-sm text-gray-500 uppercase tracking-widest mb-1">
-                    {product.brand?.name || 'Local Brand'}
+            <div className="flex flex-col text-center px-2 py-2">
+                {/* Brand Name - Nhỏ và thanh thoát */}
+                <span className="text-md text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">
+                    {product.brandName || 'Local Brand'}
                 </span>
 
-                {/* Product Name */}
+                {/* Product Name - Line-clamp để giữ layout đều */}
                 <Link href={`/products/${product.id}`}>
-                    <h3 className="text-md font-bold text-gray-900 mb-2 hover:underline underline-offset-4 transition-all line-clamp-2 uppercase tracking-wide">
+                    <h3 className="text-md font-bold text-gray-900 mb-3 hover:text-black transition-all line-clamp-1 uppercase tracking-wide">
                         {product.name}
                     </h3>
                 </Link>
 
-                {/* Price */}
-                {/* <span className="text-md font-medium text-gray-900">
-                    {formatCurrency(product.basePrice)}
-                </span> */}
+                {/* Price Area - Tâm điểm của sự chú ý */}
+                <div className="py-1 border-t border-gray-50">
+                    {renderPrice()}
+                </div>
             </div>
         </div>
     );

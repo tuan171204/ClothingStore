@@ -120,6 +120,11 @@ public class ProductController {
         return ResponseEntity.ok(productService.getVariantMatrix(id));
     }
 
+    @GetMapping("/{id}/related")
+    public ResponseEntity<List<ProductResponse>> getRelatedProducts(@PathVariable Long id){
+        return ResponseEntity.ok(productService.getRelatedProducts(id));
+    }
+
     // API Upload ảnh test thử
     // POST http://localhost:8080/api/v1/products/upload-image
     @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

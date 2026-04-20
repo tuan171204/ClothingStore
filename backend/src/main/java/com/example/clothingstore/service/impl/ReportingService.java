@@ -4,18 +4,22 @@
 package com.example.clothingstore.service.impl;
 
 import com.example.clothingstore.dtos.report.*;
+import com.example.clothingstore.dtos.report.response.SalesComparisonResponse;
 import com.example.clothingstore.repository.InventoryRepository;
 import com.example.clothingstore.repository.ReportRepository;
 import com.example.clothingstore.repository.report.projections.*;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.*;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -221,6 +225,90 @@ public class ReportingService {
     }
 
     // ════════════════════════════════════════════════════════
+    // SALES TREND & COMPARISON
+    // ════════════════════════════════════════════════════════
+    public SalesComparisonResponse getSalesTrendAndComparison(LocalDate from, LocalDate to, String groupBy) {
+        LocalDateTime fromDt = from.atStartOfDay();
+        LocalDateTime toDt = to.atTime(23, 59, 59);
+
+        // 1. Tính toán khoảng thời gian kỳ trước (Previous Period)
+        long daysBetween = ChronoUnit.DAYS.between(from, to) + 1;
+        LocalDateTime prevFromDt = fromDt.minusDays(daysBetween);
+        LocalDateTime prevToDt = toDt.minusDays(daysBetween);
+
+        // 2. Lấy dữ liệu tổng quan cho Current và Previous
+        OrderKpiProjection currentKpi = reportRepository.findOrderKpis(fromDt, toDt);
+        OrderKpiProjection prevKpi = reportRepository.findOrderKpis(prevFromDt, prevToDt);
+
+        BigDecimal curRev = safe(currentKpi.getTotalRevenue());
+        BigDecimal prevRev = safe(prevKpi.getTotalRevenue());
+        Long curOrd = safe(currentKpi.getCompletedOrders()); // Chỉ tính đơn COMPLETED
+        Long prevOrd = safe(prevKpi.getCompletedOrders());
+
+        SalesComparisonResponse.Summary currentSummary = new SalesComparisonResponse.Summary(
+                curRev, curOrd, safe(currentKpi.getAverageOrderValue())
+        );
+        SalesComparisonResponse.Summary prevSummary = new SalesComparisonResponse.Summary(
+                prevRev, prevOrd, safe(prevKpi.getAverageOrderValue())
+        );
+
+        // 3. Lấy dữ liệu biểu đồ theo GroupBy
+        List<RevenuePeriodProjection> projections = switch (groupBy.toUpperCase()) {
+            case "WEEK" -> reportRepository.findWeeklyRevenue(fromDt, toDt);
+            case "MONTH" -> reportRepository.findMonthlyRevenue(from.getYear()); // Hoặc viết lại query month nhận from-to
+            default -> reportRepository.findDailyRevenue(fromDt, toDt);
+        };
+
+        List<RevenueReportDTO> chartData = projections.stream()
+                .map(this::mapRevenuePeriod)
+                .toList();
+
+        return new SalesComparisonResponse(
+                currentSummary,
+                prevSummary,
+                calcGrowthRate(prevRev, curRev),
+                calcGrowthRate(BigDecimal.valueOf(prevOrd), BigDecimal.valueOf(curOrd)),
+                chartData
+        );
+    }
+
+    // ════════════════════════════════════════════════════════
+    // CSV EXPORT (Không gây tràn RAM)
+    // ════════════════════════════════════════════════════════
+    public void exportRevenueCsv(LocalDate from, LocalDate to, String groupBy, HttpServletResponse response) {
+        LocalDateTime fromDt = from.atStartOfDay();
+        LocalDateTime toDt = to.atTime(23, 59, 59);
+
+        List<RevenuePeriodProjection> projections = switch (groupBy.toUpperCase()) {
+            case "WEEK" -> reportRepository.findWeeklyRevenue(fromDt, toDt);
+            default -> reportRepository.findDailyRevenue(fromDt, toDt);
+        };
+
+        try {
+            response.setContentType("text/csv; charset=UTF-8");
+            response.setHeader("Content-Disposition", "attachment; filename=\"sales_report_" + from + "_to_" + to + ".csv\"");
+
+            PrintWriter writer = response.getWriter();
+            // Ghi mã BOM để Excel mở không bị lỗi font Tiếng Việt
+            writer.write('\ufeff');
+            writer.println("Thời gian,Doanh thu (VND),Số đơn hàng,Giá trị ĐH trung bình (VND)");
+
+            for (RevenuePeriodProjection p : projections) {
+                writer.printf("%s,%s,%d,%s\n",
+                        p.getPeriod(),
+                        safe(p.getRevenue()).toPlainString(),
+                        p.getOrderCount(),
+                        safe(p.getAverageOrderValue()).toPlainString()
+                );
+            }
+            writer.flush();
+        } catch (Exception e) {
+            log.error("Lỗi xuất CSV", e);
+            throw new RuntimeException("Không thể xuất file CSV");
+        }
+    }
+
+    // ════════════════════════════════════════════════════════
     // ORDER REPORTS
     // ════════════════════════════════════════════════════════
 
@@ -346,6 +434,24 @@ public class ReportingService {
         LocalDateTime toDt   = to.atTime(23, 59, 59);
 
         return reportRepository.findBestSellers(fromDt, toDt, topN)
+                .stream()
+                .map(this::mapBestSeller)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Product Performance (Top or Bottom) with filters.
+     */
+    public List<BestSellerDTO> getProductPerformance(
+            LocalDate from, LocalDate to, Long categoryId, Long brandId, String type, int limit) {
+
+        LocalDateTime fromDt = from.atStartOfDay();
+        LocalDateTime toDt   = to.atTime(23, 59, 59);
+
+        // type = "TOP" -> DESC (bán chạy nhất), type = "BOTTOM" -> ASC (bán ế nhất)
+        String sortOrder = "BOTTOM".equalsIgnoreCase(type) ? "ASC" : "DESC";
+
+        return reportRepository.findProductPerformance(fromDt, toDt, categoryId, brandId, sortOrder, limit)
                 .stream()
                 .map(this::mapBestSeller)
                 .collect(Collectors.toList());

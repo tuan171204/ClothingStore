@@ -34,6 +34,34 @@ export const getRevenueByCategory = async (from, to) => {
     return res.data;
 };
 
+export const getSalesTrend = async (from, to, groupBy = 'DAY') => {
+    const res = await axios.get(`${BASE}/sales/trend`, { params: { from, to, groupBy } });
+    return res.data;
+};
+
+export const exportSalesCsvUrl = (from, to, groupBy = 'DAY') => {
+    return `${process.env.NEXT_PUBLIC_API_URL}/api/v1/reports/sales/export?from=${from}&to=${to}&groupBy=${groupBy}`;
+};
+
+export const downloadSalesCsv = async (from, to, groupBy = 'DAY') => {
+    const res = await axios.get(`${BASE}/sales/export`, {
+        params: { from, to, groupBy },
+        responseType: 'blob', // BẮT BUỘC: Để nhận dữ liệu file thay vì JSON
+    });
+
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    link.setAttribute('download', `sales-report-${from}-to-${to}.csv`);
+
+    document.body.appendChild(link);
+    link.click();
+
+    link.remove();
+    window.URL.revokeObjectURL(url);
+};
+
 // ── ORDERS ─────────────────────────────────────────────────
 export const getOrderSummaryReport = async (from, to) => {
     const res = await axios.get(`${BASE}/orders/summary`, { params: { from, to } });
@@ -54,5 +82,14 @@ export const getTopCustomers = async (from, to, topN = 20) => {
 // ── PRODUCTS ───────────────────────────────────────────────
 export const getBestSellers = async (from, to, topN = 10) => {
     const res = await axios.get(`${BASE}/products/best-sellers`, { params: { from, to, topN } });
+    return res.data;
+};
+
+export const getProductPerformance = async (from, to, categoryId, brandId, type = 'TOP', limit = 10) => {
+    const params = { from, to, type, limit };
+    if (categoryId) params.categoryId = categoryId;
+    if (brandId) params.brandId = brandId;
+
+    const res = await axios.get(`${BASE}/products/performance`, { params });
     return res.data;
 };

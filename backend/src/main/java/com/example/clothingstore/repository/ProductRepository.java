@@ -1,6 +1,7 @@
 package com.example.clothingstore.repository;
 
 import com.example.clothingstore.entity.Product;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -25,6 +26,9 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     // 4. Lấy sản phẩm đang hoạt động (IsActive = true)
     List<Product> findByIsActiveTrue();
+
+    @EntityGraph(attributePaths = {"skus"})
+    List<Product> findTop8ByCategoryIdAndIdNot(Long categoryId, Long productId);
 
     // ... Các query nâng cao
     @Query("""

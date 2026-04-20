@@ -19,6 +19,10 @@ public class ProductResponse {
     private String name;
     private String description;
     private BigDecimal basePrice;
+
+    private BigDecimal minPrice;
+    private BigDecimal maxPrice;
+
     private String brandName;
     private String categoryName;
     private String thumbnail;

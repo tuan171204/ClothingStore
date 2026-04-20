@@ -4,11 +4,13 @@
 package com.example.clothingstore.controller;
 
 import com.example.clothingstore.dtos.report.*;
+import com.example.clothingstore.dtos.report.response.SalesComparisonResponse;
 import com.example.clothingstore.service.impl.ReportingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -126,6 +128,33 @@ public class ReportingController {
         return ResponseEntity.ok(reportingService.getRevenueByCategory(from, to));
     }
 
+    /**
+     * GET /reports/sales/trend?from=2026-01-01&to=2026-01-31&groupBy=DAY
+     */
+    @GetMapping("/sales/trend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Sales trend with comparison", description = "Get dynamic chart data (DAY/WEEK/MONTH) and comparison metrics")
+    public ResponseEntity<SalesComparisonResponse> getSalesTrend(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "DAY") String groupBy) {
+        return ResponseEntity.ok(reportingService.getSalesTrendAndComparison(from, to, groupBy));
+    }
+
+    /**
+     * GET /reports/sales/export?from=2026-01-01&to=2026-01-31&groupBy=DAY
+     */
+    @GetMapping("/sales/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Export Sales Report to CSV")
+    public void exportSalesCsv(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "DAY") String groupBy,
+            HttpServletResponse response) {
+        reportingService.exportRevenueCsv(from, to, groupBy, response);
+    }
+
     // ════════════════════════════════════════════════════════
     // ORDER REPORTS
     // ════════════════════════════════════════════════════════
@@ -194,5 +223,22 @@ public class ReportingController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "10") int topN) {
         return ResponseEntity.ok(reportingService.getBestSellers(from, to, topN));
+    }
+
+    /**
+     * GET /reports/products/performance?from=2026-01-01&to=2026-03-31&type=TOP&limit=10
+     */
+    @GetMapping("/products/performance")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Product performance (Top/Bottom)",
+            description = "Filter by category/brand. type=TOP for best sellers, type=BOTTOM for worst.")
+    public ResponseEntity<List<BestSellerDTO>> getProductPerformance(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(defaultValue = "TOP") String type,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(reportingService.getProductPerformance(from, to, categoryId, brandId, type, limit));
     }
 }

@@ -287,6 +287,27 @@ public interface ReportRepository extends JpaRepository<Order, Long> {
             @Param("topN") int topN);
 
     /**
+     * Revenue by WEEK.
+     */
+    @Query(value = """
+        SELECT
+            DATE_FORMAT(o.created_at, '%X-W%V')      AS period,
+            COALESCE(SUM(o.total_amount), 0)         AS revenue,
+            COUNT(o.id)                              AS orderCount,
+            COALESCE(AVG(o.total_amount), 0)         AS averageOrderValue,
+            0                                        AS grossProfit
+        FROM orders o
+        WHERE o.status = 'COMPLETED'
+          AND o.created_at BETWEEN :from AND :to
+        GROUP BY DATE_FORMAT(o.created_at, '%X-W%V')
+        ORDER BY period ASC
+        """, nativeQuery = true)
+    List<RevenuePeriodProjection> findWeeklyRevenue(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+
+    /**
      * Dashboard KPIs — today vs yesterday vs this month vs last month.
      * Used for % change cards (↑12% vs last month).
      */
@@ -323,4 +344,41 @@ public interface ReportRepository extends JpaRepository<Order, Long> {
     Long findNewCustomerCount(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    /**
+     * Product Performance (Top or Bottom).
+     * WHY: Identifies which products to push (Top) or discontinue (Bottom).
+     * Uses IFNULL trick to ignore filters if they are null.
+     */
+    @Query(value = """
+        SELECT
+            p.id                                    AS productId,
+            p.name                                  AS productName,
+            p.thumbnail                             AS thumbnail,
+            SUM(oi.quantity)                        AS quantitySold,
+            SUM(oi.quantity * oi.price_at_purchase) AS revenue,
+            COALESCE(MAX(inv.available_quantity), 0) AS currentStock,
+            RANK() OVER (ORDER BY SUM(oi.quantity) DESC) AS rankNum
+        FROM order_items  oi
+        JOIN orders       o   ON o.id  = oi.order_id
+        JOIN skus         s   ON s.id  = oi.sku_id
+        JOIN products     p   ON p.id  = s.product_id
+        LEFT JOIN inventory inv ON inv.sku_id = s.id
+        WHERE o.status = 'COMPLETED'
+          AND o.created_at BETWEEN :from AND :to
+          AND (:categoryId IS NULL OR p.category_id = :categoryId)
+          AND (:brandId IS NULL OR p.brand_id = :brandId)
+        GROUP BY p.id, p.name, p.thumbnail
+        ORDER BY 
+            CASE WHEN :sortOrder = 'ASC' THEN SUM(oi.quantity) END ASC,
+            CASE WHEN :sortOrder = 'DESC' THEN SUM(oi.quantity) END DESC
+        LIMIT :topN
+        """, nativeQuery = true)
+    List<BestSellerProjection> findProductPerformance(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to,
+            @Param("categoryId") Long categoryId,
+            @Param("brandId") Long brandId,
+            @Param("sortOrder") String sortOrder,
+            @Param("topN") int topN);
 }

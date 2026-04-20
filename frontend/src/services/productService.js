@@ -91,3 +91,16 @@ export const getVariantProdut = async (id) => {
         throw error; // Ném lỗi để UI hiển thị toast thông báo thất bại
     }
 };
+
+/*
+* API GET CÁC SẢN PHẨM LIÊN QUAN
+*/
+export const getRelatedProducts = async (id) => {
+    try {
+        const response = await axios.get(`/products/${id}/related`);
+        return response.data;
+    } catch (error) {
+        console.error(`Lỗi khi lấy các sản phẩm liên quan ${id}:`, error);
+        throw error; // Ném lỗi để UI hiển thị toast thông báo thất bại
+    }
+};

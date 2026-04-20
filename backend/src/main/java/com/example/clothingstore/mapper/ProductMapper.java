@@ -5,9 +5,10 @@ import com.example.clothingstore.dtos.dto.ProductOptionValueDTO;
 import com.example.clothingstore.dtos.dto.SkuDTO;
 import com.example.clothingstore.dtos.product.response.ProductResponse;
 import com.example.clothingstore.entity.*;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.Named;
+import org.mapstruct.*;
+
+import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.Set;
 
 import java.util.Comparator;
@@ -24,6 +25,28 @@ public interface ProductMapper {
     @Mapping(source = "skus", target = "skus", qualifiedByName = "mapAndSortSkus")
     @Mapping(source = "active", target = "isActive")
     ProductResponse toProductResponse(Product product);
+
+    @AfterMapping
+    default void calculatePriceRange(Product product, @MappingTarget ProductResponse.ProductResponseBuilder responseBuilder) {
+        if (product.getSkus() != null && !product.getSkus().isEmpty()) {
+            BigDecimal min = product.getSkus().stream()
+                    .map(Sku::getPrice)
+                    .filter(Objects::nonNull)
+                    .min(BigDecimal::compareTo)
+                    .orElse(product.getBasePrice());
+
+            BigDecimal max = product.getSkus().stream()
+                    .map(Sku::getPrice)
+                    .filter(Objects::nonNull)
+                    .max(BigDecimal::compareTo)
+                    .orElse(product.getBasePrice());
+
+            responseBuilder.minPrice(min).maxPrice(max);
+        } else {
+            responseBuilder.minPrice(product.getBasePrice())
+                    .maxPrice(product.getBasePrice());
+        }
+    }
 
     // 2. Map Option & OptionValue
     ProductOptionDTO toOptionDTO(ProductOption option);

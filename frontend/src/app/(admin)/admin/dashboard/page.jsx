@@ -1,10 +1,10 @@
 'use client';
-
+import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import {
     TrendingUp, ShoppingCart, Users, Package,
     AlertTriangle, ArrowUpRight, ArrowDownRight,
-    Calendar, RefreshCw, BarChart2, Star,
+    Calendar, RefreshCw, BarChart2, Star, Download, Filter
 } from 'lucide-react';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -18,7 +18,11 @@ import {
     getBestSellers,
     getTopCustomers,
     getOrderSummaryReport,
+    getSalesTrend,
+    exportSalesCsvUrl,
+    downloadSalesCsv
 } from '@/services/reportService';
+import { toast } from 'react-toastify';
 
 // ── Helpers ─────────────────────────────────────────────────
 const fmt = (n) =>
@@ -103,6 +107,9 @@ export default function DashboardPage() {
     const [orderStats, setOrderStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [year, setYear] = useState(thisYear);
+    const [trendData, setTrendData] = useState(null);
+    const [groupBy, setGroupBy] = useState('DAY');
+    const [dateRange, setDateRange] = useState({ from: monthStart, to: monthEnd });
 
     const load = async () => {
         setLoading(true);
@@ -128,7 +135,17 @@ export default function DashboardPage() {
         }
     };
 
+    const loadTrend = async () => {
+        try {
+            const data = await getSalesTrend(dateRange.from, dateRange.to, groupBy);
+            setTrendData(data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     useEffect(() => { load(); }, [year]);
+    useEffect(() => { loadTrend(); }, [dateRange, groupBy]);
 
     if (loading) return (
         <div className="flex items-center justify-center h-64">
@@ -150,6 +167,15 @@ export default function DashboardPage() {
         name: s.status,
         value: Number(s.count ?? 0),
     }));
+
+    const handleExportCSV = async () => {
+        try {
+            await downloadSalesCsv(dateRange.from, dateRange.to, groupBy);
+        } catch (error) {
+            console.error('Lỗi xuất CSV:', error);
+            toast.error('Không thể xuất file. Vui lòng kiểm tra quyền hạn hoặc đăng nhập lại.');
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -229,6 +255,90 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
             </Section>
 
+            <Section
+                title="Phân tích doanh thu & So sánh kỳ trước"
+                action={
+                    <div className="flex gap-3">
+                        <select
+                            value={groupBy}
+                            onChange={(e) => setGroupBy(e.target.value)}
+                            className="border border-gray-300 rounded-md px-4 py-1 text-md outline-none"
+                        >
+                            <option value="DAY">Theo Ngày</option>
+                            <option value="WEEK">Theo Tuần</option>
+                            <option value="MONTH">Theo Tháng</option>
+                        </select>
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-1 bg-green-600 text-white px-4 py-1 text-md rounded-md hover:bg-green-700 transition"
+                        >
+                            <Download size={14} /> Xuất CSV
+                        </button>
+                    </div>
+                }
+            >
+                {/* Hiển thị tóm tắt so sánh */}
+                {trendData && (
+                    <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+                        <div>
+                            <p className="text-sm text-gray-500">Doanh thu kỳ này</p>
+                            <p className="text-xl font-bold text-gray-900">{fmtShort(trendData.currentPeriod.totalRevenue)}</p>
+                            <p className={`text-sm mt-1 ${trendData.revenueGrowthPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {trendData.revenueGrowthPct >= 0 ? '↑' : '↓'} {Math.abs(trendData.revenueGrowthPct)}% so với kỳ trước
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Đơn hàng kỳ này</p>
+                            <p className="text-xl font-bold text-gray-900">{trendData.currentPeriod.totalOrders}</p>
+                            <p className={`text-sm mt-1 ${trendData.ordersGrowthPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {trendData.ordersGrowthPct >= 0 ? '↑' : '↓'} {Math.abs(trendData.ordersGrowthPct)}%
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">AOV (Trung bình/Đơn)</p>
+                            <p className="text-xl font-bold text-gray-900">{fmtShort(trendData.currentPeriod.averageOrderValue)}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Render AreaChart sử dụng trendData.chartData */}
+                <ResponsiveContainer width="100%" height={280}>
+                    <AreaChart data={trendData?.chartData || []}>
+                        <defs>
+                            <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis
+                            dataKey="period"
+                            tick={{ fontSize: 11, fill: '#64748b' }}
+                            axisLine={false}
+                            tickLine={false}
+                            dy={10}
+                        />
+                        <YAxis
+                            tickFormatter={fmtShort}
+                            tick={{ fontSize: 11, fill: '#64748b' }}
+                            axisLine={false}
+                            tickLine={false}
+                            dx={-10}
+                        />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Area
+                            type="monotone"
+                            dataKey="revenue"
+                            name="Doanh thu"
+                            stroke="#10b981"
+                            strokeWidth={3}
+                            fill="url(#trendGrad)"
+                            activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </Section>
+
             {/* ── Row: Category Pie + Order Stats ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Section title="Doanh thu theo danh mục (tháng này)">
@@ -288,14 +398,22 @@ export default function DashboardPage() {
 
             {/* ── Row: Best Sellers + Top Customers ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Section title="🏆 Top sản phẩm bán chạy (tháng này)">
+                <Section title="🏆 Top sản phẩm bán chạy (tháng này)"
+                    action={
+                        <Link
+                            href="/admin/reports/performance"
+                            className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                        >
+                            Phân tích chi tiết <ArrowUpRight size={14} />
+                        </Link>
+                    }>
                     <div className="space-y-3">
                         {bestSellers.length > 0 ? bestSellers.map((p, i) => (
                             <div key={p.productId}
                                 className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                                 <span className={`text-md font-black w-6 text-center ${i === 0 ? 'text-amber-500' :
-                                        i === 1 ? 'text-gray-400' :
-                                            i === 2 ? 'text-orange-600' : 'text-gray-300'
+                                    i === 1 ? 'text-gray-400' :
+                                        i === 2 ? 'text-orange-600' : 'text-gray-300'
                                     }`}>#{i + 1}</span>
                                 <img src={p.thumbnail || 'https://placehold.co/40?text=?'}
                                     alt={p.productName}

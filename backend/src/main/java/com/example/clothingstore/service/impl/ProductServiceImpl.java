@@ -64,6 +64,22 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + id));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getRelatedProducts(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + productId));
+
+        if (product.getCategory() == null) {
+            return Collections.emptyList();
+        }
+
+        return productRepository.findTop8ByCategoryIdAndIdNot(product.getCategory().getId(), productId)
+                .stream()
+                .map(productMapper::toProductResponse)
+                .toList(); // Sử dụng toList() của Java 16+ thay vì Collectors.toList()
+    }
+
     // --- LOGIC TÌM SKU ---
     @Override
     @Transactional(readOnly = true)

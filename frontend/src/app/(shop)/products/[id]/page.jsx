@@ -1,14 +1,19 @@
 import React from 'react';
-import { getProductById } from '@/services/productService';
+import { getProductById, getRelatedProducts } from '@/services/productService';
 import ProductDetail from '@/components/shop/ProductDetail';
+import ProductCard from '@/components/shop/ProductCard';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 
 // Hàm này chạy trên Server Next.js
 export default async function ProductPage({ params }) {
     // Lấy ID từ URL (params.id)
-    const { id } = await params; // Phải await params trước
-    const product = await getProductById(id);
+    const { id } = await params;
+
+    const [product, relatedProducts] = await Promise.all([
+        getProductById(id),
+        getRelatedProducts(id)
+    ]);
 
     if (!product) {
         return (
@@ -29,8 +34,21 @@ export default async function ProductPage({ params }) {
                 <span className="text-gray-900 font-medium truncate">{product.name}</span>
             </nav>
 
-            {/* Client Component xử lý tương tác */}
             <ProductDetail product={product} />
+
+            {/* Section: Sản phẩm liên quan */}
+            {relatedProducts && relatedProducts.length > 0 && (
+                <div className="mt-20 border-t border-gray-200 pt-10">
+                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-8 text-center">
+                        Có thể bạn sẽ thích
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                        {relatedProducts.map(relProduct => (
+                            <ProductCard key={relProduct.id} product={relProduct} />
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
