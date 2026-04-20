@@ -109,21 +109,21 @@ export default function AdminProductPage() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                     <div>
                         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Quản lý Sản phẩm</h1>
-                        <p className="text-xs sm:text-md text-gray-500 mt-0.5 hidden sm:block">
+                        <p className="text-sm sm:text-md text-gray-500 mt-0.5 hidden sm:block">
                             Kho hàng, giá bán và phân loại sản phẩm
                         </p>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                         <button
                             onClick={fetchData}
-                            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-md font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm sm:text-md font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
                         >
                             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                             <span className="hidden sm:inline">Làm mới</span>
                         </button>
                         <Link
                             href="/admin/products/create"
-                            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-md font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex-1 sm:flex-none justify-center sm:justify-start"
+                            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm sm:text-md font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex-1 sm:flex-none justify-center sm:justify-start"
                         >
                             <Plus size={16} /> <span>Thêm sản phẩm</span>
                         </Link>
@@ -163,7 +163,7 @@ export default function AdminProductPage() {
                                 placeholder="Tìm theo tên sản phẩm..."
                                 value={keyword}
                                 onChange={e => setKeyword(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 text-xs sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                className="w-full pl-9 pr-4 py-2.5 text-sm sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                             />
                             {keyword && (
                                 <button onClick={() => setKeyword('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -177,7 +177,7 @@ export default function AdminProductPage() {
                             <select
                                 value={categoryId}
                                 onChange={e => setCategoryId(e.target.value)}
-                                className="px-3 py-2.5 text-xs sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                                className="px-3 py-2.5 text-sm sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                             >
                                 <option value="">Tất cả Danh mục</option>
                                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -186,7 +186,7 @@ export default function AdminProductPage() {
                             <select
                                 value={brandId}
                                 onChange={e => setBrandId(e.target.value)}
-                                className="px-3 py-2.5 text-xs sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                                className="px-3 py-2.5 text-sm sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                             >
                                 <option value="">Tất cả Thương hiệu</option>
                                 {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -195,7 +195,7 @@ export default function AdminProductPage() {
                             <select
                                 value={pageSize}
                                 onChange={e => setPageSize(Number(e.target.value))}
-                                className="px-3 py-2.5 text-xs sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white col-span-2 sm:col-span-1 sm:w-32"
+                                className="px-3 py-2.5 text-sm sm:text-md border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white col-span-2 sm:col-span-1 sm:w-32"
                             >
                                 {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n} / trang</option>)}
                             </select>
@@ -206,11 +206,11 @@ export default function AdminProductPage() {
                     {hasActiveFilter && (
                         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100">
                             <Filter size={13} className="text-gray-400" />
-                            <span className="text-xs sm:text-sm text-gray-500">Đang lọc:</span>
+                            <span className="text-sm sm:text-md text-gray-500">Đang lọc:</span>
                             {keyword && <FilterChip label={`"${keyword}"`} onRemove={() => setKeyword('')} />}
                             {categoryId && <FilterChip label={`DM: ${getCategoryLabel()}`} onRemove={() => setCategoryId('')} />}
                             {brandId && <FilterChip label={`TH: ${getBrandLabel()}`} onRemove={() => setBrandId('')} />}
-                            <button onClick={clearFilters} className="ml-auto text-xs sm:text-sm font-medium text-red-500 hover:text-red-700 flex items-center gap-1">
+                            <button onClick={clearFilters} className="ml-auto text-sm sm:text-md font-medium text-red-500 hover:text-red-700 flex items-center gap-1">
                                 <X size={12} /> Xóa tất cả
                             </button>
                         </div>
@@ -225,12 +225,12 @@ export default function AdminProductPage() {
                         {loading ? (
                             <div className="py-12 text-center">
                                 <RefreshCw size={24} className="animate-spin text-blue-400 mx-auto mb-2" />
-                                <span className="text-xs text-gray-400">Đang tải...</span>
+                                <span className="text-sm text-gray-400">Đang tải...</span>
                             </div>
                         ) : products.length === 0 ? (
                             <div className="py-12 text-center text-gray-400">
                                 <Package size={36} className="mx-auto mb-2 text-gray-200" />
-                                <p className="text-xs">Không tìm thấy sản phẩm</p>
+                                <p className="text-sm">Không tìm thấy sản phẩm</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-100">
@@ -243,13 +243,13 @@ export default function AdminProductPage() {
                                             }
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-gray-800 text-xs truncate">{product.name}</p>
-                                            <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                            <p className="font-semibold text-gray-800 text-sm truncate">{product.name}</p>
+                                            <p className="text-sm text-gray-400 mt-0.5 truncate">
                                                 {product.categoryName || '—'} · {product.brandName || '—'}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className="font-bold text-blue-600 text-xs">{formatCurrency(product.basePrice)}</span>
-                                                <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${product.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                <span className="font-bold text-blue-600 text-sm">{formatCurrency(product.basePrice)}</span>
+                                                <span className={`px-1.5 py-0.5 rounded text-sm font-semibold ${product.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                                                     {product.isActive ? 'Đang bán' : 'Đã ẩn'}
                                                 </span>
                                             </div>
@@ -274,7 +274,7 @@ export default function AdminProductPage() {
                     <div className="hidden sm:block overflow-x-auto">
                         <table className="w-full text-md text-left">
                             <thead>
-                                <tr className="bg-gray-50 border-b border-gray-200 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                                <tr className="bg-gray-50 border-b border-gray-200 text-md font-semibold text-gray-500 uppercase tracking-wider">
                                     <th className="px-4 py-3 text-center w-16">ID</th>
                                     <th className="px-4 py-3 w-20">Ảnh</th>
                                     <th className="px-4 py-3 min-w-[250px]">Tên sản phẩm</th>
@@ -302,7 +302,7 @@ export default function AdminProductPage() {
                                                 <Package size={40} className="text-gray-200" />
                                                 <span className="text-md">Không tìm thấy sản phẩm nào</span>
                                                 {hasActiveFilter && (
-                                                    <button onClick={clearFilters} className="text-blue-500 text-sm hover:underline">
+                                                    <button onClick={clearFilters} className="text-blue-500 text-md hover:underline">
                                                         Xóa bộ lọc và thử lại
                                                     </button>
                                                 )}
@@ -339,7 +339,7 @@ export default function AdminProductPage() {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <span className={`inline-flex px-2 py-1 rounded-md text-xs font-semibold ${product.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                <span className={`inline-flex px-2 py-1 rounded-md text-sm font-semibold ${product.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                                                     {product.isActive ? 'Đang bán' : 'Đã ẩn'}
                                                 </span>
                                             </td>
@@ -371,7 +371,7 @@ export default function AdminProductPage() {
                     {/* ── PAGINATION ── */}
                     {totalPages > 0 && (
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-100 bg-gray-50/50">
-                            <p className="text-xs sm:text-md text-gray-500">
+                            <p className="text-sm sm:text-md text-gray-500">
                                 Hiển thị{' '}
                                 <span className="font-semibold text-gray-700">
                                     {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalElements)}
@@ -385,7 +385,7 @@ export default function AdminProductPage() {
                                 <PaginationBtn onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} label={<ChevronLeft size={16} />} />
                                 {generatePageNumbers(page, totalPages).map((p, i) =>
                                     p === '...' ? (
-                                        <span key={`ellipsis-${i}`} className="px-1 text-gray-400 text-xs">…</span>
+                                        <span key={`ellipsis-${i}`} className="px-1 text-gray-400 text-sm">…</span>
                                     ) : (
                                         <PaginationBtn key={p} onClick={() => setPage(p)} active={p === page} label={p + 1} />
                                     )
@@ -405,14 +405,14 @@ const SummaryCard = ({ icon, label, value, bg }) => (
     <div className={`${bg} rounded-xl sm:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-4 border border-white shadow-sm`}>
         <div className="shrink-0 p-1.5 sm:p-3 bg-white/60 rounded-lg sm:rounded-xl">{icon}</div>
         <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-medium text-gray-600 mb-0.5 truncate">{label}</p>
+            <p className="text-sm sm:text-md font-medium text-gray-600 mb-0.5 truncate">{label}</p>
             <p className="font-bold text-gray-900 text-md sm:text-2xl leading-none">{value}</p>
         </div>
     </div>
 );
 
 const FilterChip = ({ label, onRemove }) => (
-    <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
+    <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-medium">
         {label}
         <button onClick={onRemove} className="hover:text-blue-900 cursor-pointer"><X size={10} /></button>
     </span>
@@ -422,7 +422,7 @@ const PaginationBtn = ({ onClick, disabled, active, label }) => (
     <button
         onClick={onClick}
         disabled={disabled}
-        className={`min-w-[30px] sm:min-w-[34px] h-[30px] sm:h-[34px] px-1.5 sm:px-2 flex items-center justify-center rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${active
+        className={`min-w-[30px] sm:min-w-[34px] h-[30px] sm:h-[34px] px-1.5 sm:px-2 flex items-center justify-center rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${active
             ? 'bg-blue-600 text-white shadow-sm'
             : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}>

@@ -16,7 +16,7 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     Optional<Inventory> findBySkuId(Long skuId);
 
-    @Query("SELECT i FROM Inventory i WHERE i.lowStockThreshold > 0 AND i.availableQuantity < i.lowStockThreshold")
+    @Query("SELECT i FROM Inventory i WHERE i.availableQuantity <= 0 OR (i.lowStockThreshold > 0 AND i.availableQuantity <= i.lowStockThreshold)")
     List<Inventory> findLowStockItems();
 
     boolean existsBySkuId(Long skuId);

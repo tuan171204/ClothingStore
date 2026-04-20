@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Package, AlertTriangle, DollarSign, Activity, Settings, Edit3, X,
-    ArrowUpRight, ArrowDownRight, RefreshCcw, Loader2, Search, ChevronDown
+    ArrowUpRight, ArrowDownRight, RefreshCcw, Loader2, Search, ChevronDown, Filter
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAdminAuth } from '@/context/AdminAuthContext';
@@ -235,6 +235,11 @@ export default function InventoryDashboardPage() {
     const [thresholdForm, setThresholdForm] = useState({ threshold: 0 });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const [lowStockItems, setLowStockItems] = useState([]);
+    const [viewMode, setViewMode] = useState('ALL');
+
+    const [customThreshold, setCustomThreshold] = useState('');
+
     const isAdmin = adminUser?.role?.name === 'ADMIN' || adminUser?.role?.name === 'SUPER_ADMIN';
 
     const fetchDashboardData = useCallback(async () => {
@@ -245,7 +250,12 @@ export default function InventoryDashboardPage() {
                 getLowStockItems(),
             ]);
             setStockData(stockRes?.result);
-            setLowStockCount(lowStockRes?.result?.length || 0);
+
+            // LƯU Ý: Lưu trực tiếp mảng result vào state
+            const lowStockData = lowStockRes?.result || [];
+            setLowStockItems(lowStockData);
+            setLowStockCount(lowStockData.length);
+
             if (isAdmin) {
                 const valRes = await getInventoryValuation();
                 setValuation(valRes?.result?.totalValue || 0);
@@ -255,6 +265,7 @@ export default function InventoryDashboardPage() {
     }, [isAdmin]);
 
     useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+    useEffect(() => { setSummaryPage(0); }, [viewMode]);
 
     const handleSelectProduct = async (product) => {
         setLoadingProduct(true);
@@ -308,7 +319,13 @@ export default function InventoryDashboardPage() {
     };
 
     const allItems = stockData?.items || [];
-    const pageItems = allItems.slice(summaryPage * PAGE_SIZE, (summaryPage + 1) * PAGE_SIZE);
+    const baseItems = viewMode === 'ALERT' ? lowStockItems : allItems;
+
+    const filteredItems = customThreshold !== ''
+        ? baseItems.filter(item => item.availableQuantity < Number(customThreshold))
+        : baseItems;
+
+    const pageItems = filteredItems.slice(summaryPage * PAGE_SIZE, (summaryPage + 1) * PAGE_SIZE);
 
     return (
         <div className="p-3 sm:p-4 max-w-7xl mx-auto space-y-4 sm:space-y-6">
@@ -318,14 +335,22 @@ export default function InventoryDashboardPage() {
 
             {/* KPI WIDGETS */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5">
-                <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-5 flex items-center justify-between">
+                <div
+                    onClick={() => setViewMode('ALL')}
+                    className={`bg-white rounded-xl shadow-sm border p-3 sm:p-5 flex items-center justify-between cursor-pointer transition-all ${viewMode === 'ALL' ? 'ring-2 ring-blue-500 border-transparent' : 'hover:border-blue-300'}`}
+                >
                     <div><p className="text-xs sm:text-md text-gray-500 mb-1">Tổng SKUs</p><p className="text-2xl sm:text-3xl font-bold text-gray-800">{stockData?.totalSkus || 0}</p></div>
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0"><Package size={18} /></div>
                 </div>
-                <div className={`bg-white rounded-xl shadow-sm border p-3 sm:p-5 flex items-center justify-between ${lowStockCount > 0 ? 'border-red-100' : ''}`}>
-                    <div><p className="text-xs sm:text-md text-red-500 mb-1 font-medium">Sắp hết hàng</p><p className="text-2xl sm:text-3xl font-bold text-red-600">{lowStockCount} <span className="text-lg sm:text-xl font-normal">SKUs</span></p></div>
+
+                <div
+                    onClick={() => setViewMode('ALERT')}
+                    className={`bg-white rounded-xl shadow-sm border p-3 sm:p-5 flex items-center justify-between cursor-pointer transition-all ${viewMode === 'ALERT' ? 'ring-2 ring-red-500 border-transparent' : 'hover:border-red-300'}`}
+                >
+                    <div><p className="text-xs sm:text-md text-red-500 mb-1 font-medium">Cần nhập hàng</p><p className="text-2xl sm:text-3xl font-bold text-red-600">{lowStockCount} <span className="text-lg sm:text-xl font-normal">SKUs</span></p></div>
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0"><AlertTriangle size={18} /></div>
                 </div>
+
                 {isAdmin && (
                     <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-3 sm:p-5 flex items-center justify-between col-span-2 sm:col-span-1">
                         <div><p className="text-xs sm:text-md text-emerald-600 mb-1 font-medium">Tổng Giá Trị Kho</p>
@@ -367,9 +392,36 @@ export default function InventoryDashboardPage() {
                         <h2 className="font-bold text-gray-800 text-sm sm:text-base">Tổng quan tồn kho</h2>
                         <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{allItems.length} SKUs</p>
                     </div>
-                    <button onClick={fetchDashboardData} className="text-sm text-gray-600 flex items-center gap-1 hover:text-blue-600">
-                        <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> <span className="hidden sm:inline">Làm mới</span>
-                    </button>
+                    {/* Khu vực Filter & Nút Làm mới */}
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-1.5 shadow-sm w-full sm:w-auto focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all">
+                            <Filter size={14} className="text-gray-400" />
+                            <span className="text-sm font-medium text-gray-600 whitespace-nowrap">Số lương ít hơn {'<'}</span>
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="VD: 15"
+                                value={customThreshold}
+                                onChange={(e) => {
+                                    setCustomThreshold(e.target.value);
+                                    setSummaryPage(0);
+                                }}
+                                className="w-16 sm:w-20 outline-none text-sm font-bold text-gray-900 bg-transparent placeholder-gray-300"
+                            />
+                            {customThreshold && (
+                                <button
+                                    onClick={() => { setCustomThreshold(''); setSummaryPage(0); }}
+                                    className="text-gray-400 hover:text-red-500 cursor-pointer"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
+
+                        <button onClick={fetchDashboardData} className="text-sm text-gray-600 flex items-center gap-1 hover:text-blue-600 shrink-0 cursor-pointer">
+                            <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} /> <span className="hidden sm:inline">Làm mới</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Mobile: compact rows */}
@@ -377,18 +429,36 @@ export default function InventoryDashboardPage() {
                     {loading ? (
                         <div className="p-8 text-center text-gray-400">Đang tải...</div>
                     ) : pageItems.map((item) => (
-                        <div key={item.id} onClick={() => openDrawer(item)}
-                            className={`flex items-center gap-3 p-3 hover:bg-blue-50/50 cursor-pointer ${item.lowStock ? 'bg-red-50/20' : ''}`}>
+                        <div
+                            key={item.id}
+                            onClick={() => openDrawer(item)}
+                            className={`flex items-center gap-3 p-3 hover:bg-blue-50/50 cursor-pointer transition-colors
+                ${item.availableQuantity <= 0 ? 'bg-red-50/40' : item.lowStock ? 'bg-orange-50/30' : ''}`}
+                        >
                             <div className="flex-1 min-w-0">
                                 <p className="font-medium text-gray-800 text-sm truncate">
                                     {item.productName}
-                                    {item.lowStock && <span className="ml-2 text-xs text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">Sắp hết</span>}
+                                    {/* Badge hiển thị trạng thái cụ thể */}
+                                    {item.availableQuantity <= 0 ? (
+                                        <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 text-[9px] font-black rounded-full uppercase tracking-wider">
+                                            Hết hàng
+                                        </span>
+                                    ) : item.lowStock ? (
+                                        <span className="ml-2 px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                            Sắp hết
+                                        </span>
+                                    ) : null}
                                 </p>
                                 <p className="text-xs text-gray-400 font-mono mt-0.5">{item.skuCode}</p>
                             </div>
+
                             <div className="text-right shrink-0">
-                                <p className={`font-bold text-sm ${item.lowStock ? 'text-red-600' : 'text-emerald-600'}`}>{item.availableQuantity}</p>
-                                <p className="text-xs text-gray-400">có thể bán</p>
+                                <p className={`font-bold text-sm 
+                    ${item.availableQuantity <= 0 ? 'text-red-600' : item.lowStock ? 'text-orange-600' : 'text-emerald-600'}`}
+                                >
+                                    {item.availableQuantity}
+                                </p>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-tighter">có thể bán</p>
                             </div>
                         </div>
                     ))}
@@ -412,14 +482,19 @@ export default function InventoryDashboardPage() {
                                 <tr><td colSpan="6" className="p-8 text-center text-gray-400">Đang tải...</td></tr>
                             ) : pageItems.map((item) => (
                                 <tr key={item.id} onClick={() => openDrawer(item)}
-                                    className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${item.lowStock ? 'bg-red-50/20' : ''}`}>
+                                    className={`hover:bg-blue-50/50 cursor-pointer transition-colors ${item.availableQuantity <= 0 ? 'bg-red-50/40' : item.lowStock ? 'bg-orange-50/30' : ''}`}>
                                     <td className="p-4 font-medium text-gray-800">
                                         {item.productName}
-                                        {item.lowStock && <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] rounded-full">Sắp hết</span>}
+                                        {/* Phân loại rõ ràng 2 mức độ cảnh báo */}
+                                        {item.availableQuantity <= 0 ? (
+                                            <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-black rounded-full uppercase tracking-wider">Hết hàng</span>
+                                        ) : item.lowStock ? (
+                                            <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Sắp hết</span>
+                                        ) : null}
                                     </td>
                                     <td className="p-4 text-gray-500 font-mono text-sm">{item.skuCode}</td>
                                     <td className="p-4 text-center text-gray-600">{item.physicalQuantity}</td>
-                                    <td className={`p-4 text-center font-bold ${item.lowStock ? 'text-red-600' : 'text-emerald-600'}`}>{item.availableQuantity}</td>
+                                    <td className={`p-4 text-center font-bold ${item.availableQuantity <= 0 ? 'text-red-600' : item.lowStock ? 'text-orange-600' : 'text-emerald-600'}`}>{item.availableQuantity}</td>
                                     <td className="p-4 text-center text-amber-600">{item.reservedQuantity > 0 ? item.reservedQuantity : '—'}</td>
                                     <td className="p-4 text-center text-red-500">{item.defectQuantity > 0 ? item.defectQuantity : '—'}</td>
                                 </tr>
@@ -429,8 +504,8 @@ export default function InventoryDashboardPage() {
                 </div>
                 <Pagination
                     page={summaryPage}
-                    totalPages={Math.ceil(allItems.length / PAGE_SIZE)}
-                    totalElements={allItems.length}
+                    totalPages={Math.ceil(filteredItems.length / PAGE_SIZE)}
+                    totalElements={filteredItems.length}
                     size={PAGE_SIZE}
                     onPageChange={setSummaryPage}
                     loading={loading}
