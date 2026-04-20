@@ -24,5 +24,5 @@ RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && \
     echo "Asia/Ho_Chi_Minh" > /etc/timezone \
 
-# Cấu hình để Java nhận diện được file cấu hình bên ngoài hoặc profile
-ENTRYPOINT ["java", "-Duser.timezone=Asia/Ho_Chi_Minh", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
+    # Cấu hình để Java nhận diện được file cấu hình bên ngoài hoặc profile
+    ENTRYPOINT ["java", "-Xms256m", "-Xmx300m", "-Xss512k", "-XX:+UseSerialGC", "-jar", "/app.jar"]
