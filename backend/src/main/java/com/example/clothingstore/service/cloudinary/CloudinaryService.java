@@ -21,4 +21,8 @@ public class CloudinaryService {
         // Trả về URL của ảnh đã upload
         return (String) uploadResult.get("secure_url");
     }
+
+    public void deleteImage(String publicId) throws IOException {
+        cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+    }
 }

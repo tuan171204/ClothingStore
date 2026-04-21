@@ -37,4 +37,6 @@ public interface ProductService {
     ProductVariantResponse getVariantMatrix(Long id);
 
     SkuDTO updateSkuProfitMargin(Long skuId, Map<String, Object> body);
+
+    SkuDTO toggleSkuStatus(Long skuId);
 }

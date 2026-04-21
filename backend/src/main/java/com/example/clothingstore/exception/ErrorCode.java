@@ -57,7 +57,11 @@ public enum ErrorCode {
     ORDER_RETURN_ALREADY_REQUESTED(7005, "Đơn hàng đã có yêu cầu hoàn trả đang xử lý", HttpStatus.BAD_REQUEST),
 
     // Nhóm 80: Flash Sales
-    SKU_FLASH_SALES_OUT_OF_STOCK(8001, "Sản phẩm Flash Sale đã cháy hàng!", HttpStatus.BAD_REQUEST);
+    SKU_FLASH_SALES_OUT_OF_STOCK(8001, "Sản phẩm Flash Sale đã cháy hàng!", HttpStatus.BAD_REQUEST),
+
+    // Nhóm 90: Module Banner
+    BANNER_NOT_FOUND(9001, "Không tìm thấy banner", HttpStatus.NOT_FOUND),
+    BANNER_UPLOAD_ERROR(9002, "Lỗi khi tải ảnh banner lên hệ thống", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;
     private final String message;

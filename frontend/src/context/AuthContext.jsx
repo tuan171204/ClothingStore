@@ -23,6 +23,9 @@ export const AuthProvider = ({ children }) => {
                     setUser(response.result);
                 } catch (error) {
                     console.error("Phiên đăng nhập đã hết hạn hoàn toàn!");
+
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('refresh_token');
                     setUser(null);
                 }
             }

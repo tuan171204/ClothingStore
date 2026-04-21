@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { ArrowLeft, Save, Loader2, Plus, X, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import ImageUpload from '@/components/common/ImageUpload';
-import { getProductById, updateProduct } from '@/services/productService';
+import { getProductById, toggleSkuStatus, updateProduct } from '@/services/productService';
 import { getCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';
 import { productOptionService } from '@/services/productOptionService';
@@ -168,6 +168,19 @@ export default function EditProductPage() {
         }
     };
 
+    const handleToggleSkuStatus = async (skuId) => {
+        try {
+            const updatedSku = await toggleSkuStatus(skuId);
+            setSkus(prevSkus =>
+                prevSkus.map(sku => sku.id === skuId ? updatedSku : sku)
+            );
+            toast.success("Đã cập nhật trạng thái SKU");
+        } catch (error) {
+            toast.error("Không thể cập nhật trạng thái");
+            console.log(error)
+        }
+    };
+
     if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto" /> Đang tải dữ liệu...</div>;
 
     return (
@@ -324,7 +337,6 @@ export default function EditProductPage() {
                                         <th className="p-4 font-bold w-24 text-center">Ảnh SKU</th>
                                         <th className="p-4 font-bold">Phân loại</th>
                                         <th className="p-4 font-bold">Mã SKU</th>
-                                        <th className="p-4 font-bold text-right w-32">Kho</th>
                                         <th className="p-4 font-bold text-center">Trạng thái</th>
                                     </tr>
                                 </thead>
@@ -355,23 +367,22 @@ export default function EditProductPage() {
                                                         disabled={isHidden}
                                                     />
                                                 </td>
-                                                <td className="p-3">
-                                                    <input
-                                                        type="number" className="border border-gray-300 p-2 rounded w-full text-right focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-100 font-bold"
-                                                        value={sku.stockQuantity || 0} onChange={(e) => handleSkuChange(index, 'stockQuantity', parseInt(e.target.value) || 0)}
-                                                        disabled={isHidden}
-                                                    />
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    {isHidden ? (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-500 text-[10px] uppercase font-bold rounded">
-                                                            <XCircle size={12} /> Đã ẩn
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-[10px] uppercase font-bold rounded">
-                                                            <CheckCircle2 size={12} /> Bán
-                                                        </span>
-                                                    )}
+                                                <td className="px-4 py-3 text-center">
+                                                    <button
+                                                        onClick={() => handleToggleSkuStatus(sku.id)}
+                                                        className="transition-transform active:scale-95"
+                                                        title="Click để thay đổi trạng thái"
+                                                    >
+                                                        {sku.isActive === false ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-500 text-[10px] uppercase font-bold rounded cursor-pointer hover:bg-gray-300">
+                                                                <XCircle size={12} /> Đã ẩn
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-[10px] uppercase font-bold rounded cursor-pointer hover:bg-green-200">
+                                                                <CheckCircle2 size={12} /> Đang bán
+                                                            </span>
+                                                        )}
+                                                    </button>
                                                 </td>
                                             </tr>
                                         );

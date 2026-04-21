@@ -413,4 +413,17 @@ public class ProductServiceImpl implements ProductService {
             throw new RuntimeException("Định dạng profitMargin không hợp lệ");
         }
     }
+
+    @Transactional
+    @Override
+    public SkuDTO toggleSkuStatus(Long skuId) {
+        Sku sku = skuRepository.findById(skuId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy SKU"));
+
+        // Đảo ngược trạng thái hiện tại
+        sku.setIsActive(!sku.getIsActive());
+
+        skuRepository.save(sku);
+        return productMapper.toSkuDTO(sku);
+    }
 }

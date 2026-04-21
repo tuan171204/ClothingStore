@@ -5,6 +5,7 @@ import ProductCard from '@/components/shop/ProductCard';
 import { getProductsWithFilter } from '@/services/productService';
 import { getCategoriesGrouped, getParentCategories } from '@/services/categoryService';
 import { getBrands } from '@/services/brandService';
+import { bannerService } from '@/services/bannerService';
 import {
     Filter, ChevronLeft, ChevronRight, Search, ArrowDown,
     Zap, X, SlidersHorizontal, ArrowRight, Star, TrendingUp,
@@ -15,11 +16,75 @@ import {
 import axios from '@/lib/axios';
 import CountdownTimer from '@/components/shop/CountdownTimer';
 import FlashSaleProgressBar from '@/components/shop/FlashSaleProgressBar';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, Pagination, Navigation } from 'swiper/modules';
 import Link from 'next/link';
+import Image from 'next/image';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import 'swiper/css/navigation';
 
 // ── Helpers ─────────────────────────────────────────────────
 const fmt = (n) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n ?? 0);
+
+function DynamicBanners() {
+    const [banners, setBanners] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        bannerService.getAllBanners()
+            .then(res => {
+                setBanners(res.data || []);
+            })
+            .catch(err => console.error("Lỗi tải banner:", err))
+            .finally(() => setLoading(false));
+    }, []);
+
+    if (loading || banners.length === 0) return null;
+
+    return (
+        <section className="w-full bg-white pb-8 pt-4">
+            <div className="container mx-auto px-4">
+                <Swiper
+                    // 1. Chỉ giữ lại Autoplay và Pagination (Đã gỡ Navigation)
+                    modules={[Autoplay, Pagination]}
+                    spaceBetween={20}
+                    slidesPerView={1}
+                    autoplay={{ delay: 2000, disableOnInteraction: false }}
+                    pagination={{ clickable: true }}
+                    className="
+                        rounded-2xl overflow-hidden aspect-[21/9] md:aspect-[3/1] group !pb-12 border-none
+                        
+                        /* 3. Style cho tất cả các chấm: To hơn (w-3 h-3) và dễ bấm */
+                        [&_.swiper-pagination-bullet]:w-3 [&_.swiper-pagination-bullet]:h-3
+                        [&_.swiper-pagination-bullet]:bg-gray-400 [&_.swiper-pagination-bullet]:opacity-40
+                        [&_.swiper-pagination-bullet]:transition-all [&_.swiper-pagination-bullet]:duration-300
+                        [&_.swiper-pagination-bullet]:cursor-pointer
+                        
+                        /* 4. Style Riêng cho chấm Active: Kéo dài thành hình viên thuốc màu đen */
+                        [&_.swiper-pagination-bullet-active]:w-10! [&_.swiper-pagination-bullet-active]:bg-gray-900! [&_.swiper-pagination-bullet-active]:opacity-100! [&_.swiper-pagination-bullet-active]:!rounded-full
+                    "
+                >
+                    {banners.map((banner, index) => (
+                        <SwiperSlide key={banner.id}>
+                            <Link href={banner.linkUrl || '#'} className="relative block w-full h-full">
+                                <Image
+                                    src={banner.imageUrl}
+                                    alt={banner.title}
+                                    fill
+                                    priority={index === 0}
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
+                                    className="object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-700"
+                                />
+                            </Link>
+                        </SwiperSlide>
+                    ))}
+                </Swiper>
+            </div>
+        </section>
+    );
+}
 
 // ────────────────────────────────────────────────────────────
 // SECTION: Trust badges
@@ -675,6 +740,8 @@ export default function HomePage() {
             </section>
 
             <TrustBadges />
+
+            <DynamicBanners />
 
             {/* FIX: truyền parentCategories (chỉ danh mục gốc) */}
             {parentCategories.length > 0 && <CategoryShowcase parentCategories={parentCategories} />}

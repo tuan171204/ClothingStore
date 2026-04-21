@@ -7,11 +7,13 @@ import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import AdminHeader from '@/components/admin/AdminHeader';
 import {
     LayoutDashboard, Package, ShoppingCart, FolderTree,
-    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck, Zap, Menu, X, Users
+    Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck, Zap, Menu, X, Users,
+    Images
 } from 'lucide-react';
 
 const navItems = [
     { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/admin/banners', icon: Images, label: 'Banners' },
     { href: '/admin/products', icon: Package, label: 'Sản phẩm' },
     { href: '/admin/pircing', icon: Coins, label: 'Quản lý giá' },
     { href: '/admin/orders', icon: ShoppingCart, label: 'Đơn hàng' },

@@ -125,6 +125,12 @@ public class ProductController {
         return ResponseEntity.ok(productService.getRelatedProducts(id));
     }
 
+    @PatchMapping("/skus/{skuId}/toggle-status")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<SkuDTO> toggleSkuStatus(@PathVariable Long skuId) {
+        return ResponseEntity.ok(productService.toggleSkuStatus(skuId));
+    }
+
     // API Upload ảnh test thử
     // POST http://localhost:8080/api/v1/products/upload-image
     @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

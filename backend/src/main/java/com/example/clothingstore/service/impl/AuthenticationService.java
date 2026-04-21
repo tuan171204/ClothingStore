@@ -6,6 +6,8 @@ import com.example.clothingstore.dtos.auth.response.IntrospectResponse;
 import com.example.clothingstore.entity.Role;
 import com.example.clothingstore.entity.User;
 import com.example.clothingstore.entity.auth.InvalidatedToken;
+import com.example.clothingstore.exception.AppException;
+import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.repository.RoleRepository;
 import com.example.clothingstore.repository.UserRepository;
 import com.example.clothingstore.repository.auth.InvalidatedTokenRepository;
@@ -205,11 +207,11 @@ public class AuthenticationService {
 
         // nếu token không được gen bởi secret sign key của hệ thống hoặc hết hạn thì từ chối
         if (!(verified && expirationTime.after(new Date())))
-            throw new RuntimeException("Token unverified or out of date !");
+            throw new AppException(ErrorCode.UNAUTHORIZED);
 
         // nếu token đã bị đưa vào bảng invalidatedToken ( đã đăng xuất ) thì từ chối
         if (invalidatedTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID())){
-            throw new RuntimeException("Invalidated token");
+            throw new AppException(ErrorCode.UNAUTHORIZED);
         }
         return signedJWT;
     }

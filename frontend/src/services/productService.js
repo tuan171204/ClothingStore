@@ -20,6 +20,16 @@ export const getProductById = async (id) => {
     }
 };
 
+export const toggleSkuStatus = async (skuId) => {
+    try {
+        const response = await axios.patch(`/products/skus/${skuId}/toggle-status`);
+        return response.data;
+    } catch (error) {
+        console.error(`Lỗi khi thay đổi trạng thái SKU ${skuId}:`, error);
+        throw error;
+    }
+};
+
 /*
 * API TẠO SẢN PHẨM
 */
