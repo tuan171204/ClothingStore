@@ -1,15 +1,15 @@
 # 🛍️ ClothingStore — Nền Tảng Thương Mại Điện Tử Đa Kênh (Headless E-commerce)
 
 > **Đồ Án Chuyên Ngành — Nhóm 3C**
-> Phiên bản tài liệu: cập nhật theo tiến độ thực tế (Sprint 1–9 đang triển khai)
+> Phiên bản: **v1.0.0 — HOÀN THÀNH** (Sprint 1–10 / 10 Sprints)
 
 ---
 
 ## 📖 Tổng Quan Dự Án
 
-Dự án xây dựng nền tảng thương mại điện tử theo kiến trúc **Headless**, tách biệt hoàn toàn giữa tầng hiển thị (Frontend) và tầng nghiệp vụ (Backend API). Hệ thống giải quyết bài toán quản lý bán hàng đa kênh cho doanh nghiệp vừa và nhỏ, bao phủ toàn bộ vòng đời từ quản lý sản phẩm, đặt hàng, thanh toán đến vận chuyển.
+ClothingStore là nền tảng thương mại điện tử theo kiến trúc **Headless**, tách biệt hoàn toàn giữa tầng hiển thị (Frontend Next.js) và tầng nghiệp vụ (Backend Spring Boot REST API). Hệ thống giải quyết bài toán quản lý bán hàng đa kênh cho doanh nghiệp vừa và nhỏ, bao phủ toàn bộ vòng đời từ quản lý sản phẩm, đặt hàng, thanh toán, vận chuyển đến phân tích kinh doanh nâng cao.
 
-**Đối tượng sử dụng:** Khách hàng mua sắm online · Nhân viên kho/bán hàng (Staff) · Quản trị viên (Admin/Super Admin)
+**Đối tượng sử dụng:** Khách hàng mua sắm online · Nhân viên kho/bán hàng (Staff) · Quản trị viên (Admin / Super Admin)
 
 ---
 
@@ -62,6 +62,9 @@ Dự án xây dựng nền tảng thương mại điện tử theo kiến trúc 
 | **Flash Sale** | CRUD chiến dịch Flash Sale (tên, thời gian, danh sách SKU + giá KM + số lượng), đồng bộ Redis khi lưu |
 | **Đánh giá** | Duyệt/từ chối đánh giá, duyệt hàng loạt, lọc review pending |
 | **Thông báo** | Xem thông báo Admin (đơn mới, tồn kho thấp, hoàn trả, hủy đơn), đánh dấu đã đọc |
+| **Banner** | CRUD banner homepage, bật/tắt hiển thị, upload ảnh Cloudinary |
+| **Quản lý người dùng** | Danh sách khách hàng & nhân viên (phân trang, filter), tạo/sửa/xóa nhân viên, bật/tắt tài khoản, gán role |
+| **Báo cáo & Thống kê** | Dashboard KPIs (doanh thu hôm nay / tháng / năm, tăng trưởng %), biểu đồ doanh thu theo ngày/tuần/tháng, Top sản phẩm bán chạy, phân tích theo danh mục & thương hiệu, báo cáo khách hàng (CLV, retention), xuất CSV |
 | **Vector Sync** | Đồng bộ dữ liệu sản phẩm lên Pinecone cho chatbot |
 
 ### ⚙️ Hệ Thống
@@ -71,7 +74,7 @@ Dự án xây dựng nền tảng thương mại điện tử theo kiến trúc 
 | **RBAC 4 cấp** | `SUPER_ADMIN` · `ADMIN` · `STAFF` · `CUSTOMER` — kiểm soát từng endpoint |
 | **JWT** | Access token (HMAC SHA256) + Refresh token, blacklist qua `InvalidatedToken` table |
 | **OpenSearch** | Full-text search + fuzzy search tự động bù sai chính tả |
-| **Redis Cache** | Cache danh sách sản phẩm (TTL 60 phút), cart (Redis hash), Flash Sale stock (atomic DECR), reset password token |
+| **Redis Cache** | Cache danh sách sản phẩm (TTL 60 phút), cart (Redis hash), Flash Sale stock (atomic DECR), reset password token, cache đơn hàng per user |
 | **RabbitMQ Async** | 3 queue: `order_email_queue` (email xác nhận/delivered/cancelled), `notification_queue` (WebSocket push), `flash_sale_sync_queue` (đồng bộ sold_quantity MySQL) |
 | **Email** | Template Thymeleaf HTML cho: xác nhận đơn, giao thành công, hủy đơn |
 | **WebSocket (STOMP)** | Real-time notifications cho Admin qua `/topic/admin/notifications`, xác thực JWT trên CONNECT |
@@ -80,6 +83,8 @@ Dự án xây dựng nền tảng thương mại điện tử theo kiến trúc 
 | **Optimistic Lock** | `@Version` trên `Inventory` cho checkout đồng thời, retry 3 lần với `@Retryable` |
 | **Cloudinary** | Upload ảnh sản phẩm, avatar, ảnh bằng chứng hoàn trả |
 | **Spring AI RAG** | Tư vấn sản phẩm: embed text → Pinecone, retrieve → Gemini generate, chat memory per session (JDBC) |
+| **Performance Testing** | Kiểm thử tải với JMeter: checkout, Flash Sale, API danh sách sản phẩm |
+| **Docker Production** | Docker Compose multi-service production-ready, CI/CD qua GitHub Actions |
 
 ---
 
@@ -90,7 +95,7 @@ Dự án xây dựng nền tảng thương mại điện tử theo kiến trúc 
 ```
 src/
 ├── app/
-│   ├── (admin)/        # Admin portal: dashboard, products, orders, brands, categories, inventory, coupons, flash-sales
+│   ├── (admin)/        # Admin portal: dashboard, products, orders, brands, categories, inventory, coupons, flash-sales, reports, users
 │   ├── (shop)/         # Customer storefront: home, products, cart, checkout, profile, orders
 │   ├── login/          # Auth pages
 │   └── payment-result/ # VNPay callback page
@@ -99,7 +104,7 @@ src/
 │   ├── shop/           # Storefront components (Header, Footer, ProductCard, ChatBot, ...)
 │   └── common/         # Shared (Toast, ...)
 ├── context/            # React Context: AuthContext, AdminAuthContext, CartContext
-├── services/           # Axios wrappers theo domain (productService, orderService, ...)
+├── services/           # Axios wrappers theo domain (productService, orderService, reportService, ...)
 └── lib/                # Axios instance config
 ```
 
@@ -108,15 +113,16 @@ src/
 ```
 src/main/java/com/example/clothingstore/
 ├── config/             # Security, Redis, RabbitMQ, CORS, VNPay, GHN, Cloudinary, WebSocket, OpenSearch, SpringAI
-├── controller/         # REST Controllers (Auth, Product, Order, Payment, Shipping, Cart, Coupon, FlashSale, ...)
+├── controller/         # REST Controllers (Auth, Product, Order, Payment, Shipping, Cart, Coupon, FlashSale, Report, ...)
 ├── service/
-│   ├── impl/           # Business logic (OrderService, CheckoutService, ProductServiceImpl, ...)
+│   ├── impl/           # Business logic (OrderService, CheckoutService, ReportingService, ...)
 │   ├── rabbitmq/       # Producers & Consumers (OrderProducer, NotificationProducer, FlashSaleConsumer, ...)
 │   ├── mail/           # MailService (Thymeleaf templates)
 │   ├── cloudinary/     # CloudinaryService
 │   └── chatbot/        # VectorSyncService (Pinecone sync)
 ├── repository/
-│   ├── specification/  # JPA Specification (OrderSpecification, ProductSpecification)
+│   ├── specification/  # JPA Specification (OrderSpecification, ProductSpecification, UserSpecification)
+│   ├── report/         # Native SQL projections cho reporting
 │   └── search/         # ProductSearchRepository (OpenSearch)
 ├── entity/             # JPA Entities + Enums
 ├── dtos/               # Request/Response DTOs
@@ -168,7 +174,7 @@ Checkout:
     → Sau commit DB → RabbitMQ flash_sale_sync_queue → FlashSaleConsumer cập nhật soldQuantity MySQL
 ```
 
-### 🤖 AI Chatbot
+### 🤖 AI Chatbot (RAG)
 
 ```
 Admin POST /admin/vector/sync → VectorSyncService
@@ -183,6 +189,17 @@ Customer POST /chat/stream (Server-Sent Events)
     → Lưu chat history vào MySQL (spring_ai_chat_memory)
 ```
 
+### 📊 Báo Cáo & Analytics
+
+```
+Admin Dashboard → ReportingService
+    → Native SQL queries trên ReportRepository (tránh N+1, GROUP BY nhanh)
+    → Cache Redis: report_daily_revenue / report_monthly_revenue / report_top_customers
+    → DashboardSummaryDTO: KPIs hôm nay + biểu đồ 30 ngày + Top 5 sản phẩm
+    → SalesComparisonResponse: So sánh kỳ hiện tại vs kỳ trước (% tăng trưởng)
+    → Export CSV: stream thẳng ra HttpServletResponse (không tạo file tạm)
+```
+
 ---
 
 ## 🗄️ Database Schema — Các Entity Chính
@@ -193,7 +210,7 @@ Customer POST /chat/stream (Server-Sent Events)
 | **Product** | `products`, `product_options`, `product_option_values`, `skus`, `sku_values` |
 | **Catalog** | `categories`, `brands` |
 | **Inventory** | `inventory` (Optimistic Lock `version`), `goods_receipts`, `goods_receipt_items`, `stock_movements`, `stock_adjustments` |
-| **Order** | `orders` (có cancel/return fields, tracking GHN), `order_items` |
+| **Order** | `orders` (cancel/return fields, tracking GHN), `order_items` |
 | **Address** | `addresses`, `provinces`, `districts`, `wards` |
 | **Coupon** | `coupons`, `coupon_product` |
 | **Flash Sale** | `flash_sales`, `flash_sale_items` |
@@ -201,6 +218,7 @@ Customer POST /chat/stream (Server-Sent Events)
 | **Notification** | `notifications` |
 | **AI Memory** | `spring_ai_chat_memory` |
 | **Customer** | `customers` (loyalty points, membership tier) |
+| **Banner** | `banners` |
 
 **Flyway Migrations:** V1 (init schema + seed data 20 SP / 22 đơn hàng) → V2 (optimistic lock inventory) → V3 (profit margin + GRN import price + coupons) → V4 (GHN tracking fields) → V5 (cancel/return order fields) → V6 (notifications) → V7 (flash sales) → V8 (coupon_code on orders) → V9 (Google OAuth + AI chat memory)
 
@@ -212,9 +230,11 @@ Customer POST /chat/stream (Server-Sent Events)
 |---|---|---|
 | Authentication | `/api/v1/auth` | Public |
 | Users | `/api/v1/users` | Public (đăng ký) / Auth (myInfo, update) |
+| User Management | `/api/v1/management` | Staff+ |
 | Products | `/api/v1/products` | Public (GET) / Staff+ (POST/PUT/DELETE) |
 | Categories | `/api/v1/categories` | Public |
 | Brands | `/api/v1/brands` | Public |
+| Banners | `/api/v1/banners` | Public (GET) / Staff+ (POST/PATCH/DELETE) |
 | Cart | `/api/v1/cart` | Auth (user) / Public (guest) |
 | Orders | `/api/v1/orders` | Auth |
 | Checkout | `/api/v1/orders/checkout` | Auth |
@@ -228,6 +248,7 @@ Customer POST /chat/stream (Server-Sent Events)
 | Reviews | `/api/v1/products/{id}/reviews` | Public (GET) / Auth (POST) |
 | Comments | `/api/v1/products/{id}/comments` | Public (GET) / Auth (POST) |
 | Notifications | `/api/v1/notifications` | Staff+ |
+| Reports | `/api/v1/reports` | Staff+ / Admin+ (sensitive) |
 | Chatbot | `/api/v1/chat/stream` | Public |
 | Vector Sync | `/api/v1/admin/vector/sync` | Admin+ |
 | GHN Webhook | `/api/webhook/ghn` | Internal (no auth) |
@@ -319,6 +340,16 @@ npm run dev
 # Admin Portal: http://localhost:3000/admin
 ```
 
+### 5. Deploy Production
+
+```bash
+# Build và deploy toàn bộ stack
+docker-compose -f docker-compose.prod.yml up -d --build
+
+# CI/CD tự động qua GitHub Actions
+# Push to main → build → test → deploy
+```
+
 ---
 
 ## 📋 Kế Hoạch Phát Triển (Agile Scrum — 10 Sprints / 20 tuần)
@@ -333,10 +364,50 @@ npm run dev
 | Sprint 6 | Order Management: State Machine, Lifecycle, Email (RabbitMQ), Cancel/Return | ✅ Done |
 | Sprint 7 | Payment Integration: VNPay, COD, Coupon System | ✅ Done |
 | Sprint 8 | Logistics Integration: GHN Webhook, Fulfillment, WebSocket Notifications | ✅ Done |
-| Sprint 9 | Admin Portal, Flash Sale, AI Chatbot (RAG + Gemini), Reviews, Comments | 🔄 In Progress |
-| Sprint 10 | Testing, Performance Optimization, Deployment (Docker + CI/CD) | 📋 To Do |
+| Sprint 9 | Admin Portal, Flash Sale, AI Chatbot (RAG + Gemini), Reviews, Comments, Banner | ✅ Done |
+| Sprint 10 | Reports & Analytics, User Management, Performance Testing, Docker Production, CI/CD | ✅ Done |
 
-**Tổng Story Points:** ~341
+**Tổng Story Points hoàn thành:** ~341 / 341 ✅
+
+---
+
+## 📌 Điểm Nổi Bật Kỹ Thuật
+
+### 1. Checkout Thread-Safe
+Dùng `Optimistic Locking` (`@Version` trên `Inventory`) kết hợp `@Retryable` (retry 3 lần, backoff ngẫu nhiên) để xử lý đặt hàng đồng thời, tránh overselling. Khi xảy ra `ObjectOptimisticLockingFailureException`, Spring tự động retry transaction.
+
+### 2. Flash Sale Zero-Overselling
+Redis `DECR` atomic đảm bảo không bán quá số lượng dưới áp lực concurrency cao. Sau commit DB, `FlashSaleConsumer` đồng bộ `soldQuantity` về MySQL qua RabbitMQ bất đồng bộ — tránh làm chậm luồng checkout chính.
+
+### 3. Cart Architecture
+Toàn bộ giỏ hàng lưu Redis dạng JSON. Lua Script đảm bảo `read-modify-write` atomic khi thêm sản phẩm. Guest cart merge vào user cart khi đăng nhập, tránh mất dữ liệu.
+
+### 4. AI RAG Pipeline
+Google Gemini tạo embedding → lưu Pinecone. Khi chat, hệ thống retrieve top-3 vectors (cosine similarity ≥ 0.4) → inject context vào prompt → Gemini generate → stream về FE qua Server-Sent Events. Chat memory lưu JDBC MySQL per session.
+
+### 5. GHN Webhook Idempotent
+Luôn trả HTTP 200 cho GHN (tránh retry bão hòa), validate ShopID, kiểm tra trạng thái hiện tại trước khi ghi để đảm bảo idempotency. Dual-field update: `OrderStatus` (core) + `trackingStatus`/`trackingMessage` (hiển thị khách hàng).
+
+### 6. Soft Delete Strategy
+Sản phẩm/SKU đã có lịch sử nhập kho (GRN CONFIRMED) → soft delete (`isActive = false`), giữ toàn vẹn audit trail. Chưa có lịch sử → hard delete hoàn toàn.
+
+### 7. Weighted Average Cost (WAC)
+Mỗi lần xác nhận GRN, hệ thống tính lại `importPrice` bình quân theo công thức WAC và tự động tính lại `price = importPrice × (1 + profitMargin/100)`, đảm bảo giá bán luôn phản ánh chi phí thực tế.
+
+### 8. WebSocket Security
+JWT được xác thực qua custom `ChannelInterceptor` tại event `STOMP CONNECT`, nạp `Authentication` vào session WebSocket. Chỉ người dùng có role Staff+ mới kết nối được kênh admin.
+
+### 9. Search Architecture
+Kết hợp OpenSearch (fuzzy search → trả về ID list) với JPA Specification (lọc đa điều kiện + phân trang trên MySQL). Khi không có keyword, bỏ qua OpenSearch hoàn toàn để tiết kiệm tài nguyên.
+
+### 10. Reporting với Native SQL Projections
+Các báo cáo phức tạp (GROUP BY, RANK(), subquery) sử dụng native SQL qua interface-based JPA Projection — tránh load entity không cần thiết, cache Redis TTL 60 phút cho báo cáo lịch sử.
+
+### 11. Return Flow an toàn
+Khách request hoàn trả → `RETURN_REQUESTED` (chờ Admin). Admin approve → `RETURNED` + `releaseStock()`. Tồn kho **không** tự hoàn khi khách gửi request, tránh gian lận tồn kho.
+
+### 12. RabbitMQ After-Commit Hook
+Cả `OrderProducer` và `NotificationProducer` đăng ký `TransactionSynchronization.afterCommit()` — đảm bảo message chỉ được đẩy vào queue **sau khi** MySQL commit thành công, tránh tình trạng consumer nhận message trước khi data tồn tại trong DB.
 
 ---
 
@@ -348,26 +419,6 @@ npm run dev
 
 ---
 
-## 📌 Ghi Chú Kỹ Thuật Quan Trọng cho AI / Báo Cáo
+## 📄 License
 
-### Các điểm đặc sắc kỹ thuật:
-
-1. **Checkout Thread-Safe:** Dùng `Optimistic Locking` (`@Version` trên `Inventory`) + `@Retryable` (3 lần, backoff ngẫu nhiên) để xử lý đặt hàng đồng thời, tránh overselling.
-
-2. **Flash Sale Zero-Overselling:** Redis `DECR` atomic đảm bảo không bán quá số lượng, sau đó đồng bộ `soldQuantity` về MySQL qua RabbitMQ bất đồng bộ.
-
-3. **Cart Architecture:** Toàn bộ giỏ hàng lưu Redis dạng JSON, dùng Lua Script để đảm bảo read-modify-write atomic. Guest cart merge vào user cart khi đăng nhập.
-
-4. **AI RAG Pipeline:** Google Gemini tạo embedding → lưu Pinecone → khi chat, retrieve top-3 docs (similarity ≥ 0.4) → inject vào prompt → Gemini generate → stream về FE qua Server-Sent Events.
-
-5. **GHN Webhook Idempotent:** Luôn trả HTTP 200 cho GHN (tránh retry), validate ShopID, check trạng thái trước khi ghi để đảm bảo idempotency.
-
-6. **Soft Delete Strategy:** Sản phẩm/SKU đã có lịch sử nhập kho (GRN CONFIRMED) → soft delete (`isActive = false`). Chưa có lịch sử → hard delete.
-
-7. **Weighted Average Cost (WAC):** Mỗi lần xác nhận GRN, hệ thống tính lại `importPrice` bình quân và tự động tính lại `price` = `importPrice × (1 + profitMargin/100)`.
-
-8. **WebSocket Security:** JWT được xác thực qua custom `ChannelInterceptor` ở event `STOMP CONNECT`, nạp `Authentication` vào session WebSocket.
-
-9. **Search Architecture:** Kết hợp OpenSearch (fuzzy search → trả về ID list) với JPA Specification (lọc đa điều kiện + phân trang trên MySQL). Khi không có keyword, bỏ qua OpenSearch.
-
-10. **Return Flow:** Khách request hoàn trả → `RETURN_REQUESTED` (chờ Admin) → Admin approve → `RETURNED` + `releaseStock()`. Tồn kho KHÔNG tự hoàn khi khách gửi request, tránh gian lận.
+Dự án phục vụ mục đích học thuật (Đồ án chuyên ngành). Không sử dụng cho mục đích thương mại khi chưa được sự đồng ý của nhóm phát triển.
