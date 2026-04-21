@@ -1,0 +1,54 @@
+-- Flyway Migration V13
+-- Update thumbnail for all products (previously NULL, now populated from Cloudinary)
+-- Total products updated: 50
+
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776738229/xuirciw1lq38ypagdtb0.webp' WHERE `id` = 1;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776738401/oqgua6f4gu5ppmeybg9b.webp' WHERE `id` = 2;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776738571/iosffxpjtozr3hrf7txy.webp' WHERE `id` = 3;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776738644/iyi9fdaill8okfrnmqtk.webp' WHERE `id` = 4;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776738763/o66palxeiyfgh9iz8ckb.webp' WHERE `id` = 5;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776738864/hhz0dwck0iof1fppqdqs.webp' WHERE `id` = 6;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776738933/m25minkhpjvqeopy5shn.webp' WHERE `id` = 7;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739659/gu016ncyknn6ffzonial.webp' WHERE `id` = 8;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739738/kmi9fqvbfom2nepqtz94.webp' WHERE `id` = 9;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739807/dhbbfzjvgmfglpdvtrqo.webp' WHERE `id` = 10;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739995/nt8mb6wlnckfmnlir6rs.webp' WHERE `id` = 11;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776740076/ds0jwcwbg7ir7qdhjoiq.webp' WHERE `id` = 12;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776740474/cwb4ev1b80t2sq2dphmc.webp' WHERE `id` = 13;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776743338/ztknyxu2j3zucgihlaqs.jpg' WHERE `id` = 14;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776745295/cal9ecfbu4f0edapvhjb.webp' WHERE `id` = 15;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776745427/whke8pdal8dxlrpqyfye.webp' WHERE `id` = 16;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776745514/esacoyhkyd1vuherunsl.webp' WHERE `id` = 17;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776745593/ndim3pgle1sziavtsv3d.webp' WHERE `id` = 18;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776745770/o3xdrf0azjouahxiht2j.jpg' WHERE `id` = 19;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776745807/lvkospq4vzexwapecljo.webp' WHERE `id` = 20;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776746021/dewi3tnyr0esfcquovxe.webp' WHERE `id` = 21;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776746086/saysjbuscxrcz0pxmd0a.webp' WHERE `id` = 22;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776746205/fzmofowqkzockgmpmci0.webp' WHERE `id` = 23;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776746342/m3my5gj08qpkjenv6hhm.webp' WHERE `id` = 24;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776746409/br1m1samvgjxv07lie8h.webp' WHERE `id` = 25;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776746624/sladpyabscqxelgryftc.webp' WHERE `id` = 26;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776742238/mjhe5qzcqfdzhh3nf4wu.jpg' WHERE `id` = 27;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776742136/u4ddql64pxsvuk22yk2g.webp' WHERE `id` = 28;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776742068/j5m8c1j6txf8iqxhgqjh.webp' WHERE `id` = 29;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741986/wvfqwjnyytdx0pvi9p54.webp' WHERE `id` = 30;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741849/rcedwbnymxzltnji91fm.webp' WHERE `id` = 31;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741729/qfwurygrovpwks2svzwa.webp' WHERE `id` = 32;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741637/q34q6af33hselqpxalat.webp' WHERE `id` = 33;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741532/xd5dfnnqovjrdoay1zq6.webp' WHERE `id` = 34;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741418/qdbyg2l9qrule75tiuhg.webp' WHERE `id` = 35;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741335/ohtg0x7xmey2ejf1fvbw.webp' WHERE `id` = 36;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741287/qxtgftxmjgbwhkzcxvgo.webp' WHERE `id` = 37;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741199/kymdqunfmmbnukmok6ey.avif' WHERE `id` = 38;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741118/g8meyxsuyyo8fvgwtoaw.webp' WHERE `id` = 39;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776741049/jafpkgvs6gstm7ld4cb0.webp' WHERE `id` = 40;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776740938/nyv0ff4mptqo1r15oe9f.webp' WHERE `id` = 41;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776740845/pcfc8ucgjlxq5d4wxrcq.webp' WHERE `id` = 42;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739591/sxivsku0qf1n7ss3azi9.webp' WHERE `id` = 43;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739547/mw1hxi7cank6ibmtekcy.avif' WHERE `id` = 44;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739404/mhcdby3m42cxneo2dkkk.webp' WHERE `id` = 45;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739317/luksft5y93aicjfkqo6x.webp' WHERE `id` = 46;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739219/vc4ejuyoqyaym3lom6xs.webp' WHERE `id` = 47;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739156/v9ruhtfkiqcpdebgoead.webp' WHERE `id` = 48;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739096/bnikwcn0uoctouo3xv8i.webp' WHERE `id` = 49;
+UPDATE `products` SET `thumbnail` = 'https://res.cloudinary.com/dwmx6maoh/image/upload/v1776739034/kyyel92onjq4vsctwkiz.jpg' WHERE `id` = 50;
