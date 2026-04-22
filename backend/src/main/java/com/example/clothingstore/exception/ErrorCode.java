@@ -61,7 +61,12 @@ public enum ErrorCode {
 
     // Nhóm 90: Module Banner
     BANNER_NOT_FOUND(9001, "Không tìm thấy banner", HttpStatus.NOT_FOUND),
-    BANNER_UPLOAD_ERROR(9002, "Lỗi khi tải ảnh banner lên hệ thống", HttpStatus.INTERNAL_SERVER_ERROR);
+    BANNER_UPLOAD_ERROR(9002, "Lỗi khi tải ảnh banner lên hệ thống", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // Nhóm 100: Module Supplier
+    SUPPLIER_NOT_FOUND(10001, "Không tìm thấy nhà cung cấp", HttpStatus.NOT_FOUND),
+    SUPPLIER_TAX_CODE_ALREADY_EXISTS(10002, "Mã số thuế đã tồn tại trong hệ thống", HttpStatus.BAD_REQUEST),
+    SUPPLIER_HAS_GRN(10003, "Không thể xóa nhà cung cấp đã có phiếu nhập kho", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

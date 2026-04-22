@@ -6,13 +6,46 @@ import { toast } from 'react-toastify';
 import {
     Search, Filter, X, ChevronLeft, ChevronRight,
     RefreshCw, Plus, Edit, Trash2, Package, Tag,
-    Layers, Image as ImageIcon
+    Layers, Image as ImageIcon, Eye
 } from 'lucide-react';
 import { getProductsWithFilter, deleteProduct, formatCurrency } from '@/services/productService';
 import { getBrands } from '@/services/brandService';
 import { getCategories } from '@/services/categoryService';
 
 const PAGE_SIZE_OPTIONS = [8, 12, 24, 48];
+
+/**
+ * Tính khoảng giá từ danh sách SKU của sản phẩm
+ * Trả về chuỗi: "100.000 đ" hoặc "100.000 – 300.000 đ"
+ */
+function getPriceRange(product) {
+    const skus = product.skus;
+
+    // Nếu có khoảng giá từ API
+    if (product.minPrice != null && product.maxPrice != null) {
+        if (product.minPrice === product.maxPrice) {
+            return formatCurrency(product.minPrice);
+        }
+        return `${formatCurrency(product.minPrice)} – ${formatCurrency(product.maxPrice)}`;
+    }
+
+    // Fallback: tính từ danh sách SKU
+    if (!skus || skus.length === 0) {
+        return product.basePrice ? formatCurrency(product.basePrice) : '—';
+    }
+
+    const prices = skus
+        .filter(s => s.price != null && s.price > 0)
+        .map(s => Number(s.price));
+
+    if (prices.length === 0) return 'Chưa có giá';
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+
+    if (min === max) return formatCurrency(min);
+    return `${formatCurrency(min)} – ${formatCurrency(max)}`;
+}
 
 export default function AdminProductPage() {
     const [keyword, setKeyword] = useState('');
@@ -155,7 +188,6 @@ export default function AdminProductPage() {
                 {/* ── FILTER TOOLBAR ── */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 sm:p-4 space-y-3">
                     <div className="flex flex-col gap-2 sm:gap-3">
-                        {/* Search — full width on mobile */}
                         <div className="relative w-full">
                             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
@@ -172,7 +204,6 @@ export default function AdminProductPage() {
                             )}
                         </div>
 
-                        {/* Filters row — stacked on mobile, inline on md+ */}
                         <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
                             <select
                                 value={categoryId}
@@ -202,7 +233,6 @@ export default function AdminProductPage() {
                         </div>
                     </div>
 
-                    {/* Active filters */}
                     {hasActiveFilter && (
                         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100">
                             <Filter size={13} className="text-gray-400" />
@@ -217,7 +247,7 @@ export default function AdminProductPage() {
                     )}
                 </div>
 
-                {/* ── TABLE (desktop) / CARDS (mobile) ── */}
+                {/* ── TABLE ── */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
 
                     {/* Mobile: Card List */}
@@ -248,13 +278,17 @@ export default function AdminProductPage() {
                                                 {product.categoryName || '—'} · {product.brandName || '—'}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className="font-bold text-blue-600 text-sm">{formatCurrency(product.basePrice)}</span>
+                                                <span className="font-bold text-blue-600 text-sm">{getPriceRange(product)}</span>
                                                 <span className={`px-1.5 py-0.5 rounded text-sm font-semibold ${product.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                                                     {product.isActive ? 'Đang bán' : 'Đã ẩn'}
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-1.5 shrink-0">
+                                            <Link href={`/admin/products/${product.id}`}
+                                                className="p-2 rounded-lg bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-purple-700 transition-colors">
+                                                <Eye size={15} />
+                                            </Link>
                                             <Link href={`/admin/products/edit/${product.id}`}
                                                 className="p-2 rounded-lg bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 transition-colors">
                                                 <Edit size={15} />
@@ -277,12 +311,13 @@ export default function AdminProductPage() {
                                 <tr className="bg-gray-50 border-b border-gray-200 text-md font-semibold text-gray-500 uppercase tracking-wider">
                                     <th className="px-4 py-3 text-center w-16">ID</th>
                                     <th className="px-4 py-3 w-20">Ảnh</th>
-                                    <th className="px-4 py-3 min-w-[250px]">Tên sản phẩm</th>
+                                    <th className="px-4 py-3 min-w-[220px]">Tên sản phẩm</th>
                                     <th className="px-4 py-3">Danh mục</th>
                                     <th className="px-4 py-3">Thương hiệu</th>
-                                    <th className="px-4 py-3 text-right">Giá gốc</th>
+                                    {/* ── CHANGED: "Giá gốc" → "Khoảng giá" ── */}
+                                    <th className="px-4 py-3 text-right">Khoảng giá</th>
                                     <th className="px-4 py-3 text-center">Trạng thái</th>
-                                    <th className="px-4 py-3 text-center w-28">Hành động</th>
+                                    <th className="px-4 py-3 text-center w-36">Hành động</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -326,6 +361,12 @@ export default function AdminProductPage() {
                                                 <p className="font-semibold text-gray-800 line-clamp-2 leading-tight" title={product.name}>
                                                     {product.name}
                                                 </p>
+                                                {/* Sub-info: số biến thể */}
+                                                {product.skus && product.skus.length > 0 && (
+                                                    <p className="text-xs text-gray-400 mt-0.5">
+                                                        {product.skus.length} biến thể
+                                                    </p>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">
                                                 {product.categoryName || <span className="text-gray-400 italic">Trống</span>}
@@ -333,9 +374,10 @@ export default function AdminProductPage() {
                                             <td className="px-4 py-3 text-gray-600">
                                                 {product.brandName || <span className="text-gray-400 italic">Trống</span>}
                                             </td>
+                                            {/* ── CHANGED: hiển thị khoảng giá SKU thay vì basePrice ── */}
                                             <td className="px-4 py-3 text-right">
-                                                <span className="font-bold text-blue-600">
-                                                    {formatCurrency(product.basePrice)}
+                                                <span className="font-bold text-blue-600 text-sm leading-tight">
+                                                    {getPriceRange(product)}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-center">
@@ -345,6 +387,14 @@ export default function AdminProductPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center justify-center gap-1.5">
+                                                    {/* ── NEW: Nút xem chi tiết ── */}
+                                                    <Link
+                                                        href={`/admin/products/${product.id}`}
+                                                        title="Xem chi tiết"
+                                                        className="p-2 rounded-lg bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-purple-700 transition-colors"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </Link>
                                                     <Link
                                                         href={`/admin/products/edit/${product.id}`}
                                                         title="Chỉnh sửa"

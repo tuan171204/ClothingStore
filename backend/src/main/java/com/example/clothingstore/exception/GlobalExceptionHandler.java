@@ -1,8 +1,10 @@
 package com.example.clothingstore.exception;
 
 import com.example.clothingstore.dtos.ApiResponse;
+import com.example.clothingstore.dtos.order.response.CheckoutResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.connector.ClientAbortException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -115,5 +117,12 @@ public class GlobalExceptionHandler {
         if (msg != null && (msg.contains("Broken pipe") || msg.contains("aborted by the software"))) {
             System.out.println("INFO: Client ngắt kết nối đột ngột (Local/Windows Disconnect).");
         }
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<CheckoutResponse>> handleOptimisticLocking(OptimisticLockingFailureException ex) {
+        // Trả về JSON giống hệt như lỗi hết hàng (Status 409 Conflict)
+        // Kèm theo danh sách stockMismatches
+        return null;
     }
 }

@@ -30,6 +30,10 @@ public class GoodsReceipt {
     @Column(name = "created_by")
     private String createdBy;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,16 +29,27 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Optional<Order> findByTrackingCode(String code);
 
-        @Query("""
-                        SELECT COUNT(o)
-                        FROM Order o
-                        JOIN o.orderItems oi
-                        JOIN Sku s ON s.id = oi.skuId
-                        WHERE o.userId = :userId
-                            AND o.status = :status
-                            AND s.product.id = :productId
-                        """)
-        long countCompletedOrdersContainingProduct(@Param("userId") String userId,
-                                                                                             @Param("productId") Long productId,
-                                                                                             @Param("status") OrderStatus status);
+    @Query("""
+                    SELECT COUNT(o)
+                    FROM Order o
+                    JOIN o.orderItems oi
+                    JOIN Sku s ON s.id = oi.skuId
+                    WHERE o.userId = :userId
+                        AND o.status = :status
+                        AND s.product.id = :productId
+                    """)
+    long countCompletedOrdersContainingProduct(@Param("userId") String userId,
+                                             @Param("productId") Long productId,
+                                             @Param("status") OrderStatus status);
+
+    @Query("""
+        SELECT DISTINCT o FROM Order o
+        LEFT JOIN FETCH o.orderItems
+        WHERE o.status = :status
+          AND o.paymentMethod = :paymentMethod
+          AND o.createdAt <= :thresholdTime
+    """)
+    List<Order> findAbandonedOrders(@Param("status") OrderStatus status,
+                                    @Param("paymentMethod") String paymentMethod,
+                                    @Param("thresholdTime") LocalDateTime thresholdTime);
 }

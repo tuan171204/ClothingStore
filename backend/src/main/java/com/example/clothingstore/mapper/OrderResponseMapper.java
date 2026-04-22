@@ -28,6 +28,7 @@ public class OrderResponseMapper {
 
         return OrderResponse.builder()
                 .id(order.getId())
+                .userId(order.getUserId())
                 .fullName(order.getFullName())
                 .phoneNumber(order.getPhoneNumber())
                 .shippingAddress(order.getShippingAddress())

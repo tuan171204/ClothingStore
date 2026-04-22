@@ -193,7 +193,7 @@ export default function CreateProductPage() {
             const url = groupImages[ov.optionName]?.[ov.value];
             if (url) return url;
         }
-        return '';
+        return sku.imgUrl || '';
     };
 
     // Detect which options should show image grouping
@@ -440,7 +440,7 @@ export default function CreateProductPage() {
                                 <div className="flex items-center gap-2">
                                     {/* Bulk margin */}
                                     <div className="flex items-center gap-2 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
-                                        <span className="text-xs font-semibold text-green-800 whitespace-nowrap">Lợi nhuận chung (%):</span>
+                                        <span className="text-sm font-semibold text-green-800 whitespace-nowrap">Lợi nhuận chung (%):</span>
                                         <input
                                             type="number"
                                             min="0"
@@ -471,7 +471,6 @@ export default function CreateProductPage() {
                                                 <th className="px-4 py-3">Ảnh (xem trước)</th>
                                                 <th className="px-4 py-3">Biến thể</th>
                                                 <th className="px-4 py-3 w-44">Mã SKU</th>
-                                                <th className="px-4 py-3 w-28 text-center">Tồn kho đầu</th>
                                                 <th className="px-4 py-3 w-28 text-center">Lợi nhuận %</th>
                                             </tr>
                                         </thead>
@@ -480,12 +479,42 @@ export default function CreateProductPage() {
                                                 const imgPreview = resolveSkuImage(sku);
                                                 return (
                                                     <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
-                                                        <td className="px-4 py-3">
-                                                            <div className="w-10 h-10 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
-                                                                {imgPreview
-                                                                    ? <img src={imgPreview} alt="" className="w-full h-full object-cover" />
-                                                                    : <ImageIcon size={14} className="text-gray-300" />
-                                                                }
+                                                        <td className="px-4 py-4 text-center align-middle w-24">
+                                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                                <div className="relative w-14 h-14 border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white">
+                                                                    {resolveSkuImage(sku) ? (
+                                                                        <div className="group relative w-full h-full">
+                                                                            <img src={resolveSkuImage(sku)} alt="" className="w-full h-full object-cover" />
+                                                                            {/* Icon báo hiệu ảnh đang dùng theo nhóm */}
+                                                                            {sku.optionValues?.some(ov => groupImages[ov.optionName]?.[ov.value]) && (
+                                                                                <div className="absolute inset-0 bg-black/5 flex items-center justify-center pointer-events-none">
+                                                                                    <Link2 size={16} className="text-white drop-shadow-md" />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="w-full h-full bg-gray-50 flex items-center justify-center border-2 border-dashed border-gray-200">
+                                                                            <ImageIcon size={20} className="text-gray-300" />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Nút upload cá nhân đè lên nếu KHÔNG dùng ảnh nhóm màu */}
+                                                                    {!sku.optionValues?.some(ov => groupImages[ov.optionName]?.[ov.value]) && (
+                                                                        <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity bg-black/20">
+                                                                            <ImageUpload
+                                                                                onUpload={url => {
+                                                                                    const s = [...skus];
+                                                                                    s[idx].imgUrl = url;
+                                                                                    setSkus(s);
+                                                                                }}
+                                                                                currentImage={sku.imgUrl || ''}
+                                                                            />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                {sku.optionValues?.some(ov => groupImages[ov.optionName]?.[ov.value]) && (
+                                                                    <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">Theo màu</span>
+                                                                )}
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-3 font-medium text-gray-800">{sku.name}</td>
@@ -501,19 +530,7 @@ export default function CreateProductPage() {
                                                                 }}
                                                             />
                                                         </td>
-                                                        <td className="px-4 py-3">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                className="border border-gray-300 px-2 py-1.5 w-full rounded text-center text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                                                value={sku.stock}
-                                                                onChange={e => {
-                                                                    const s = [...skus];
-                                                                    s[idx].stock = parseInt(e.target.value) || 0;
-                                                                    setSkus(s);
-                                                                }}
-                                                            />
-                                                        </td>
+
                                                         <td className="px-4 py-3">
                                                             <div className="flex items-center gap-1">
                                                                 <input

@@ -12,6 +12,7 @@ import {
     SlidersHorizontal, Home, ChevronRight as Chevron,
     LayoutGrid, List, ArrowUpDown, Tag, RefreshCw,
 } from 'lucide-react';
+import { formatNumberInput, parseRawNumber } from '@/utils/formatters';
 
 // ── Helpers ─────────────────────────────────────────────────
 const SORT_OPTIONS = [
@@ -266,18 +267,24 @@ function FilterPanel({ grouped, orphans, brands, filters, onChange, priceInput, 
             <div>
                 <h4 className="text-sm font-black tracking-widest text-gray-400 uppercase mb-3">Khoảng giá</h4>
                 <div className="flex items-center gap-2 mb-3">
-                    <input type="number" placeholder="Từ" min="0"
-                        value={priceInput.min}
-                        onChange={e => setPriceInput(p => ({ ...p, min: e.target.value }))}
-                        className="w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-xl text-md text-center
-                            focus:ring-2 focus:ring-gray-900 outline-none"
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Từ"
+                        // 1. Chỉ hiển thị value đã format
+                        value={formatNumberInput(priceInput.min)}
+                        // 2. Xóa dấu phẩy trước khi lưu vào State
+                        onChange={e => setPriceInput(p => ({ ...p, min: parseRawNumber(e.target.value) }))}
+                        className="w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-xl text-md text-center focus:ring-2 focus:ring-gray-900 outline-none"
                     />
                     <span className="text-gray-300 font-bold">—</span>
-                    <input type="number" placeholder="Đến" min="0"
-                        value={priceInput.max}
-                        onChange={e => setPriceInput(p => ({ ...p, max: e.target.value }))}
-                        className="w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-xl text-md text-center
-                            focus:ring-2 focus:ring-gray-900 outline-none"
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Đến"
+                        value={formatNumberInput(priceInput.max)}
+                        onChange={e => setPriceInput(p => ({ ...p, max: parseRawNumber(e.target.value) }))}
+                        className="w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-xl text-md text-center focus:ring-2 focus:ring-gray-900 outline-none"
                     />
                 </div>
 

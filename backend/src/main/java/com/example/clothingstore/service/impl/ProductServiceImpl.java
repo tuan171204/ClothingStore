@@ -47,6 +47,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductSearchRepository productSearchRepository;
     private final GoodsReceiptItemRepository goodsReceiptItemRepository;
 
+    private final InventoryRepository inventoryRepository;
+
     @Override
     @Cacheable(value = "products")
     @Transactional(readOnly = true)
@@ -155,6 +157,7 @@ public class ProductServiceImpl implements ProductService {
                 sku.setPrice(skuReq.getPrice());
                 sku.setImportPrice(skuReq.getImportPrice());
                 sku.setStockQuantity(skuReq.getStockQuantity());
+                sku.setImgUrl(skuReq.getImgUrl());
 
                 BigDecimal margin = skuReq.getProfitMargin() != null ? skuReq.getProfitMargin() : BigDecimal.ZERO;
                 sku.setProfitMargin(margin);
@@ -300,6 +303,7 @@ public class ProductServiceImpl implements ProductService {
                 ProductSpecification.hasCategory(categoryId),
                 ProductSpecification.hasBrand(brandId),
                 ProductSpecification.priceBetween(minPrice, maxPrice),
+                ProductSpecification.isSellable(),
                 // Nếu matchedIds != null tức là có dùng ES, thì thêm điều kiện WHERE id IN (...)
                 matchedIds != null ? ProductSpecification.hasIdIn(matchedIds) : null
         );
@@ -324,11 +328,22 @@ public class ProductServiceImpl implements ProductService {
 
     }
 
-    @Cacheable(value = "variantMatrix", key = "#productId")
     public ProductVariantResponse getVariantMatrix(Long productId) {
         Product product = productRepository
                 .findByIdWithActiveSkusAndValues(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+
+        // [FIX] Batch-load toàn bộ Inventory của các SKU thuộc sản phẩm này
+        // để lấy availableQuantity thay vì dùng Sku.stockQuantity (đã lỗi thời)
+        List<Long> skuIds = product.getSkus().stream()
+                .map(Sku::getId)
+                .collect(Collectors.toList());
+
+        Map<Long, Integer> availableMap = inventoryRepository.findBySkuIdIn(skuIds).stream()
+                .collect(Collectors.toMap(
+                        inv -> inv.getSku().getId(),
+                        inv -> inv.getAvailableQuantity()
+                ));
 
         // Build option groups (Color: [Red, Blue], Size: [M, L])
         Map<String, LinkedHashSet<String>> optionValueMap = new LinkedHashMap<>();
@@ -346,13 +361,15 @@ public class ProductServiceImpl implements ProductService {
                                 .add(valueName);
                     });
 
-                    boolean inStock = sku.getStockQuantity() != null && sku.getStockQuantity() > 0;
+                    // [FIX] Lấy availableQuantity từ Inventory thay vì stockQuantity từ Sku
+                    int available = availableMap.getOrDefault(sku.getId(), 0);
+                    boolean inStock = available > 0;
 
                     return ProductVariantResponse.SkuMatrix.builder()
                             .skuId(sku.getId())
                             .options(optionMap)
                             .inStock(inStock)
-                            .stockQuantity(sku.getStockQuantity())
+                            .stockQuantity(available)   // <-- trả về available, không phải stockQuantity
                             .price(sku.getPrice())
                             .imgUrl(sku.getImgUrl())
                             .build();

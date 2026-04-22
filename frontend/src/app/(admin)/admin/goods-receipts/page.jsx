@@ -2,7 +2,10 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Plus, Eye, X, CheckCircle, Clock, PackageOpen, ShieldCheck, Edit2, Search, Filter } from 'lucide-react';
+import {
+    Plus, Eye, X, CheckCircle, Clock, PackageOpen,
+    ShieldCheck, Edit2, Filter, Building2
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { getAllGoodsReceipts, getGoodsReceiptById, confirmGoodsReceipt } from '@/services/goodsReceiptService';
@@ -116,15 +119,12 @@ export default function GoodsReceiptsPage() {
                         className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border text-sm font-medium transition-colors flex-1 sm:flex-none justify-center
                             ${showFilters || hasActiveFilters
                                 ? 'bg-blue-50 border-blue-400 text-blue-700'
-                                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-                    >
+                                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
                         <Filter size={15} />
                         Bộ lọc {hasActiveFilters && <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">!</span>}
                     </button>
-                    <Link
-                        href="/admin/goods-receipts/create"
-                        className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm text-sm font-medium flex-1 sm:flex-none justify-center"
-                    >
+                    <Link href="/admin/goods-receipts/create"
+                        className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 text-sm font-medium flex-1 sm:flex-none justify-center">
                         <Plus size={16} /> Tạo phiếu nhập
                     </Link>
                 </div>
@@ -136,11 +136,8 @@ export default function GoodsReceiptsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Trạng thái</label>
-                            <select
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                                value={statusFilter}
-                                onChange={e => setStatusFilter(e.target.value)}
-                            >
+                            <select className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                                value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                                 <option value="">Tất cả trạng thái</option>
                                 <option value="PENDING">⏳ Chờ duyệt</option>
                                 <option value="CONFIRMED">✅ Đã nhập kho</option>
@@ -150,83 +147,84 @@ export default function GoodsReceiptsPage() {
                             <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Từ ngày</label>
                             <input type="date"
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
-                                value={fromDate} onChange={e => setFromDate(e.target.value)} max={toDate || undefined}
-                            />
+                                value={fromDate} onChange={e => setFromDate(e.target.value)} max={toDate || undefined} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Đến ngày</label>
                             <input type="date"
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
-                                value={toDate} onChange={e => setToDate(e.target.value)} min={fromDate || undefined}
-                            />
+                                value={toDate} onChange={e => setToDate(e.target.value)} min={fromDate || undefined} />
                         </div>
                     </div>
                     <div className="flex gap-3 mt-4 pt-4 border-t">
                         <button onClick={applyFilters}
-                            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
+                            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
                             Áp dụng bộ lọc
                         </button>
                         <button onClick={resetFilters}
-                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
                             Xóa bộ lọc
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* TABLE — mobile cards, desktop table */}
+            {/* TABLE */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
-                {/* Mobile: card list */}
+                {/* Mobile cards */}
                 <div className="block sm:hidden divide-y divide-gray-100">
                     {loading ? (
                         <div className="p-8 text-center text-gray-400 text-sm">Đang tải dữ liệu...</div>
-                    ) : data.content.length > 0 ? (
-                        data.content.map((grn) => (
-                            <div key={grn.id} className="p-3 hover:bg-gray-50">
-                                <div className="flex items-start justify-between mb-2">
-                                    <div>
-                                        <span className="font-semibold text-gray-700 text-sm">GRN-{String(grn.id).padStart(4, '0')}</span>
-                                        <p className="text-xs text-gray-400 mt-0.5">{formatDate(grn.createdAt)}</p>
-                                    </div>
-                                    {grn.status === 'PENDING' ? (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                            <Clock size={10} /> Chờ duyệt
-                                        </span>
-                                    ) : (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            <CheckCircle size={10} /> Đã nhập kho
-                                        </span>
+                    ) : data.content.length > 0 ? data.content.map((grn) => (
+                        <div key={grn.id} className="p-3 hover:bg-gray-50">
+                            <div className="flex items-start justify-between mb-2">
+                                <div>
+                                    <span className="font-semibold text-gray-700 text-sm">GRN-{String(grn.id).padStart(4, '0')}</span>
+                                    <p className="text-xs text-gray-400 mt-0.5">{formatDate(grn.createdAt)}</p>
+                                    {grn.supplierName && (
+                                        <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5">
+                                            <Building2 size={10} />{grn.supplierName}
+                                        </p>
                                     )}
                                 </div>
-                                {grn.note && <p className="text-xs text-gray-500 mb-2 italic truncate">"{grn.note}"</p>}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-blue-600 font-medium">Tổng SL: {grn.totalReceived}</span>
-                                    <div className="flex gap-1.5">
-                                        <button onClick={() => handleViewDetails(grn.id)}
-                                            className="text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 p-1.5 rounded-lg transition-colors">
-                                            <Eye size={14} />
-                                        </button>
-                                        {grn.status === 'PENDING' && (
-                                            <Link href={`/admin/goods-receipts/${grn.id}/edit`}
-                                                className="text-gray-600 hover:text-amber-600 bg-gray-100 hover:bg-amber-50 p-1.5 rounded-lg transition-colors">
-                                                <Edit2 size={14} />
-                                            </Link>
-                                        )}
-                                    </div>
+                                {grn.status === 'PENDING' ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                        <Clock size={10} /> Chờ duyệt
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <CheckCircle size={10} /> Đã nhập kho
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-blue-600 font-medium">Tổng SL: {grn.totalReceived}</span>
+                                <div className="flex gap-1.5">
+                                    <button onClick={() => handleViewDetails(grn.id)}
+                                        className="text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 p-1.5 rounded-lg">
+                                        <Eye size={14} />
+                                    </button>
+                                    {grn.status === 'PENDING' && (
+                                        <Link href={`/admin/goods-receipts/${grn.id}/edit`}
+                                            className="text-gray-600 hover:text-amber-600 bg-gray-100 hover:bg-amber-50 p-1.5 rounded-lg">
+                                            <Edit2 size={14} />
+                                        </Link>
+                                    )}
                                 </div>
                             </div>
-                        ))
-                    ) : (
+                        </div>
+                    )) : (
                         <div className="p-8 text-center text-gray-400 text-sm">Không tìm thấy phiếu nhập nào.</div>
                     )}
                 </div>
 
-                {/* Desktop: table */}
+                {/* Desktop table */}
                 <div className="hidden sm:block">
-                    <table className="w-full border-collapse text-md text-center">
-                        <thead className="bg-gray-50 text-gray-600 border-b uppercase text-sm">
+                    <table className="w-full border-collapse text-sm text-center">
+                        <thead className="bg-gray-50 text-gray-600 border-b uppercase text-xs tracking-wider">
                             <tr>
                                 <th className="p-4">Mã Phiếu</th>
+                                <th className="p-4 text-left">Nhà cung cấp</th>
                                 <th className="p-4 text-left">Ghi chú</th>
                                 <th className="p-4">Trạng thái</th>
                                 <th className="p-4">Ngày tạo</th>
@@ -236,45 +234,53 @@ export default function GoodsReceiptsPage() {
                         </thead>
                         <tbody className="divide-y">
                             {loading ? (
-                                <tr><td colSpan="6" className="p-8 text-center text-gray-500">Đang tải dữ liệu...</td></tr>
-                            ) : data.content.length > 0 ? (
-                                data.content.map((grn) => (
-                                    <tr key={grn.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-4 font-semibold text-gray-700">GRN-{String(grn.id).padStart(4, '0')}</td>
-                                        <td className="p-4 text-left max-w-xs truncate text-gray-600" title={grn.note}>
-                                            {grn.note || <span className="italic text-gray-400">Không có ghi chú</span>}
-                                        </td>
-                                        <td className="p-4">
-                                            {grn.status === 'PENDING' ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800">
-                                                    <Clock size={12} /> Chờ duyệt
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                                                    <CheckCircle size={12} /> Đã nhập kho
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-gray-500 text-sm">{formatDate(grn.createdAt)}</td>
-                                        <td className="p-4 font-medium text-blue-600">{grn.totalReceived}</td>
-                                        <td className="p-4">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => handleViewDetails(grn.id)}
-                                                    className="text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 p-2 rounded-lg transition-colors">
-                                                    <Eye size={16} />
-                                                </button>
-                                                {grn.status === 'PENDING' && (
-                                                    <Link href={`/admin/goods-receipts/${grn.id}/edit`}
-                                                        className="text-gray-600 hover:text-amber-600 bg-gray-100 hover:bg-amber-50 p-2 rounded-lg transition-colors">
-                                                        <Edit2 size={16} />
-                                                    </Link>
-                                                )}
+                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">Đang tải dữ liệu...</td></tr>
+                            ) : data.content.length > 0 ? data.content.map((grn) => (
+                                <tr key={grn.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-4 font-semibold text-gray-700">GRN-{String(grn.id).padStart(4, '0')}</td>
+                                    <td className="p-4 text-left">
+                                        {grn.supplierName ? (
+                                            <div className="flex items-center gap-1.5">
+                                                <Building2 size={13} className="text-emerald-500 shrink-0" />
+                                                <span className="text-sm font-medium text-gray-700">{grn.supplierName}</span>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr><td colSpan="6" className="p-8 text-center text-gray-400">Không tìm thấy phiếu nhập nào.</td></tr>
+                                        ) : (
+                                            <span className="text-gray-400 italic text-xs">Chưa gán NCC</span>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-left max-w-xs truncate text-gray-600 text-xs" title={grn.note}>
+                                        {grn.note || <span className="italic text-gray-400">—</span>}
+                                    </td>
+                                    <td className="p-4">
+                                        {grn.status === 'PENDING' ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                <Clock size={11} /> Chờ duyệt
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <CheckCircle size={11} /> Đã nhập kho
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-gray-500 text-xs">{formatDate(grn.createdAt)}</td>
+                                    <td className="p-4 font-medium text-blue-600">{grn.totalReceived}</td>
+                                    <td className="p-4">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button onClick={() => handleViewDetails(grn.id)}
+                                                className="text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 p-2 rounded-lg transition-colors">
+                                                <Eye size={15} />
+                                            </button>
+                                            {grn.status === 'PENDING' && (
+                                                <Link href={`/admin/goods-receipts/${grn.id}/edit`}
+                                                    className="text-gray-600 hover:text-amber-600 bg-gray-100 hover:bg-amber-50 p-2 rounded-lg transition-colors">
+                                                    <Edit2 size={15} />
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr><td colSpan="7" className="p-8 text-center text-gray-400">Không tìm thấy phiếu nhập nào.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -290,7 +296,7 @@ export default function GoodsReceiptsPage() {
                 />
             </div>
 
-            {/* DETAIL MODAL — bottom sheet on mobile */}
+            {/* DETAIL MODAL */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">
                     <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -299,7 +305,9 @@ export default function GoodsReceiptsPage() {
                                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                                     Chi tiết GRN-{String(selectedReceipt?.id || '').padStart(4, '0')}
                                 </h2>
-                                <p className="text-xs sm:text-md text-gray-500 mt-0.5">{selectedReceipt ? formatDate(selectedReceipt.createdAt) : '...'}</p>
+                                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                                    {selectedReceipt ? formatDate(selectedReceipt.createdAt) : '...'}
+                                </p>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-red-500">
                                 <X size={22} />
@@ -310,23 +318,49 @@ export default function GoodsReceiptsPage() {
                             {loadingDetail ? (
                                 <div className="flex justify-center items-center h-32 text-gray-500">Đang tải chi tiết...</div>
                             ) : selectedReceipt && (
-                                <div className="space-y-4 sm:space-y-6">
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-100 text-sm sm:text-md">
+                                <div className="space-y-4 sm:space-y-5">
+                                    {/* Summary grid */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm">
                                         <div>
                                             <span className="block text-gray-500 mb-1 text-xs">Trạng thái</span>
                                             <span className={`font-semibold ${selectedReceipt.status === 'PENDING' ? 'text-amber-600' : 'text-green-600'}`}>
                                                 {selectedReceipt.status === 'PENDING' ? '⏳ Chờ duyệt' : '✅ Đã nhập kho'}
                                             </span>
                                         </div>
-                                        <div><span className="block text-gray-500 mb-1 text-xs">Tổng SL Nhận</span><span className="font-semibold text-gray-800">{selectedReceipt.totalReceived}</span></div>
-                                        <div><span className="block text-gray-500 mb-1 text-xs">Đạt QC</span><span className="font-semibold text-green-600">{selectedReceipt.totalPassed}</span></div>
-                                        <div><span className="block text-gray-500 mb-1 text-xs">Lỗi QC</span><span className="font-semibold text-red-600">{selectedReceipt.totalFailed}</span></div>
+                                        <div>
+                                            <span className="block text-gray-500 mb-1 text-xs">Tổng SL Nhận</span>
+                                            <span className="font-semibold text-gray-800">{selectedReceipt.totalReceived}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-gray-500 mb-1 text-xs">Đạt QC</span>
+                                            <span className="font-semibold text-green-600">{selectedReceipt.totalPassed}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-gray-500 mb-1 text-xs">Lỗi QC</span>
+                                            <span className="font-semibold text-red-600">{selectedReceipt.totalFailed}</span>
+                                        </div>
+
+                                        {/* Supplier row */}
+                                        {selectedReceipt.supplierName && (
+                                            <div className="col-span-2">
+                                                <span className="block text-gray-500 mb-1 text-xs">Nhà cung cấp</span>
+                                                <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
+                                                    <Building2 size={13} /> {selectedReceipt.supplierName}
+                                                    {selectedReceipt.supplierPhone && (
+                                                        <span className="text-emerald-500 font-normal">· {selectedReceipt.supplierPhone}</span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
                                         {selectedReceipt.note && (
-                                            <div className="col-span-2 sm:col-span-4"><span className="block text-gray-500 mb-1 text-xs">Ghi chú</span><span className="text-gray-700 italic text-sm">"{selectedReceipt.note}"</span></div>
+                                            <div className="col-span-2 sm:col-span-4">
+                                                <span className="block text-gray-500 mb-1 text-xs">Ghi chú</span>
+                                                <span className="text-gray-700 italic text-sm">"{selectedReceipt.note}"</span>
+                                            </div>
                                         )}
                                     </div>
 
-                                    {/* Items — scroll horizontally on mobile */}
+                                    {/* Items table */}
                                     <div className="border rounded-lg overflow-hidden">
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm text-center min-w-[500px]">
@@ -344,7 +378,7 @@ export default function GoodsReceiptsPage() {
                                                         <tr key={idx} className="hover:bg-gray-50">
                                                             <td className="p-3 text-left">
                                                                 <div className="font-medium text-gray-800 text-xs sm:text-sm">{item.productName || 'N/A'}</div>
-                                                                {item.skuName && <div className="text-xs text-gray-500">{item.skuName}</div>}
+                                                                {item.skuName && <div className="text-xs text-gray-400">{item.skuName}</div>}
                                                             </td>
                                                             <td className="p-3 text-xs sm:text-sm">{item.quantityReceived}</td>
                                                             <td className="p-3 font-medium text-green-600 text-xs sm:text-sm">{item.quantityPassed}</td>
@@ -363,18 +397,20 @@ export default function GoodsReceiptsPage() {
                         <div className="p-4 sm:p-5 border-t bg-gray-50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
                             <div className="text-xs sm:text-sm text-gray-500 hidden sm:block">
                                 {selectedReceipt?.status === 'PENDING' && canConfirm && (
-                                    <span className="text-amber-600 font-medium">⚠️ Sau khi duyệt, giá nhập bình quân sẽ được tính tự động</span>
+                                    <span className="text-amber-600 font-medium">
+                                        ⚠️ Sau khi duyệt, giá nhập bình quân sẽ được tính tự động
+                                    </span>
                                 )}
                             </div>
                             <div className="flex gap-3 w-full sm:w-auto">
                                 <button onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 sm:flex-none px-5 py-2.5 text-gray-600 bg-white border hover:bg-gray-100 rounded-lg font-medium transition-colors text-sm">
+                                    className="flex-1 sm:flex-none px-5 py-2.5 text-gray-600 bg-white border hover:bg-gray-100 rounded-lg font-medium text-sm">
                                     Đóng
                                 </button>
                                 {selectedReceipt?.status === 'PENDING' && canConfirm && (
                                     <button onClick={handleConfirmReceipt} disabled={confirming}
-                                        className="flex-1 sm:flex-none px-5 py-2.5 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:bg-green-400 text-sm">
-                                        {confirming ? 'Đang xử lý...' : <><ShieldCheck size={16} /> Duyệt & Nhập Kho</>}
+                                        className="flex-1 sm:flex-none px-5 py-2.5 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium flex items-center justify-center gap-2 disabled:bg-green-400 text-sm">
+                                        {confirming ? 'Đang xử lý...' : <><ShieldCheck size={16} /> Duyệt &amp; Nhập Kho</>}
                                     </button>
                                 )}
                             </div>

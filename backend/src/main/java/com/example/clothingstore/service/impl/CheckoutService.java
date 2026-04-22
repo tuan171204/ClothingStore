@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
@@ -102,12 +103,12 @@ public class CheckoutService {
     // ----------------------------------------------------------------
     // Critical section với Optimistic Lock + Retry
     // ----------------------------------------------------------------
-
     @Retryable(
             retryFor  = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class},
             maxAttempts = MAX_RETRY,
             backoff   = @Backoff(delay = 50, multiplier = 2, random = true)
     )
+    @CacheEvict(value = "orders_user", key = "#userId")
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public CheckoutResponse executeCheckoutWithRetry(CheckoutRequest request, String userId) {
 
@@ -125,40 +126,51 @@ public class CheckoutService {
         try {
             // 1. VÒNG LẶP DUY NHẤT: Vừa kiểm tra, vừa trừ kho, vừa tính tiền
             for (CheckoutRequest.CheckoutItem item : request.getItems()) {
-                // Kiểm tra Flash Sale trên RAM (Redis) trước
                 var fsResult = flashSaleRedisService.checkAndDeductFlashSale(item.getSkuId(), item.getQuantity());
 
                 if (fsResult != null) {
-                    // Là hàng Flash Sale -> Tính tiền theo giá KM, KHÔNG trừ Inventory MySQL
                     BigDecimal itemTotal = fsResult.promotionalPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
                     subtotal = subtotal.add(itemTotal);
-
-                    // Ghi nhận item mua bằng giá KM để lưu vào OrderItem
                     item.setPrice(fsResult.promotionalPrice());
-
-                    // Đưa vào danh sách chuẩn bị đẩy RabbitMQ
                     syncMessages.add(new FlashSaleSyncMessage(fsResult.flashSaleId(), item.getSkuId(), item.getQuantity()));
-
                 } else {
-                    // KHÔNG phải hàng Flash Sale -> Kiểm tra và trừ Optimistic Lock MySQL
                     Inventory inv = inventoryMap.get(item.getSkuId());
-                    if (inv == null || inv.getAvailableQuantity() < item.getQuantity()) {
-                        int available = inv == null ? 0 : inv.getAvailableQuantity();
-                        issues.add(new StockException.StockIssue(
-                                item.getSkuId(), item.getProductName(), item.getQuantity(), available));
-                        continue; // Tiếp tục vòng lặp để gom tất cả lỗi thiếu hàng báo cho User 1 lần
+
+                    // [FIX RACE CONDITION] Reload inventory với lock để lấy số liệu mới nhất
+                    // Tránh đọc dữ liệu cũ từ batch load trước đó khi có concurrent checkout
+                    if (inv != null) {
+                        inv = inventoryRepository.findBySkuIdWithLock(item.getSkuId())
+                                .orElse(inv);
                     }
 
-                    inv.setAvailableQuantity(inv.getAvailableQuantity() - item.getQuantity());
+                    int available = inv != null ? inv.getAvailableQuantity() : 0;
+
+                    if (inv == null || available < item.getQuantity()) {
+                        // [FIX] Phân biệt rõ 2 trường hợp:
+                        // - available == 0: Hết hàng hoàn toàn (race condition: người khác vừa mua hết)
+                        // - available > 0 nhưng < requested: Không đủ số lượng
+                        String raceMessage;
+                        if (available == 0) {
+                            raceMessage = "\"" + item.getProductName() + "\" vừa hết hàng " +
+                                    "(có người khác vừa đặt mua thành công). Vui lòng xóa sản phẩm này khỏi giỏ hàng.";
+                        } else {
+                            raceMessage = "\"" + item.getProductName() + "\" hiện chỉ còn " + available +
+                                    " sản phẩm (số lượng vừa thay đổi do đơn hàng khác). Vui lòng điều chỉnh số lượng.";
+                        }
+                        issues.add(new StockException.StockIssue(
+                                item.getSkuId(), item.getProductName(),
+                                item.getQuantity(), available, raceMessage));
+                        continue;
+                    }
+
+                    inv.setAvailableQuantity(available - item.getQuantity());
                     inv.setReservedQuantity(inv.getReservedQuantity() + item.getQuantity());
                     inventoryRepository.save(inv);
 
-                    // Cộng tiền gốc
                     subtotal = subtotal.add(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
                 }
             }
 
-            // Nếu có bất kỳ item nào (thường) thiếu hàng, ném Exception dừng luồng ngay lập tức
             if (!issues.isEmpty()) {
                 boolean allOut = issues.stream().allMatch(i -> i.getAvailable() == 0);
                 throw new StockException(
@@ -166,7 +178,6 @@ public class CheckoutService {
                         issues);
             }
 
-            // 2. TÍNH TOÁN USER VÀ COUPON
             User user = userRepository.findByUsername(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -191,16 +202,15 @@ public class CheckoutService {
                 ApplyCouponResponse couponResp = couponsService.applyCoupon(applyReq);
 
                 if (!couponResp.isValid()) {
-                    throw new AppException(ErrorCode.COUPON_CODE_OUT_OF_STOCK); // Sẽ bay vào catch
+                    throw new AppException(ErrorCode.COUPON_CODE_OUT_OF_STOCK);
                 }
 
                 discountAmount = couponResp.getDiscountAmount();
-                couponsService.markCouponUsed(request.getCouponCode()); // Có thể văng Optimistic Lock -> bay vào catch
+                couponsService.markCouponUsed(request.getCouponCode());
             }
 
             BigDecimal finalTotal = subtotal.subtract(discountAmount).add(request.getShippingFee());
 
-            // 3. LƯU DATABASE ORDER VÀ ORDER ITEMS
             Order order = Order.builder()
                     .userId(user.getId())
                     .fullName(request.getFullName())
@@ -242,12 +252,8 @@ public class CheckoutService {
             }).collect(Collectors.toList());
 
             orderItemRepository.saveAll(orderItems);
-
             savedOrder.setOrderItems(orderItems);
 
-            cartService.clearCart(user.getId());
-
-            // 4. CHẮC CHẮN DB OK -> GỬI RABBITMQ
             for (FlashSaleSyncMessage msg : syncMessages) {
                 rabbitTemplate.convertAndSend(RabbitMQConfig.FS_SYNC_EXCHANGE, RabbitMQConfig.FS_SYNC_ROUTING_KEY, msg);
             }
@@ -267,6 +273,7 @@ public class CheckoutService {
             if ("COD".equals(request.getPaymentMethod())) {
                 orderService.autoConfirmAndShip(savedOrder.getId());
             }
+            cartService.clearCart(user.getId());
 
             return CheckoutResponse.builder()
                     .status(CheckoutResponse.Status.SUCCESS)
@@ -276,12 +283,11 @@ public class CheckoutService {
                     .build();
 
         } catch (Exception e) {
-            // 🔥 HOÀN LẠI REDIS KHI XẢY RA LỖI (ROLLBACK / RETRY)
             for (FlashSaleSyncMessage msg : syncMessages) {
                 flashSaleRedisService.revertFlashSaleStock(msg.getFlashSaleId(), msg.getSkuId(), msg.getQuantity());
                 log.warn("🔄 Reverted Redis FlashSaleStock for SKU: {}", msg.getSkuId());
             }
-            throw e; // Ném ngược Exception ra ngoài để Spring thực hiện Rollback Database và kích hoạt @Retryable
+            throw e;
         }
     }
 
@@ -338,13 +344,21 @@ public class CheckoutService {
     }
 
     private List<StockMismatch> toMismatchDtos(List<StockException.StockIssue> issues) {
-        return issues.stream().map(i -> StockMismatch.builder()
-                .skuId(i.getSkuId()).productName(i.getProductName())
-                .requestedQuantity(i.getRequested()).availableQuantity(i.getAvailable())
-                .canPartialFulfill(i.getAvailable() > 0)
-                .userMessage(i.getAvailable() == 0
-                        ? "\"" + i.getProductName() + "\" đã hết hàng"
-                        : "\"" + i.getProductName() + "\" hiện chỉ còn " + i.getAvailable() + " sản phẩm")
-                .build()).collect(Collectors.toList());
+        return issues.stream().map(i -> {
+            String userMessage = i.getRaceMessage() != null
+                    ? i.getRaceMessage()
+                    : (i.getAvailable() == 0
+                    ? "\"" + i.getProductName() + "\" đã hết hàng"
+                    : "\"" + i.getProductName() + "\" hiện chỉ còn " + i.getAvailable() + " sản phẩm");
+
+            return StockMismatch.builder()
+                    .skuId(i.getSkuId())
+                    .productName(i.getProductName())
+                    .requestedQuantity(i.getRequested())
+                    .availableQuantity(i.getAvailable())
+                    .canPartialFulfill(i.getAvailable() > 0)
+                    .userMessage(userMessage)
+                    .build();
+        }).collect(Collectors.toList());
     }
 }

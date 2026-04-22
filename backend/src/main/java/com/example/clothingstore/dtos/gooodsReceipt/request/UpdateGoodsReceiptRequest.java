@@ -9,6 +9,7 @@ import java.util.List;
 
 @Data
 public class UpdateGoodsReceiptRequest {
+    private Long supplierId;
 
     private String note;
 

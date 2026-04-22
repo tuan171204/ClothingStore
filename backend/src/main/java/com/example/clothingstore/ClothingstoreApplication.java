@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDa
 import org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration;
 import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableRetry
 @EnableAsync
@@ -20,6 +21,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 		ElasticsearchRepositoriesAutoConfiguration.class
 })
 @EnableJpaRepositories(basePackages = "com.example.clothingstore.repository")
+@EnableScheduling
 public class ClothingstoreApplication {
 
 	public static void main(String[] args) {

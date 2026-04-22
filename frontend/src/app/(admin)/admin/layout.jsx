@@ -8,7 +8,8 @@ import AdminHeader from '@/components/admin/AdminHeader';
 import {
     LayoutDashboard, Package, ShoppingCart, FolderTree,
     Tag, Inbox, Archive, Star, LogOut, Store, Ticket, Coins, Truck, Zap, Menu, X, Users,
-    Images
+    Images,
+    Warehouse
 } from 'lucide-react';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
     { href: '/admin/ghn-simulator', icon: Truck, label: 'GHN Webhook Test' },
     { href: '/admin/categories', icon: FolderTree, label: 'Danh mục' },
     { href: '/admin/brands', icon: Tag, label: 'Thương hiệu' },
+    { href: '/admin/supplier', icon: Warehouse, label: 'Nhà cung cấp' },
     { href: '/admin/goods-receipts', icon: Inbox, label: 'Nhập hàng' },
     { href: '/admin/inventory', icon: Archive, label: 'Tồn hàng' },
     { href: '/admin/reviews', icon: Star, label: 'Duyệt đánh giá' },

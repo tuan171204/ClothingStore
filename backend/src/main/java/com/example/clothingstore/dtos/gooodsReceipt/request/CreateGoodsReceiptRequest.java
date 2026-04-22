@@ -10,6 +10,9 @@ import java.util.List;
 @Data
 public class CreateGoodsReceiptRequest {
 
+    @NotNull(message = "Vui lòng chọn nhà cung cấp")
+    private Long supplierId;
+
     private String note;
 
     @NotNull(message = "Danh sách hàng nhập không được để trống")

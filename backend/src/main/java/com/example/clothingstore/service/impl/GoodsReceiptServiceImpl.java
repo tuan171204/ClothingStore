@@ -9,6 +9,8 @@ import com.example.clothingstore.entity.*;
 import com.example.clothingstore.entity.Enum.GrnStatus;
 import com.example.clothingstore.entity.Enum.StockMovementType;
 import com.example.clothingstore.entity.Enum.StockReferenceType;
+import com.example.clothingstore.exception.AppException;
+import com.example.clothingstore.exception.ErrorCode;
 import com.example.clothingstore.repository.*;
 import com.example.clothingstore.service.GoodsReceiptService;
 import com.example.clothingstore.service.InventoryService;
@@ -41,31 +43,23 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     StockMovementRepository stockMovementRepository;
     UserRepository userRepository;
     InventoryService inventoryService;
+    SupplierRepository supplierRepository;  // V10: thêm Supplier
 
     @Override
     public PagedResponse<GoodsReceiptResponse> getAllGoodsReceiptsPaged(
             GrnStatus status, LocalDate fromDate, LocalDate toDate, int page, int size) {
 
-        // 1. Ép kiểu thời gian để SQL quét trọn vẹn ngày
-        // Nếu chọn fromDate là 10/10, phải bắt đầu từ 00:00:00 của ngày 10/10
         LocalDateTime fromDateTime = (fromDate != null) ? fromDate.atStartOfDay() : null;
-
-        // Nếu chọn toDate là 12/10, phải kết thúc ở 23:59:59.999999999 của ngày 12/10
         LocalDateTime toDateTime = (toDate != null) ? toDate.atTime(23, 59, 59, 999999999) : null;
-
-        // 2. Tạo đối tượng phân trang (Không cần Sort ở đây vì Query trong Repository đã ORDER BY rồi)
         Pageable pageable = PageRequest.of(page, size);
 
-        // 3. Thực thi query xuống Database
         Page<GoodsReceipt> grnPage = goodsReceiptRepository.findAllWithFilters(
                 status, fromDateTime, toDateTime, pageable);
 
-        // 4. Map danh sách Entity sang Response DTO bằng hàm có sẵn
         List<GoodsReceiptResponse> content = grnPage.getContent().stream()
                 .map(this::toGrnResponse)
                 .collect(Collectors.toList());
 
-        // 5. Đóng gói vào PagedResponse chuẩn mực
         return PagedResponse.<GoodsReceiptResponse>builder()
                 .content(content)
                 .page(grnPage.getNumber())
@@ -78,16 +72,25 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     }
 
     // ============================================================
-    // INV-002: Tạo phiếu nhập kho
+    // INV-002 + V10: Tạo phiếu nhập kho — bắt buộc gán Supplier
     // ============================================================
     @Override
     @Transactional
     public GoodsReceiptResponse createGoodsReceipt(CreateGoodsReceiptRequest request) {
         String userId = resolveCurrentUserId();
 
+        // V10: Validate và lấy Supplier
+        Supplier supplier = supplierRepository.findById(request.getSupplierId())
+                .orElseThrow(() -> new AppException(ErrorCode.SUPPLIER_NOT_FOUND));
+
+        if (Boolean.FALSE.equals(supplier.getIsActive())) {
+            throw new AppException(ErrorCode.SUPPLIER_NOT_FOUND);
+        }
+
         GoodsReceipt grn = goodsReceiptRepository.save(
                 GoodsReceipt.builder()
                         .createdBy(userId)
+                        .supplier(supplier)           // V10: gắn supplier
                         .note(request.getNote())
                         .status(GrnStatus.PENDING)
                         .build());
@@ -131,9 +134,15 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             throw new RuntimeException("Không thể sửa phiếu nhập đã xác nhận!");
         }
 
+        // V10: Cho phép đổi supplier khi update (nếu request có supplierId)
+        if (request.getSupplierId() != null) {
+            Supplier supplier = supplierRepository.findById(request.getSupplierId())
+                    .orElseThrow(() -> new AppException(ErrorCode.SUPPLIER_NOT_FOUND));
+            grn.setSupplier(supplier);
+        }
+
         grn.setNote(request.getNote());
 
-        // Xóa items cũ và tạo lại
         goodsReceiptItemRepository.deleteAll(grn.getItems());
         grn.getItems().clear();
 
@@ -181,14 +190,12 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             int beforeAvailable = inv.getAvailableQuantity();
 
             if (item.getQuantityPassed() > 0) {
-                // Tính giá nhập bình quân (Weighted Average Cost)
                 if (item.getImportPrice() != null && item.getImportPrice().compareTo(BigDecimal.ZERO) > 0) {
                     BigDecimal currentImportPrice = sku.getImportPrice() != null ? sku.getImportPrice() : BigDecimal.ZERO;
                     int currentStock = inv.getAvailableQuantity();
                     int newQty = item.getQuantityPassed();
                     BigDecimal newImportPrice = item.getImportPrice();
 
-                    // Công thức bình quân: (tồn hiện tại * giá hiện tại + nhập mới * giá mới) / (tồn + nhập mới)
                     BigDecimal totalCurrentValue = currentImportPrice.multiply(BigDecimal.valueOf(currentStock));
                     BigDecimal totalNewValue = newImportPrice.multiply(BigDecimal.valueOf(newQty));
                     int totalQty = currentStock + newQty;
@@ -199,7 +206,6 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
 
                     sku.setImportPrice(avgImportPrice);
 
-                    // Cập nhật giá bán theo tỷ lệ lợi nhuận nếu có
                     if (sku.getProfitMargin() != null && sku.getProfitMargin().compareTo(BigDecimal.ZERO) > 0) {
                         BigDecimal sellingPrice = avgImportPrice.multiply(
                                 BigDecimal.ONE.add(sku.getProfitMargin().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))
@@ -217,12 +223,14 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             }
 
             inventoryRepository.save(inv);
-
-            // Đồng bộ lại Sku.stockQuantity
             sku.setStockQuantity(inv.getAvailableQuantity());
             skuRepository.save(sku);
 
             if (item.getQuantityPassed() > 0) {
+                // Ghi chú bổ sung tên NCC vào StockMovement để truy vết
+                String supplierNote = grn.getSupplier() != null
+                        ? " | NCC: " + grn.getSupplier().getName()
+                        : "";
                 stockMovementRepository.save(
                         StockMovement.builder()
                                 .sku(sku)
@@ -232,7 +240,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                                 .referenceId(String.valueOf(grnId))
                                 .beforeQuantity(beforeAvailable)
                                 .afterQuantity(inv.getAvailableQuantity())
-                                .note("Nhập kho từ GRN #" + grnId + " - Giá nhập: " + item.getImportPrice())
+                                .note("Nhập kho từ GRN #" + grnId + " - Giá nhập: " + item.getImportPrice() + supplierNote)
                                 .build());
             }
         }
@@ -299,6 +307,16 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
         int totalPassed = grn.getItems().stream().mapToInt(GoodsReceiptItem::getQuantityPassed).sum();
         int totalFailed = grn.getItems().stream().mapToInt(GoodsReceiptItem::getQuantityFailed).sum();
 
+        // V10: Map supplier info
+        Long supplierId = null;
+        String supplierName = null;
+        String supplierPhone = null;
+        if (grn.getSupplier() != null) {
+            supplierId = grn.getSupplier().getId();
+            supplierName = grn.getSupplier().getName();
+            supplierPhone = grn.getSupplier().getPhone();
+        }
+
         return GoodsReceiptResponse.builder()
                 .id(grn.getId())
                 .createdBy(grn.getCreatedBy())
@@ -306,6 +324,9 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                 .note(grn.getNote())
                 .createdAt(grn.getCreatedAt())
                 .items(itemResponses)
+                .supplierId(supplierId)
+                .supplierName(supplierName)
+                .supplierPhone(supplierPhone)
                 .totalReceived(totalReceived)
                 .totalPassed(totalPassed)
                 .totalFailed(totalFailed)

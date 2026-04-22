@@ -21,6 +21,10 @@ public class GoodsReceiptResponse {
     LocalDateTime createdAt;
     List<GoodsReceiptItemResponse> items;
 
+    Long supplierId;
+    String supplierName;
+    String supplierPhone;
+
     // Tổng kết
     Integer totalReceived;
     Integer totalPassed;

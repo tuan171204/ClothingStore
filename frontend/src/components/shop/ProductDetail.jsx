@@ -134,6 +134,11 @@ const ProductDetail = ({ product }) => {
     const [quantity, setQuantity] = useState(1);
     const [isImageLoading, setIsImageLoading] = useState(false);
 
+    // [FIX] Lưu map availableQuantity từ API /variants thay vì dùng stockQuantity từ product.skus
+    // Key: skuId (number), Value: availableQuantity (number)
+    const [availableMap, setAvailableMap] = useState({});
+    const [variantLoading, setVariantLoading] = useState(true);
+
     const [reviews, setReviews] = useState([]);
     const [reviewPage, setReviewPage] = useState(0);
     const [reviewTotalPages, setReviewTotalPages] = useState(0);
@@ -147,6 +152,41 @@ const ProductDetail = ({ product }) => {
     const [commentSubmitting, setCommentSubmitting] = useState(false);
 
     const [flashSale, setFlashSale] = useState(null);
+
+    // [FIX] Load variant matrix từ API để lấy availableQuantity chính xác
+    useEffect(() => {
+        if (!product?.id) return;
+        const fetchVariants = async () => {
+            setVariantLoading(true);
+            try {
+                const res = await axios.get(`/products/${product.id}/variants`);
+                const skus = res.data?.skus || [];
+                // Build map: skuId -> availableQuantity
+                const map = {};
+                skus.forEach(s => {
+                    map[s.skuId] = s.stockQuantity; // backend trả về availableQuantity trong field stockQuantity sau khi fix
+                });
+                setAvailableMap(map);
+            } catch (err) {
+                console.error('Lỗi load variant stock:', err);
+                // Fallback: dùng stockQuantity từ product.skus nếu API /variants lỗi
+                const fallback = {};
+                product.skus?.forEach(s => { fallback[s.id] = s.stockQuantity || 0; });
+                setAvailableMap(fallback);
+            } finally {
+                setVariantLoading(false);
+            }
+        };
+        fetchVariants();
+    }, [product?.id]);
+
+    // Helper: lấy số lượng available của 1 SKU
+    // Ưu tiên availableMap (từ Inventory), fallback về stockQuantity trên Sku
+    const getAvailable = useCallback((skuId) => {
+        if (availableMap[skuId] !== undefined) return availableMap[skuId];
+        const sku = product.skus?.find(s => s.id === skuId);
+        return sku?.stockQuantity || 0;
+    }, [availableMap, product.skus]);
 
     useEffect(() => {
         if (product.options?.length > 0) {
@@ -219,15 +259,18 @@ const ProductDetail = ({ product }) => {
 
     useEffect(() => { if (product?.id) loadComments(0); }, [product?.id, loadComments]);
 
+    // [FIX] checkOptionInStock dùng availableMap thay vì sku.stockQuantity
     const checkOptionInStock = useCallback((optionName, value) => {
         if (!product.skus?.length) return false;
         const testSelections = { ...selections, [optionName]: value };
         return product.skus.some(sku => {
-            if (sku.isActive === false || sku.stockQuantity <= 0) return false;
+            if (sku.isActive === false) return false;
+            // Dùng getAvailable để kiểm tra số lượng thật từ Inventory
+            if (getAvailable(sku.id) <= 0) return false;
             const skuValues = sku.optionValues?.map(ov => ov.value) || [];
             return Object.values(testSelections).every(v => skuValues.includes(v));
         });
-    }, [selections, product.skus]);
+    }, [selections, product.skus, getAvailable]);
 
     const handleSelect = (optionName, value) => {
         setIsImageLoading(true);
@@ -240,9 +283,24 @@ const ProductDetail = ({ product }) => {
         setTimeout(() => setIsImageLoading(false), 300);
     };
 
+    // [FIX] currentStock dùng getAvailable(currentSku.id) thay vì currentSku.stockQuantity
+    const currentStock = activeFlashSaleItem
+        ? activeFlashSaleItem.remainingQuantity
+        : (currentSku ? getAvailable(currentSku.id) : 0);
+
+    const isOutOfStock = !currentSku || currentStock === 0;
+
+    useEffect(() => {
+        if (quantity > currentStock && currentStock > 0) {
+            setQuantity(currentStock);
+        }
+    }, [currentStock]);
+
     const handleAddToCart = async () => {
         if (!currentSku) return toast.error("Vui lòng chọn đầy đủ phân loại!");
-        if (currentSku.stockQuantity < quantity) return toast.error("Kho không đủ hàng!");
+        // [FIX] Kiểm tra bằng currentStock (từ Inventory) thay vì currentSku.stockQuantity
+        if (currentStock < quantity) return toast.error("Kho không đủ hàng!");
+        if (currentStock === 0) return toast.error("Sản phẩm đã hết hàng!");
         try {
             await addToCart(product, currentSku, quantity);
             toast.success("Đã thêm vào giỏ hàng!");
@@ -289,30 +347,20 @@ const ProductDetail = ({ product }) => {
         : null;
 
     const displayImage = currentSku?.imgUrl || product.thumbnail || 'https://placehold.co/600x800?text=No+Image';
-    const currentStock = activeFlashSaleItem
-        ? activeFlashSaleItem.remainingQuantity
-        : (currentSku?.stockQuantity || 0);
-    const isOutOfStock = !currentSku || currentStock === 0;
-
-    useEffect(() => {
-        if (quantity > currentStock) setQuantity(Math.max(1, currentStock));
-    }, [currentStock]);
 
     return (
-        // ADDED: flex-col on mobile, flex-row on md+; gap adjusted
         <div className="flex flex-col md:flex-row gap-6 md:gap-12 font-sans mb-20 mt-6 sm:mt-10 md:mt-20 animate-fade-in">
 
-            {/* IMAGE COLUMN — ADDED: full width on mobile, half on md+ */}
+            {/* IMAGE COLUMN */}
             <div className="w-full md:w-1/2">
                 <div className="md:sticky md:top-24">
-                    {/* ADDED: aspect-square on mobile for consistent height */}
                     <div className="relative overflow-hidden flex justify-center">
                         <img
                             src={displayImage}
                             alt={product.name}
                             className={`w-full sm:w-3/4 md:w-1/2 object-cover transition-all duration-500 ${isImageLoading ? 'opacity-50 scale-95 blur-sm' : 'opacity-100 scale-100'}`}
                         />
-                        {isOutOfStock && (
+                        {isOutOfStock && !variantLoading && (
                             <div className="absolute top-4 left-4 bg-black text-white text-sm font-bold px-3 py-1 uppercase tracking-widest">
                                 Sold Out
                             </div>
@@ -321,7 +369,7 @@ const ProductDetail = ({ product }) => {
                 </div>
             </div>
 
-            {/* INFO COLUMN — ADDED: full width on mobile */}
+            {/* INFO COLUMN */}
             <div className="w-full md:w-1/2 flex flex-col pt-0 md:pt-2">
 
                 {/* Brand & Name */}
@@ -329,7 +377,6 @@ const ProductDetail = ({ product }) => {
                     <p className="text-gray-500 text-sm font-semibold tracking-widest uppercase mb-2">
                         {product.brandName || 'Local Brand'}
                     </p>
-                    {/* ADDED: smaller heading on mobile */}
                     <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight mb-3 sm:mb-4">
                         {product.name}
                     </h1>
@@ -352,7 +399,6 @@ const ProductDetail = ({ product }) => {
                             </span>
                         )}
                         {averageRating && (
-                            // ADDED: flex-col on very small, row on sm+
                             <div className="flex items-center gap-1.5 border-l pl-3 sm:pl-4 border-gray-200">
                                 <StarDisplay rating={Math.round(averageRating)} size="sm" />
                                 <span className="text-sm text-gray-500">({averageRating}/5)</span>
@@ -376,7 +422,7 @@ const ProductDetail = ({ product }) => {
 
                 <div className="w-full h-px bg-gray-200 mb-6 sm:mb-8" />
 
-                {/* Options — ADDED: touch-friendly button sizes */}
+                {/* Options */}
                 <div className="space-y-5 sm:space-y-6 mb-6 sm:mb-8">
                     {product.options?.map(opt => (
                         <div key={opt.id}>
@@ -388,19 +434,18 @@ const ProductDetail = ({ product }) => {
                                     </button>
                                 )}
                             </div>
-                            {/* ADDED: wrap on mobile */}
                             <div className="flex flex-wrap gap-2 sm:gap-3">
                                 {opt.values?.filter(v => v.isActive !== false).map(val => {
                                     const isSelected = selections[opt.name] === val.value;
-                                    const hasStock = checkOptionInStock(opt.name, val.value);
+                                    // [FIX] checkOptionInStock giờ dùng availableMap
+                                    const hasStock = variantLoading ? true : checkOptionInStock(opt.name, val.value);
                                     const isDisabled = !isSelected && !hasStock;
                                     return (
-                                        // ADDED: min-w and min-h for touch targets
                                         <button
                                             key={val.id}
                                             disabled={isDisabled}
                                             onClick={() => handleSelect(opt.name, val.value)}
-                                            className={`min-w-[44px] min-h-[44px] px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-md font-bold border transition-all
+                                            className={`min-w-[44px] min-h-[44px] px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-md font-bold border transition-all relative
                                                 ${isSelected
                                                     ? 'border-gray-900 bg-gray-900 text-white'
                                                     : isDisabled
@@ -409,6 +454,12 @@ const ProductDetail = ({ product }) => {
                                                 }`}
                                         >
                                             {val.value}
+                                            {/* Gạch chéo cho option hết hàng */}
+                                            {isDisabled && !variantLoading && (
+                                                <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <span className="w-full h-px bg-gray-300 absolute rotate-45 scale-x-125" />
+                                                </span>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -417,37 +468,56 @@ const ProductDetail = ({ product }) => {
                     ))}
                 </div>
 
-                {/* Stock */}
+                {/* Stock — [FIX] dùng currentStock từ availableMap */}
                 <div className="mb-6 sm:mb-8">
-                    {currentSku
-                        ? <p className={`text-md font-medium ${currentStock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {currentStock > 0 ? `Còn ${currentStock} sản phẩm` : 'Hết hàng'}
+                    {variantLoading ? (
+                        <p className="text-sm text-gray-400 animate-pulse">Đang kiểm tra tồn kho...</p>
+                    ) : currentSku ? (
+                        <p className={`text-md font-medium ${currentStock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {currentStock > 0
+                                ? `Còn ${currentStock} sản phẩm`
+                                : 'Hết hàng — sản phẩm này đã hết, vui lòng chọn biến thể khác'}
                         </p>
-                        : <p className="text-md text-amber-600 font-medium">Sản phẩm đã hết hàng</p>
-                    }
+                    ) : (
+                        <p className="text-md text-amber-600 font-medium">Vui lòng chọn phân loại sản phẩm</p>
+                    )}
                 </div>
 
-                {/* ACTION BUTTONS — ADDED: stack on small mobile, row on sm+ */}
+                {/* ACTION BUTTONS */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-10">
                     {/* Quantity selector */}
                     <div className="flex items-center border border-gray-300 h-14 w-full sm:w-36 shrink-0">
-                        <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-14 h-full flex justify-center items-center text-gray-500 hover:text-black hover:bg-gray-50 transition">
+                        <button
+                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                            className="w-14 h-full flex justify-center items-center text-gray-500 hover:text-black hover:bg-gray-50 transition"
+                        >
                             <Minus size={18} />
                         </button>
-                        <input type="number" className="w-full h-full text-center font-bold text-gray-900 outline-none bg-transparent text-lg" value={quantity} readOnly />
-                        <button onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))} disabled={isOutOfStock} className="w-14 h-full flex justify-center items-center text-gray-500 hover:text-black hover:bg-gray-50 transition disabled:opacity-50">
+                        <input
+                            type="number"
+                            className="w-full h-full text-center font-bold text-gray-900 outline-none bg-transparent text-lg"
+                            value={quantity}
+                            readOnly
+                        />
+                        <button
+                            onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))}
+                            disabled={isOutOfStock || quantity >= currentStock}
+                            className="w-14 h-full flex justify-center items-center text-gray-500 hover:text-black hover:bg-gray-50 transition disabled:opacity-50"
+                        >
                             <Plus size={18} />
                         </button>
                     </div>
                     {/* Add to cart */}
                     <button
                         onClick={handleAddToCart}
-                        disabled={isOutOfStock}
+                        disabled={isOutOfStock || variantLoading}
                         className={`flex-1 flex items-center justify-center gap-3 h-14 font-bold text-sm sm:text-md tracking-widest uppercase transition-all cursor-pointer
-                            ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black active:scale-[0.98]'}`}
+                            ${isOutOfStock || variantLoading
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-gray-900 text-white hover:bg-black active:scale-[0.98]'}`}
                     >
                         <ShoppingCart size={18} />
-                        {isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
+                        {variantLoading ? 'Đang tải...' : isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
                     </button>
                     <button className="h-14 w-full sm:w-14 shrink-0 border border-gray-300 flex items-center justify-center text-gray-500 hover:border-gray-900 hover:text-gray-900 transition-colors cursor-pointer">
                         <Heart size={20} />
@@ -475,7 +545,6 @@ const ProductDetail = ({ product }) => {
                     </div>
 
                     {averageRating && (
-                        // ADDED: flex-col on mobile, row on sm+
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6 p-4 bg-amber-50 border border-amber-100 rounded-xl">
                             <div className="text-center sm:text-left">
                                 <div className="text-4xl font-black text-amber-500">{averageRating}</div>

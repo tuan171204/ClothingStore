@@ -247,14 +247,13 @@ public class CartServiceImpl implements CartService {
                 warning = true;
                 warningMsg = "\"" + sku.getProduct().getName() + "\" đã hết hàng và đã được xóa khỏi giỏ";
                 cartModified = true;
-                continue; // Hết hàng → remove
             } else if (effectiveQty > available) {
                 warning = true;
                 warningMsg = "Số lượng \"" + sku.getProduct().getName()
                         + "\" đã thay đổi. Hiện chỉ còn " + available + " sản phẩm.";
                 effectiveQty = available;
                 itemData.setQuantity(available); // Điều chỉnh trong Redis data
-                cartModified = true;
+                cartModified = true;    
             }
 
             String variantName = buildVariantName(sku);

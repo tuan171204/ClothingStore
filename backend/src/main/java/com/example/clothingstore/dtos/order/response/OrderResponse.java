@@ -1,8 +1,10 @@
 package com.example.clothingstore.dtos.order.response;
 
 import com.example.clothingstore.entity.Enum.OrderStatus;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -10,6 +12,8 @@ import java.util.List;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class OrderResponse {
     private Long id;
     private String userId;
@@ -55,6 +59,8 @@ public class OrderResponse {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class OrderItemResponse {
         private Long id;
         private Long skuId;

@@ -2,6 +2,9 @@ package com.example.clothingstore.repository.specification;
 
 import com.example.clothingstore.entity.Category;
 import com.example.clothingstore.entity.Product;
+import com.example.clothingstore.entity.Sku;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
@@ -96,5 +99,23 @@ public class ProductSpecification {
         }
 
         return spec;
+    }
+
+    public static Specification<Product> isSellable() {
+        return (root, query, cb) -> {
+            // Bắt buộc thêm distinct để không bị lặp sản phẩm nếu sản phẩm đó có nhiều SKU
+            query.distinct(true);
+
+            // Inner Join từ Product sang Sku
+            Join<Product, Sku> skuJoin = root.join("skus", JoinType.INNER);
+
+            // Điều kiện: Ít nhất 1 SKU phải đang Active và có Giá Bán > 0
+            return cb.and(
+                    cb.isTrue(root.get("isActive")),
+                    cb.isTrue(skuJoin.get("isActive")),
+                    cb.isNotNull(skuJoin.get("price")),
+                    cb.greaterThan(skuJoin.get("price"), BigDecimal.ZERO)
+            );
+        };
     }
 }

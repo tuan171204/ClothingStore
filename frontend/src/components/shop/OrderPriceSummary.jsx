@@ -26,6 +26,11 @@ export const OrderPriceSummary = ({ order, formatCurrency }) => (
             <p>
                 Ngày đặt:{' '}
                 <span className="font-medium text-gray-900">
+                    {new Date(order.createdAt).toLocaleString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    })}
+                    -
                     {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                 </span>
             </p>

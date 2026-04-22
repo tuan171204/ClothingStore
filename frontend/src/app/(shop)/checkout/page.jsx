@@ -11,7 +11,7 @@ import { applyCoupon } from '@/services/couponService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
-import { MapPin, CheckCircle2, Plus, AlertTriangle, Ticket, Loader2, X, AlertCircle, ChevronLeft, ArrowBigLeftDash } from 'lucide-react';
+import { MapPin, CheckCircle2, Plus, AlertTriangle, Ticket, Loader2, X, AlertCircle, ChevronLeft, ArrowBigLeftDash, ShoppingBag } from 'lucide-react';
 import CouponSelectDrawer from '@/components/shop/CouponSelectDrawer';
 
 // ─── COUPON WIDGET ─────────────────────────────────────────────────
@@ -139,6 +139,49 @@ export const CouponTriggerAndDrawer = ({
     </>
 );
 
+// ─── STOCK ERROR BANNER ────────────────────────────────────────────
+function StockErrorBanner({ mismatches, onGoToCart }) {
+    return (
+        <div className="mb-5 rounded-xl border-2 border-red-200 bg-red-50 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 bg-red-100 border-b border-red-200">
+                <AlertTriangle size={18} className="text-red-600 shrink-0" />
+                <div>
+                    <p className="font-bold text-red-800 text-sm sm:text-base">
+                        Không thể đặt hàng — Giỏ hàng có sản phẩm vừa hết
+                    </p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                        Vui lòng xóa sản phẩm hết hàng khỏi giỏ trước khi tiếp tục
+                    </p>
+                </div>
+            </div>
+            <ul className="px-4 py-3 space-y-2">
+                {mismatches.map(m => (
+                    <li key={m.skuId} className="flex items-start gap-2 text-sm text-red-700">
+                        <span className="mt-1.5 w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
+                        <span>
+                            <strong>{m.productName}</strong>
+                            {m.variantName ? ` (${m.variantName})` : ''}
+                            {' — '}
+                            {m.availableQuantity === 0
+                                ? 'Đã hết hàng'
+                                : `Chỉ còn ${m.availableQuantity} sản phẩm (bạn chọn ${m.requestedQuantity})`
+                            }
+                        </span>
+                    </li>
+                ))}
+            </ul>
+            <div className="px-4 pb-4">
+                <button
+                    onClick={onGoToCart}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                    <ShoppingBag size={15} /> Đi đến giỏ hàng để cập nhật
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ─── MAIN PAGE ─────────────────────────────────────────────────────
 export default function CheckoutPage() {
     const { cartItems, cartTotal, clearCart, validateCart } = useCart();
@@ -160,10 +203,13 @@ export default function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState('COD');
     const [shippingFee, setShippingFee] = useState(0);
     const [loadingFee, setLoadingFee] = useState(false);
+    const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
     const [appliedCoupon, setAppliedCoupon] = useState(null);
+
+    // ─── NEW: stock mismatch state ─────────────────────────────────
+    // Lưu danh sách sản phẩm hết hàng — KHÔNG redirect, hiển thị tại chỗ
     const [stockMismatches, setStockMismatches] = useState([]);
-    const [checkoutError, setCheckoutError] = useState(null);
 
     const discountAmount = appliedCoupon?.discountAmount || 0;
     const finalTotal = Math.max(0, cartTotal + shippingFee - discountAmount);
@@ -251,17 +297,23 @@ export default function CheckoutPage() {
     };
 
     const handlePlaceOrder = async () => {
+        // Clear previous stock errors
         setStockMismatches([]);
-        setCheckoutError(null);
-        setLoadingFee(true);
+        setIsPlacingOrder(true);
 
-        if (cartItems.length === 0) return alert("Giỏ hàng trống!");
+        if (cartItems.length === 0) {
+            setIsPlacingOrder(false);
+            return alert("Giỏ hàng trống!");
+        }
 
         let finalOrderData = {};
 
         if (selectedAddressId !== 'new') {
             const selectedAddr = savedAddresses.find(a => a.id === selectedAddressId);
-            if (!selectedAddr) return alert("Lỗi chọn địa chỉ!");
+            if (!selectedAddr) {
+                setIsPlacingOrder(false);
+                return alert("Lỗi chọn địa chỉ!");
+            }
             finalOrderData = {
                 fullName: selectedAddr.receiverName,
                 phoneNumber: selectedAddr.phone,
@@ -276,6 +328,7 @@ export default function CheckoutPage() {
             };
         } else {
             if (!formData.fullName || !formData.phone || !formData.specificAddress || !selectedProvince || !selectedDistrict || !selectedWard) {
+                setIsPlacingOrder(false);
                 return alert("Vui lòng điền đầy đủ thông tin giao hàng!");
             }
             const fullAddress = `${formData.specificAddress}, ${findName(wards, 'WardCode', selectedWard, 'WardName')}, ${findName(districts, 'DistrictID', selectedDistrict, 'DistrictName')}, ${findName(provinces, 'ProvinceID', selectedProvince, 'ProvinceName')}`;
@@ -293,7 +346,6 @@ export default function CheckoutPage() {
             };
         }
 
-        setLoadingFee(true);
         try {
             const result = await checkoutService.checkout(finalOrderData);
             if (result.status === 'SUCCESS') {
@@ -306,18 +358,30 @@ export default function CheckoutPage() {
             }
         } catch (error) {
             const responseData = error.response?.data?.result;
+
             if (responseData?.status === 'OUT_OF_STOCK' || responseData?.status === 'PARTIAL_AVAILABLE') {
-                setStockMismatches(responseData.stockMismatches || []);
-                setCheckoutError(responseData.message);
-                await validateCart();
-                toast.warn("Giỏ hàng đã được cập nhật theo tồn kho mới nhất");
+                // ─── THAY ĐỔI CHÍNH: Không redirect, hiển thị lỗi tại chỗ ───
+                const mismatches = responseData.stockMismatches || [];
+                setStockMismatches(mismatches);
+
+                // Validate + sync lại giỏ hàng để hiển thị cảnh báo per-item
+                // await validateCart();
+
+                // Chỉ toast thông báo ngắn gọn, không redirect
+                toast.warn("⚠️ Một số sản phẩm vừa hết hàng. Vui lòng cập nhật giỏ hàng.", {
+                    autoClose: 5000,
+                });
+
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
-                toast.error(error.response?.data?.message || "Lỗi đặt hàng");
+                toast.error(error.response?.data?.message || "Lỗi đặt hàng, vui lòng thử lại.");
             }
         } finally {
-            setLoadingFee(false);
+            setIsPlacingOrder(false);
         }
     };
+
+    const hasStockError = stockMismatches.length > 0;
 
     if (cartItems.length === 0) return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -326,30 +390,20 @@ export default function CheckoutPage() {
     );
 
     return (
-        // ADDED: reduced top padding on mobile
         <div className="min-h-screen bg-gray-50 py-6 sm:py-10 font-sans mt-14 sm:mt-20">
-            {stockMismatches.length > 0 && (
-                <div className="mb-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg max-w-7xl mx-auto mx-3 sm:mx-auto">
-                    <div className="flex items-center gap-2 mb-3">
-                        <AlertTriangle size={16} className="text-red-500" />
-                        <p className="font-bold text-red-800 text-sm sm:text-base">Không thể đặt hàng</p>
-                    </div>
-                    <ul className="space-y-2">
-                        {stockMismatches.map(m => (
-                            <li key={m.skuId} className="text-sm text-red-700 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
-                                {m.userMessage}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
-            {/* ADDED: single-col on mobile, 3-col on lg */}
             <div className="container mx-auto px-3 sm:px-4 grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
 
-                {/* LEFT COLUMN — spans 2 on lg */}
+                {/* LEFT COLUMN */}
                 <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+
+                    {/* ─── STOCK ERROR BANNER (hiển thị ngay trong trang, không redirect) ─── */}
+                    {hasStockError && (
+                        <StockErrorBanner
+                            mismatches={stockMismatches}
+                            onGoToCart={() => router.push('/cart')}
+                        />
+                    )}
+
                     {/* ADDRESS SECTION */}
                     <div className="bg-white p-4 sm:p-6 rounded-md shadow-sm border border-gray-200">
                         <h3 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2 mb-5 sm:mb-6 pb-4 border-b border-gray-100 uppercase tracking-tight">
@@ -369,7 +423,6 @@ export default function CheckoutPage() {
                                             className="mt-1 w-4 h-4 sm:w-5 sm:h-5 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
                                         />
                                         <div className="flex-1 space-y-1 text-sm sm:text-md">
-                                            {/* ADDED: flex-col on mobile, row on sm+ */}
                                             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1 sm:mb-2">
                                                 <span className="font-bold text-gray-900">{addr.receiverName}</span>
                                                 <span className="hidden sm:inline text-gray-300">|</span>
@@ -386,7 +439,6 @@ export default function CheckoutPage() {
                                     </label>
                                 ))}
 
-                                {/* New address option */}
                                 <label className={`flex gap-3 sm:gap-4 p-3 sm:p-5 rounded-md border-2 cursor-pointer transition-all ${selectedAddressId === 'new' ? 'border-blue-600 bg-blue-50/30' : 'border-gray-200 hover:border-blue-300'}`}>
                                     <input
                                         type="radio" name="addressSelect"
@@ -400,7 +452,6 @@ export default function CheckoutPage() {
                                         </div>
 
                                         {selectedAddressId === 'new' && (
-                                            // ADDED: 1 col on mobile, 2 cols on md+
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-4 pt-4 border-t border-gray-200 text-md">
                                                 <input type="text" name="fullName" placeholder="Họ và tên người nhận" value={formData.fullName} onChange={handleInputChange} className="border border-gray-300 p-3 rounded-md w-full focus:ring-1 focus:ring-gray-900 outline-none bg-white text-sm sm:text-base" />
                                                 <input type="text" name="phone" placeholder="Số điện thoại" value={formData.phone} onChange={handleInputChange} className="border border-gray-300 p-3 rounded-md w-full focus:ring-1 focus:ring-gray-900 outline-none bg-white text-sm sm:text-base" />
@@ -460,9 +511,8 @@ export default function CheckoutPage() {
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN — ADDED: full width on mobile, stacks below left col */}
+                {/* RIGHT COLUMN */}
                 <div className="lg:col-span-1">
-                    {/* ADDED: sticky only on lg */}
                     <div className="bg-white p-4 sm:p-6 rounded-md shadow-sm border border-gray-200 lg:sticky lg:top-28">
                         <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight mb-4 sm:mb-5 border-b border-gray-100 pb-4 text-gray-900">Tổng quan đơn hàng</h3>
 
@@ -508,14 +558,33 @@ export default function CheckoutPage() {
                         </div>
 
                         <button
-                            onClick={() => paymentMethod === 'COD' ? setShowCodConfirm(true) : handlePlaceOrder()}
-                            disabled={loadingFee || isFetchingAddress || stockMismatches.length > 0}
-                            className="w-full flex items-center justify-center gap-2 py-4 rounded-md font-bold text-sm sm:text-md text-white bg-linear-to-r from-blue-600 via-blue-800 to-gray-900 bg-size-[300%_auto] bg-position-[0%_center] hover:bg-position-[100%_center] transition-all duration-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer uppercase tracking-wider"
+                            onClick={() => {
+                                if (hasStockError) {
+                                    router.push('/cart');
+                                    return;
+                                }
+                                if (paymentMethod === 'COD') {
+                                    setShowCodConfirm(true);
+                                } else {
+                                    handlePlaceOrder();
+                                }
+                            }}
+                            disabled={isPlacingOrder || loadingFee || isFetchingAddress}
+                            className={`w-full flex items-center justify-center gap-2 py-4 rounded-md font-bold text-sm sm:text-md text-white transition-all duration-300 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer uppercase tracking-wider
+                                ${hasStockError
+                                    ? 'bg-red-600 hover:bg-red-700'
+                                    : 'bg-linear-to-r from-blue-600 via-blue-800 to-gray-900 bg-size-[300%_auto] bg-position-[0%_center] hover:bg-position-[100%_center] duration-700'
+                                }`}
                         >
-                            {stockMismatches.length > 0
-                                ? "Vui lòng cập nhật giỏ hàng"
-                                : paymentMethod === 'VNPAY' ? 'THANH TOÁN VNPAY' : 'ĐẶT HÀNG NGAY'
-                            }
+                            {isPlacingOrder ? (
+                                <><Loader2 size={16} className="animate-spin" /> Đang xử lý...</>
+                            ) : hasStockError ? (
+                                <><ShoppingBag size={16} /> Cập nhật giỏ hàng</>
+                            ) : paymentMethod === 'VNPAY' ? (
+                                'THANH TOÁN VNPAY'
+                            ) : (
+                                'ĐẶT HÀNG NGAY'
+                            )}
                         </button>
                     </div>
 
